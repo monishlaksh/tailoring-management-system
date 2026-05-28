@@ -1,0 +1,197 @@
+'use client'
+import { useEffect, useState } from 'react'
+import { useRouter, useParams } from 'next/navigation'
+import { ArrowLeft, Save, Trash2, ChevronRight } from 'lucide-react'
+import API from '../../../../lib/api'
+
+const STAGES = ['Booking','Cutting','Stitching','Finishing','Ready For Delivery']
+const STAGE_ICONS = { 'Booking':'📘','Cutting':'✂️','Stitching':'🧵','Finishing':'🚩','Ready For Delivery':'✅' }
+const MEASUREMENT_FIELDS = ['shoulder','chest','waist','hip','sleeve','length','neck','custom']
+
+export default function OrderDetail() {
+  const router   = useRouter()
+  const { orderID } = useParams()
+  const [order, setOrder]     = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving]   = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError]     = useState('')
+  const [success, setSuccess] = useState('')
+  const [form, setForm]       = useState(null)
+
+  useEffect(() => {
+    if (!localStorage.getItem('adminToken')) { router.push('/admin/login'); return }
+    fetchOrder()
+  }, [orderID])
+
+  const fetchOrder = async () => {
+    try {
+      const res = await API.get(`/api/orders/${orderID}`)
+      setOrder(res.data.order)
+      const o = res.data.order
+      setForm({
+        clothType: o.clothType, quantity: o.quantity,
+        fabricNotes: o.fabricNotes||'', specialInstructions: o.specialInstructions||'',
+        deliveryDate: o.deliveryDate ? new Date(o.deliveryDate).toISOString().split('T')[0] : '',
+        measurements: o.measurements || {},
+        alteration: o.alteration || { required:false, notes:'' },
+        status: o.status,
+      })
+    } catch (e) { setError('Order not found') }
+    finally { setLoading(false) }
+  }
+
+  const handleSave = async () => {
+    setSaving(true); setError(''); setSuccess('')
+    try {
+      await API.put(`/api/orders/${orderID}`, form)
+      setSuccess('Order updated successfully!')
+      fetchOrder()
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (e) {
+      setError(e.response?.data?.message || 'Failed to update')
+    } finally { setSaving(false) }
+  }
+
+  const handleStatusChange = async (status) => {
+    try {
+      await API.patch(`/api/orders/${orderID}/status`, { status })
+      setForm(f => ({...f, status}))
+      setOrder(o => ({...o, status}))
+      setSuccess(`Status updated to ${status}`)
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (e) { setError('Failed to update status') }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm(`Delete order ${orderID}? This cannot be undone.`)) return
+    setDeleting(true)
+    try {
+      await API.delete(`/api/orders/${orderID}`)
+      router.push('/admin/dashboard')
+    } catch (e) { setError('Failed to delete'); setDeleting(false) }
+  }
+
+  if (loading) return <main style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}><div className="spinner" style={{ width:32, height:32, borderWidth:3 }} /></main>
+  if (!order || !form) return <main style={{ padding:24 }}><p style={{ color:'#EF4444' }}>Order not found.</p></main>
+
+  const stageIndex = STAGES.indexOf(form.status)
+
+  return (
+    <main style={{ minHeight:'100vh', padding:'24px', maxWidth:900, margin:'0 auto' }}>
+      <div className="glass" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 24px', marginBottom:24, flexWrap:'wrap', gap:12 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <button onClick={() => router.push('/admin/dashboard')} style={{ background:'none', border:'none', cursor:'pointer', color:'#4F46E5', display:'flex' }}><ArrowLeft size={20} /></button>
+          <div>
+            <h1 style={{ fontSize:'1rem', fontWeight:700, color:'#1E1B4B' }}>Order: {orderID}</h1>
+            <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>{order.customerRef?.name} · {order.customerID}</p>
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={handleDelete} disabled={deleting} className="btn-danger" style={{ padding:'9px 16px', fontSize:'0.82rem', display:'flex', alignItems:'center', gap:5 }}>
+            <Trash2 size={14} />{deleting ? 'Deleting...' : 'Delete'}
+          </button>
+          <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ padding:'9px 18px', fontSize:'0.82rem', display:'flex', alignItems:'center', gap:5 }}>
+            {saving ? <><div className="spinner" />Saving...</> : <><Save size={14} />Save Changes</>}
+          </button>
+        </div>
+      </div>
+
+      {error   && <div style={{ background:'rgba(239,68,68,0.08)', border:'1.5px solid rgba(239,68,68,0.2)', borderRadius:10, padding:'11px 16px', marginBottom:16, color:'#DC2626', fontSize:'0.87rem' }}>{error}</div>}
+      {success && <div style={{ background:'rgba(16,185,129,0.08)', border:'1.5px solid rgba(16,185,129,0.2)', borderRadius:10, padding:'11px 16px', marginBottom:16, color:'#059669', fontSize:'0.87rem' }}>✅ {success}</div>}
+
+      <div style={{ display:'grid', gap:20 }}>
+
+        {/* Stage Tracker */}
+        <div className="glass fade-up" style={{ padding:24 }}>
+          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:20, fontSize:'0.95rem' }}>Order Stage</h2>
+          <div style={{ display:'flex', alignItems:'center', flexWrap:'wrap', gap:4 }}>
+            {STAGES.map((stage, i) => {
+              const done    = i <  stageIndex
+              const current = i === stageIndex
+              return (
+                <div key={stage} style={{ display:'flex', alignItems:'center', gap:4 }}>
+                  <button onClick={() => handleStatusChange(stage)}
+                    style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5, padding:'10px 14px', borderRadius:10, cursor:'pointer', fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.75rem', border: current ? '2px solid #4F46E5' : done ? '2px solid #10B981' : '1.5px solid rgba(79,70,229,0.15)', background: current ? 'rgba(79,70,229,0.1)' : done ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.6)', color: current ? '#4F46E5' : done ? '#059669' : '#9CA3AF', transition:'all 0.2s' }}>
+                    <span style={{ fontSize:'1.2rem' }}>{STAGE_ICONS[stage]}</span>
+                    {stage}
+                  </button>
+                  {i < STAGES.length - 1 && <ChevronRight size={14} color={done ? '#10B981' : '#D1D5DB'} />}
+                </div>
+              )
+            })}
+          </div>
+          {/* Progress bar */}
+          <div style={{ marginTop:16, background:'rgba(79,70,229,0.08)', borderRadius:999, height:8, overflow:'hidden' }}>
+            <div style={{ height:'100%', width:`${((stageIndex+1)/STAGES.length)*100}%`, background:'linear-gradient(90deg,#4F46E5,#00D4FF)', borderRadius:999, transition:'width 0.5s ease' }} />
+          </div>
+          <p style={{ fontSize:'0.75rem', color:'#6B7280', marginTop:6 }}>{Math.round(((stageIndex+1)/STAGES.length)*100)}% complete</p>
+        </div>
+
+        {/* Order Info */}
+        <div className="glass fade-up-1" style={{ padding:24 }}>
+          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>Order Details</h2>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:14 }}>
+            <div>
+              <label className="input-label">CLOTH TYPE</label>
+              <select value={form.clothType} onChange={e => setForm({...form, clothType:e.target.value})}
+                style={{ width:'100%', padding:'13px 16px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none' }}>
+                {['Blouse','Chudi','Saree Blouse','Shirt','Pant','Lehenga','Kids Dress','Custom Dress'].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="input-label">QUANTITY</label>
+              <input type="number" min="1" value={form.quantity} onChange={e => setForm({...form, quantity:parseInt(e.target.value)||1})} className="input-field" />
+            </div>
+            <div>
+              <label className="input-label">DELIVERY DATE</label>
+              <input type="date" value={form.deliveryDate} onChange={e => setForm({...form, deliveryDate:e.target.value})} className="input-field" />
+            </div>
+            <div>
+              <label className="input-label">FABRIC NOTES</label>
+              <input type="text" value={form.fabricNotes} onChange={e => setForm({...form, fabricNotes:e.target.value})} placeholder="Fabric notes" className="input-field" />
+            </div>
+          </div>
+          <div style={{ marginTop:14 }}>
+            <label className="input-label">SPECIAL INSTRUCTIONS</label>
+            <textarea value={form.specialInstructions} onChange={e => setForm({...form, specialInstructions:e.target.value})} rows={3}
+              style={{ width:'100%', padding:'12px 16px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none', resize:'vertical' }} />
+          </div>
+        </div>
+
+        {/* Measurements */}
+        <div className="glass fade-up-2" style={{ padding:24 }}>
+          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>Measurements <span style={{ fontSize:'0.75rem', color:'#9CA3AF', fontWeight:400 }}>(inches)</span></h2>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:14 }}>
+            {MEASUREMENT_FIELDS.map(field => (
+              <div key={field}>
+                <label className="input-label">{field.toUpperCase()}</label>
+                <input type="text" value={form.measurements?.[field]||''} onChange={e => setForm({...form, measurements:{...form.measurements,[field]:e.target.value}})}
+                  placeholder={field==='custom'?'Any other':'e.g. 36'} className="input-field" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Alteration */}
+        <div className="glass fade-up-3" style={{ padding:24 }}>
+          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>Alteration</h2>
+          <div style={{ display:'flex', gap:12, marginBottom:14 }}>
+            {[true,false].map(v => (
+              <button key={String(v)} onClick={() => setForm({...form, alteration:{...form.alteration, required:v}})}
+                style={{ padding:'10px 24px', borderRadius:10, fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.85rem', cursor:'pointer', border: form.alteration?.required===v ? '2px solid #4F46E5' : '1.5px solid rgba(79,70,229,0.2)', background: form.alteration?.required===v ? 'rgba(79,70,229,0.1)' : 'rgba(255,255,255,0.7)', color: form.alteration?.required===v ? '#4F46E5' : '#6B7280', transition:'all 0.2s' }}>
+                {v ? '✅ Yes' : '❌ No'}
+              </button>
+            ))}
+          </div>
+          {form.alteration?.required && (
+            <textarea value={form.alteration.notes||''} onChange={e => setForm({...form, alteration:{...form.alteration, notes:e.target.value}})}
+              placeholder="e.g. Tight near waist, reduce sleeve by 1 inch" rows={3}
+              style={{ width:'100%', padding:'12px 16px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none', resize:'vertical' }} />
+          )}
+        </div>
+
+      </div>
+    </main>
+  )
+}
