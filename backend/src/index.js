@@ -11,7 +11,7 @@ dotenv.config()
 const app = express()
 connectDB()
 
-app.use(cors({ origin: 'http://localhost:3000', credentials: true }))
+app.use(cors({ origin: ['http://localhost:3000','https://tailoring-management-system-c5twaws54-tailoring-mgm.vercel.app/'], credentials: true }))
 app.use(express.json({ limit: '10mb' }))
 
 app.use('/api/auth',      authRoutes)
