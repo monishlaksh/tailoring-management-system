@@ -1,4 +1,5 @@
 const mongoose = require('mongoose')
+const Counter  = require('./Counter')
 
 const orderSchema = new mongoose.Schema({
   orderID: { type: String, unique: true },
@@ -36,39 +37,19 @@ const orderSchema = new mongoose.Schema({
   isDelayed:      { type: Boolean, default: false },
 }, { timestamps: true })
 
-// ── Robust ID generation — finds the highest existing ID ──
 orderSchema.pre('save', async function (next) {
-  if (!this.orderID) {
-    try {
-      // Find the order with the highest orderID number
-      const last = await mongoose.model('Order')
-        .findOne({}, { orderID: 1 })
-        .sort({ orderID: -1 })
-        .lean()
-
-      let nextNumber = 1
-      if (last && last.orderID) {
-        const num = parseInt(last.orderID.replace('ORD', ''), 10)
-        if (!isNaN(num)) nextNumber = num + 1
-      }
-
-      // Keep trying until we find a unique ID
-      let orderID = `ORD${String(nextNumber).padStart(6, '0')}`
-      let exists  = await mongoose.model('Order').findOne({ orderID }).lean()
-
-      while (exists) {
-        nextNumber++
-        orderID = `ORD${String(nextNumber).padStart(6, '0')}`
-        exists  = await mongoose.model('Order').findOne({ orderID }).lean()
-      }
-
-      this.orderID = orderID
-    } catch (error) {
-      // Fallback: timestamp-based ID
-      this.orderID = `ORD${Date.now()}`
-    }
+  if (this.orderID) return next()
+  try {
+    const counter = await Counter.findByIdAndUpdate(
+      'orderID',
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    )
+    this.orderID = `ORD${String(counter.seq).padStart(6, '0')}`
+    return next()
+  } catch (err) {
+    return next(err)
   }
-  next()
 })
 
 module.exports = mongoose.model('Order', orderSchema)
