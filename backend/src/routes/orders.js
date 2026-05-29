@@ -2,21 +2,35 @@ const express          = require('express')
 const Order            = require('../models/Order')
 const Customer         = require('../models/Customer')
 const DeliveryCalendar = require('../models/DeliveryCalendar')
-const Counter          = require('../models/Counter')
 const { protect, protectCustomer } = require('../middleware/auth')
 const router = express.Router()
 
 // ── Helper: generate next Order ID ──────────────────────────
 const getNextOrderID = async () => {
-  const counter = await Counter.findByIdAndUpdate(
-    'orderID',
-    { $inc: { seq: 1 } },
-    { new: true, upsert: true }
-  )
-  return `ORD${String(counter.seq).padStart(6, '0')}`
+  const last = await Order.findOne()
+    .sort({ orderID: -1 })
+    .select('orderID')
+    .lean()
+
+  if (!last || !last.orderID) return 'ORD000001'
+
+  const num  = parseInt(last.orderID.replace('ORD', ''), 10)
+  const next = isNaN(num) ? 1 : num + 1
+
+  let newID  = `ORD${String(next).padStart(6, '0')}`
+  let exists = await Order.findOne({ orderID: newID }).lean()
+
+  let counter = next
+  while (exists) {
+    counter++
+    newID  = `ORD${String(counter).padStart(6, '0')}`
+    exists = await Order.findOne({ orderID: newID }).lean()
+  }
+
+  return newID
 }
 
-// ── Dashboard stats ─────────────────────────────────────────
+// ── Dashboard stats ──────────────────────────────────────────
 router.get('/stats/dashboard', protect, async (req, res) => {
   try {
     const today    = new Date()
@@ -116,10 +130,9 @@ router.post('/', protect, async (req, res) => {
     if (!customer)
       return res.status(404).json({ success: false, message: 'Customer not found' })
 
-    // Generate ID in the route — no pre-save hook
     const orderID = await getNextOrderID()
 
-    const order = new Order({
+    const order = await Order.create({
       orderID,
       customerID,
       customerRef:         customer._id,
@@ -133,9 +146,6 @@ router.post('/', protect, async (req, res) => {
       referenceImage:      referenceImage || '',
     })
 
-    await order.save()
-
-    // Update delivery calendar
     const dateStr = new Date(deliveryDate).toISOString().split('T')[0]
     await DeliveryCalendar.findOneAndUpdate(
       { date: dateStr, clothType },

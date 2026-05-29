@@ -1,17 +1,36 @@
 const express  = require('express')
 const Customer = require('../models/Customer')
-const Counter  = require('../models/Counter')
 const { protect } = require('../middleware/auth')
 const router = express.Router()
 
 // ── Helper: generate next Customer ID ───────────────────────
 const getNextCustomerID = async () => {
-  const counter = await Counter.findByIdAndUpdate(
-    'customerID',
-    { $inc: { seq: 1 } },
-    { new: true, upsert: true }
-  )
-  return `CUST${String(counter.seq).padStart(6, '0')}`
+  // Find the highest existing customerID
+  const last = await Customer.findOne()
+    .sort({ customerID: -1 })
+    .select('customerID')
+    .lean()
+
+  if (!last || !last.customerID) {
+    return 'CUST000001'
+  }
+
+  // Extract number from "CUST000003" → 3
+  const num = parseInt(last.customerID.replace('CUST', ''), 10)
+  const next = isNaN(num) ? 1 : num + 1
+
+  // Make sure it doesn't already exist
+  let newID = `CUST${String(next).padStart(6, '0')}`
+  let exists = await Customer.findOne({ customerID: newID }).lean()
+
+  let counter = next
+  while (exists) {
+    counter++
+    newID  = `CUST${String(counter).padStart(6, '0')}`
+    exists = await Customer.findOne({ customerID: newID }).lean()
+  }
+
+  return newID
 }
 
 // ── Get all customers ────────────────────────────────────────
@@ -57,11 +76,8 @@ router.post('/', protect, async (req, res) => {
     if (existing)
       return res.status(400).json({ success: false, message: 'Phone number already exists' })
 
-    // Generate ID in route — no pre-save hook
     const customerID = await getNextCustomerID()
-
-    const customer = new Customer({ customerID, name, phone, address, notes })
-    await customer.save()
+    const customer   = await Customer.create({ customerID, name, phone, address, notes })
 
     res.status(201).json({ success: true, message: 'Customer created', customer })
   } catch (e) {
