@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const API = axios.create({
-  baseURL: 'https://tailoring-management-apwh.onrender.com/',
+  baseURL: 'https://tailoring-management-apwh.onrender.com',
   withCredentials: true,
 })
 
