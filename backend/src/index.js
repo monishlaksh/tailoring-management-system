@@ -11,21 +11,13 @@ dotenv.config()
 const app = express()
 connectDB()
 
-// ── CORS — allow all Vercel deployments + localhost ──────────
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://tailoring-management-system-c5twaws54-tailoring-mgm.vercel.app',
-]
-
-app.use(cors({
+const corsOptions = {
   origin: function (origin, callback) {
-    // allow requests with no origin (mobile apps, curl, Postman)
     if (!origin) return callback(null, true)
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true)
-    }
-    // also allow ANY vercel.app subdomain for this project
-    if (origin.endsWith('.vercel.app')) {
+    if (
+      origin === 'http://localhost:3000' ||
+      origin.endsWith('.vercel.app')
+    ) {
       return callback(null, true)
     }
     return callback(new Error('Not allowed by CORS'))
@@ -33,10 +25,22 @@ app.use(cors({
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
-}))
+}
 
-// Handle preflight requests for ALL routes
-app.options('*', cors())
+// Apply CORS before everything else
+app.use(cors(corsOptions))
+
+// This handles preflight — must be BEFORE routes, no wildcard
+app.use(function (req, res, next) {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*')
+  res.header('Access-Control-Allow-Credentials', 'true')
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200)
+  }
+  next()
+})
 
 app.use(express.json({ limit: '10mb' }))
 
