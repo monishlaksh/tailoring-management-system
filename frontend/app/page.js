@@ -5,8 +5,8 @@ import {
   Scissors, Star, Phone, MapPin, Clock,
   ChevronRight, CheckCircle, Award, Users,
   Instagram, Facebook, Twitter, Mail,
-  Shirt, ArrowRight, Sparkles, Menu, X
-} from 'lucide-react'
+  ArrowRight, Zap, Menu, X
+} from 'lucide-react' 
 
 export default function LandingPage() {
   const router   = useRouter()
@@ -130,7 +130,7 @@ export default function LandingPage() {
           {/* Left */}
           <div className="fade-up">
             <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'rgba(79,70,229,0.08)', border:'1px solid rgba(79,70,229,0.15)', borderRadius:999, padding:'6px 16px', marginBottom:24 }}>
-              <Sparkles size={14} color="#4F46E5" />
+              <Zap size={14} color="#4F46E5" />
               <span style={{ fontSize:'0.78rem', fontWeight:600, color:'#4F46E5' }}>Premium Custom Tailoring in Karur</span>
             </div>
 
