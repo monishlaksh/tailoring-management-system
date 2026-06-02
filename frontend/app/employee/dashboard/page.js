@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Users, LogOut, Plus, Search, ChevronRight, X, Package, Clock, CheckCircle } from 'lucide-react'
-import API from '../../../../lib/api'
+import API from '../../../lib/api'
 
 const STAGE_ICONS = { 'Booking':'📘','Cutting':'✂️','Stitching':'🧵','Finishing':'🚩','Ready For Delivery':'✅' }
 
