@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Plus, Edit2, Trash2, X, Check, Users, Eye, EyeOff } from 'lucide-react'
-import API from '../../../lib/api'
+import API from '../../lib/api'
 
 export default function EmployeesPage() {
   const router = useRouter()
