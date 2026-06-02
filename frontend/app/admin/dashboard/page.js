@@ -159,10 +159,13 @@ export default function AdminDashboard() {
       <div className="glass" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 22px', marginBottom:20, flexWrap:'wrap', gap:12 }}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <div style={{ width:40, height:40, borderRadius:12, background:'linear-gradient(135deg,#4F46E5,#6366F1)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <Scissors size={20} color="white" />
+              <img src="/logo.png" alt="Logo"
+                style={{ width:40, height:40, borderRadius:10, objectFit:'cover' }}
+                onError={e => { e.target.style.display='none' }}
+                />
           </div>
           <div>
-            <h1 style={{ fontSize:'1rem', fontWeight:700, color:'#1E1B4B' }}>Tailoring Manager</h1>
+            <h1 style={{ fontSize:'1rem', fontWeight:700, color:'#1E1B4B' }}>Al-Ameen Tailors</h1>
             <p style={{ fontSize:'0.7rem', color:'#6B7280' }}>Admin Dashboard</p>
           </div>
         </div>

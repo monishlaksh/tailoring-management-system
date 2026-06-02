@@ -42,7 +42,10 @@ export default function AdminLogin() {
       <div style={{ width:'100%', maxWidth:'420px' }}>
         <div className="fade-up" style={{ textAlign:'center', marginBottom:'32px' }}>
           <div style={{ width:68, height:68, borderRadius:'20px', background:'linear-gradient(135deg,#4F46E5,#6366F1)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', boxShadow:'0 16px 40px rgba(79,70,229,0.35)' }}>
-            <Scissors size={34} color="white" strokeWidth={1.8} />
+            <img src="/logo.png" alt="Logo"
+            style={{ width:40, height:40, borderRadius:10, objectFit:'cover' }}
+            onError={e => { e.target.style.display='none' }}
+            />
           </div>
           <h1 style={{ fontSize:'1.7rem', fontWeight:800, color:'#1E1B4B' }}>Admin Portal</h1>
           <p style={{ color:'#6B7280', marginTop:6, fontSize:'0.88rem' }}>Sign in to manage your tailoring shop</p>

@@ -64,10 +64,13 @@ export default function CustomerDashboard() {
       <div className="glass" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 24px', marginBottom:24, flexWrap:'wrap', gap:12, maxWidth:960, margin:'0 auto 24px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <div style={{ width:40, height:40, borderRadius:12, background:'linear-gradient(135deg,#00D4FF,#0EA5E9)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <Scissors size={20} color="white" />
+            <img src="/logo.png" alt="Logo"
+            style={{ width:40, height:40, borderRadius:10, objectFit:'cover' }}
+            onError={e => { e.target.style.display='none' }}
+            />
           </div>
           <div>
-            <h1 style={{ fontSize:'1rem', fontWeight:700, color:'#1E1B4B' }}>Tailoring Manager</h1>
+            <h1 style={{ fontSize:'1rem', fontWeight:700, color:'#1E1B4B' }}>Al-Ameen Tailors</h1>
             <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>Customer Portal</p>
           </div>
         </div>
