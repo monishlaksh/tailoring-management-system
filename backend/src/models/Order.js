@@ -34,6 +34,11 @@ const orderSchema = new mongoose.Schema({
   deliveryDate:   { type: Date, required: true },
   referenceImage: { type: String, default: '' },
   isDelayed:      { type: Boolean, default: false },
+  createdBy: {
+    role:       { type: String, enum: ['admin','employee'], default: 'admin' },
+    employeeID: { type: String, default: '' },
+    name:       { type: String, default: 'Admin' },
+  },
 }, { timestamps: true })
 
 module.exports = mongoose.model('Order', orderSchema)
