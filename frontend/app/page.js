@@ -4,9 +4,8 @@ import { useState, useEffect } from 'react'
 import {
   Scissors, Star, Phone, MapPin, Clock,
   ChevronRight, CheckCircle, Award, Users,
-  Instagram, Facebook, Twitter, Mail,
-  ArrowRight, Zap, Menu, X
-} from 'lucide-react' 
+  Mail, ArrowRight, Zap, Menu, X
+} from 'lucide-react'
 
 export default function LandingPage() {
   const router   = useRouter()
@@ -378,14 +377,14 @@ export default function LandingPage() {
 
           <div style={{ display:'flex', gap:14 }}>
             {[
-              { icon:<Instagram size={18} />, href:'#' },
-              { icon:<Facebook size={18} />,  href:'#' },
-              { icon:<Twitter size={18} />,   href:'#' },
-            ].map((s,i) => (
+              { icon:'📸', href:'#' },
+              { icon:'📘', href:'#' },
+              { icon:'🐦', href:'#' },
+              ].map((s,i) => (
               <a key={i} href={s.href}
-                style={{ width:36, height:36, borderRadius:'50%', background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,0.7)', textDecoration:'none', transition:'all 0.2s' }}
-                onMouseEnter={e => { e.currentTarget.style.background='rgba(79,70,229,0.4)'; e.currentTarget.style.color='white' }}
-                onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.08)'; e.currentTarget.style.color='rgba(255,255,255,0.7)' }}>
+                style={{ width:36, height:36, borderRadius:'50%', background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,0.7)', textDecoration:'none', transition:'all 0.2s', fontSize:'1rem' }}
+                onMouseEnter={e => { e.currentTarget.style.background='rgba(79,70,229,0.4)' }}
+                onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.08)' }}>
                 {s.icon}
               </a>
             ))}
