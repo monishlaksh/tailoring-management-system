@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check } from 'lucide-react'
-import API from '../../../../lib/api'
+import API from '../../../../../lib/api'
 
 export default function EmployeeAddCustomer() {
   const router = useRouter()
