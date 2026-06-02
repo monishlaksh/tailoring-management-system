@@ -133,7 +133,7 @@ export default function LandingPage() {
             {/* Badge */}
             <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'rgba(79,70,229,0.08)', border:'1px solid rgba(79,70,229,0.15)', borderRadius:999, padding:'6px 16px', marginBottom:24 }}>
               <Zap size={14} color="#4F46E5" />
-              <span style={{ fontSize:'0.78rem', fontWeight:600, color:'#4F46E5' }}>Premium Custom Tailoring in Karur</span>
+              <span style={{ fontSize:'0.78rem', fontWeight:600, color:'#4F46E5' }}>Premium Custom Tailoring in Trichy</span>
             </div>
 
             {/* Headline */}
@@ -290,8 +290,8 @@ export default function LandingPage() {
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:20 }}>
             {[
-              { icon:<Phone size={22} color="#4F46E5" />,  label:'Phone',   value:'+91 98765 43210',     sub:'Mon–Sat, 9am–8pm' },
-              { icon:<MapPin size={22} color="#10B981" />, label:'Address', value:'123 Main Street, Karur', sub:'Tamil Nadu, India' },
+              { icon:<Phone size={22} color="#4F46E5" />,  label:'Phone',   value:'+91 98940 32336',     sub:'Mon–Sat, 9am–8pm' },
+              { icon:<MapPin size={22} color="#10B981" />, label:'Address', value:'514-A,upstairs,Singarathope corner, Tiruchirappalli 620008', sub:'Tamil Nadu, India' },
               { icon:<Clock size={22} color="#F59E0B" />,  label:'Hours',   value:'Mon–Sat: 9am – 8pm',  sub:'Sunday: 10am – 5pm' },
               { icon:<Mail size={22} color="#00D4FF" />,   label:'Email',   value:'alameen@tailors.com', sub:'Reply within 24 hrs' },
             ].map((c,i) => (
