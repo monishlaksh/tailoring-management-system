@@ -25,15 +25,6 @@ const getNextOrderID = async () => {
   return newID
 }
 
-// ── Helper: check if employee owns order ────────────────────
-// Returns true if employee created this order
-// Also returns true if order has NO createdBy (legacy order)
-// so employees can still update old orders
-const employeeOwnsOrder = (order, employeeID) => {
-  if (!order.createdBy || !order.createdBy.employeeID) return true
-  return order.createdBy.employeeID === employeeID
-}
-
 // ── Dashboard stats — admin only ─────────────────────────────
 router.get('/stats/dashboard', protect, async (req, res) => {
   try {
@@ -67,50 +58,25 @@ router.get('/stats/dashboard', protect, async (req, res) => {
 })
 
 // ── Get all orders ───────────────────────────────────────────
-// Admin sees all, employee sees only their own
 router.get('/', protectAdminOrEmployee, async (req, res) => {
   try {
     const { search, status, customerID } = req.query
     let query = {}
 
+    // Employee strictly sees only their own orders
     if (req.role === 'employee') {
-      // Show orders created by this employee
-      // Also show orders with no createdBy (legacy orders)
-      query.$or = [
-        { 'createdBy.employeeID': req.employee.employeeID },
-        { createdBy: { $exists: false } },
-        { 'createdBy.employeeID': { $exists: false } },
-        { 'createdBy.employeeID': '' },
-      ]
+      query['createdBy.employeeID'] = req.employee.employeeID
     }
 
-    if (status) query.status = status
+    if (status)     query.status     = status
     if (customerID) query.customerID = customerID
 
     if (search) {
-      const searchConditions = [
+      query.$or = [
         { orderID:    { $regex: search, $options: 'i' } },
         { customerID: { $regex: search, $options: 'i' } },
         { clothType:  { $regex: search, $options: 'i' } },
       ]
-      if (req.role === 'employee') {
-        // Combine ownership filter with search
-        query = {
-          $and: [
-            {
-              $or: [
-                { 'createdBy.employeeID': req.employee.employeeID },
-                { createdBy: { $exists: false } },
-                { 'createdBy.employeeID': { $exists: false } },
-                { 'createdBy.employeeID': '' },
-              ],
-            },
-            { $or: searchConditions },
-          ],
-        }
-      } else {
-        query.$or = searchConditions
-      }
     }
 
     const orders = await Order.find(query)
@@ -143,9 +109,13 @@ router.get('/:orderID', protectAdminOrEmployee, async (req, res) => {
     if (!order)
       return res.status(404).json({ success: false, message: 'Order not found' })
 
-    // Employee access check — allow if no createdBy (legacy) or matches
-    if (req.role === 'employee' && !employeeOwnsOrder(order, req.employee.employeeID)) {
-      return res.status(403).json({ success: false, message: 'Access denied' })
+    // Employee can only view orders they created
+    if (req.role === 'employee') {
+      const empID = String(req.employee.employeeID).trim()
+      const orderEmpID = String(order.createdBy?.employeeID || '').trim()
+      if (empID !== orderEmpID) {
+        return res.status(403).json({ success: false, message: 'Access denied' })
+      }
     }
 
     res.json({ success: true, order })
@@ -178,7 +148,11 @@ router.post('/', protectAdminOrEmployee, async (req, res) => {
     const orderID = await getNextOrderID()
 
     const createdBy = req.role === 'employee'
-      ? { role: 'employee', employeeID: req.employee.employeeID, name: req.employee.name }
+      ? {
+          role:       'employee',
+          employeeID: String(req.employee.employeeID).trim(),
+          name:       req.employee.name,
+        }
       : { role: 'admin', employeeID: '', name: 'Admin' }
 
     const order = await Order.create({
@@ -227,7 +201,7 @@ router.put('/:orderID', protect, async (req, res) => {
   }
 })
 
-// ── Update status — admin or employee ───────────────────────
+// ── Update status only — admin or employee ───────────────────
 router.patch('/:orderID/status', protectAdminOrEmployee, async (req, res) => {
   try {
     const { status } = req.body
@@ -241,22 +215,31 @@ router.patch('/:orderID/status', protectAdminOrEmployee, async (req, res) => {
     if (!existing)
       return res.status(404).json({ success: false, message: 'Order not found' })
 
-    // Employee ownership check — allow legacy orders too
-    if (req.role === 'employee' && !employeeOwnsOrder(existing, req.employee.employeeID)) {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only update status of your own orders',
-      })
+    // Employee: strictly check ownership using string comparison
+    if (req.role === 'employee') {
+      const empID      = String(req.employee.employeeID).trim()
+      const orderEmpID = String(existing.createdBy?.employeeID || '').trim()
+
+      if (empID !== orderEmpID) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only update status of your own orders',
+        })
+      }
     }
 
-    // Use $set — bypasses all other field validation
-    const order = await Order.findOneAndUpdate(
+    // $set only updates status field — no other validation runs
+    const updated = await Order.findOneAndUpdate(
       { orderID: req.params.orderID },
       { $set: { status: status } },
       { new: true }
     ).populate('customerRef', 'name phone customerID')
 
-    res.json({ success: true, message: `Status updated to ${status}`, order })
+    res.json({
+      success: true,
+      message: `Status updated to "${status}"`,
+      order: updated,
+    })
   } catch (e) {
     res.status(500).json({ success: false, message: e.message })
   }
@@ -272,6 +255,16 @@ router.delete('/:orderID', protect, async (req, res) => {
   } catch (e) {
     res.status(500).json({ success: false, message: e.message })
   }
+})
+
+// TEMP DEBUG — remove after fixing
+router.get('/debug/:orderID', async (req, res) => {
+  const order = await Order.findOne({ orderID: req.params.orderID }).lean()
+  res.json({
+    orderID:    order?.orderID,
+    createdBy:  order?.createdBy,
+    status:     order?.status,
+  })
 })
 
 module.exports = router
