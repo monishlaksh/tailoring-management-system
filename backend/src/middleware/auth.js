@@ -1,7 +1,7 @@
 const jwt      = require('jsonwebtoken')
 const Employee = require('../models/Employee')
 
-// Admin only
+// ── Admin only ───────────────────────────────────────────────
 const protect = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization
@@ -15,13 +15,14 @@ const protect = (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Admin access required' })
 
     req.admin = decoded
+    req.role  = 'admin'
     next()
   } catch (e) {
     return res.status(401).json({ success: false, message: 'Token invalid or expired' })
   }
 }
 
-// Employee only
+// ── Employee only ────────────────────────────────────────────
 const protectEmployee = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization
@@ -44,13 +45,14 @@ const protectEmployee = async (req, res, next) => {
       name:       decoded.name,
       role:       'employee',
     }
+    req.role = 'employee'
     next()
   } catch (e) {
     return res.status(401).json({ success: false, message: 'Token invalid or expired' })
   }
 }
 
-// Admin OR Employee — used for shared routes
+// ── Admin OR Employee ────────────────────────────────────────
 const protectAdminOrEmployee = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization
@@ -71,10 +73,9 @@ const protectAdminOrEmployee = async (req, res, next) => {
       if (!employee || !employee.isActive)
         return res.status(403).json({ success: false, message: 'Employee not found or inactive' })
 
-      // Set employee info clearly on req
       req.employee = {
         employeeId: decoded.employeeId,
-        employeeID: decoded.employeeID,  // e.g. "EMP000001"
+        employeeID: decoded.employeeID,
         name:       decoded.name,
         role:       'employee',
       }
@@ -88,7 +89,7 @@ const protectAdminOrEmployee = async (req, res, next) => {
   }
 }
 
-// Customer only
+// ── Customer only ────────────────────────────────────────────
 const protectCustomer = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization
