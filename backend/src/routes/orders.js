@@ -134,25 +134,37 @@ router.put('/:orderID', protect, async (req, res) => {
 })
 
 // Update status — admin or employee (employee only their own orders)
+// Update status only — admin or employee (employee only their own orders)
 router.patch('/:orderID/status', protectAdminOrEmployee, async (req, res) => {
   try {
     const { status } = req.body
     const valid = ['Booking','Cutting','Stitching','Finishing','Ready For Delivery']
+
     if (!valid.includes(status))
-      return res.status(400).json({ success:false, message:'Invalid status' })
+      return res.status(400).json({ success: false, message: 'Invalid status' })
 
     const order = await Order.findOne({ orderID: req.params.orderID })
-    if (!order) return res.status(404).json({ success:false, message:'Order not found' })
+    if (!order)
+      return res.status(404).json({ success: false, message: 'Order not found' })
 
-    if (req.role === 'employee' && order.createdBy?.employeeID !== req.employee.employeeID)
-      return res.status(403).json({ success:false, message:'You can only update your own orders' })
+    // Employee can only update status of their own orders
+    if (req.role === 'employee') {
+      if (order.createdBy?.employeeID !== req.employee.employeeID) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only update status of your own orders',
+        })
+      }
+    }
 
     order.status = status
     await order.save()
-    res.json({ success:true, message:`Status updated to ${status}`, order })
-  } catch (e) { res.status(500).json({ success:false, message:e.message }) }
-})
 
+    res.json({ success: true, message: `Status updated to ${status}`, order })
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message })
+  }
+})
 // Delete order — admin only
 router.delete('/:orderID', protect, async (req, res) => {
   try {

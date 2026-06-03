@@ -1,80 +1,110 @@
 const jwt      = require('jsonwebtoken')
 const Employee = require('../models/Employee')
 
+// Admin only
 const protect = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization
     if (!authHeader || !authHeader.startsWith('Bearer '))
-      return res.status(401).json({ success:false, message:'No token. Access denied.' })
+      return res.status(401).json({ success: false, message: 'No token. Access denied.' })
+
     const token   = authHeader.split(' ')[1]
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
     if (decoded.role !== 'admin')
-      return res.status(403).json({ success:false, message:'Admin access required' })
+      return res.status(403).json({ success: false, message: 'Admin access required' })
+
     req.admin = decoded
     next()
   } catch (e) {
-    return res.status(401).json({ success:false, message:'Token invalid or expired' })
+    return res.status(401).json({ success: false, message: 'Token invalid or expired' })
   }
 }
 
+// Employee only
 const protectEmployee = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization
     if (!authHeader || !authHeader.startsWith('Bearer '))
-      return res.status(401).json({ success:false, message:'No token. Access denied.' })
+      return res.status(401).json({ success: false, message: 'No token. Access denied.' })
+
     const token   = authHeader.split(' ')[1]
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
     if (decoded.role !== 'employee')
-      return res.status(403).json({ success:false, message:'Employee access required' })
+      return res.status(403).json({ success: false, message: 'Employee access required' })
+
     const employee = await Employee.findById(decoded.employeeId)
     if (!employee || !employee.isActive)
-      return res.status(403).json({ success:false, message:'Employee not found or inactive' })
-    req.employee = decoded
+      return res.status(403).json({ success: false, message: 'Employee not found or inactive' })
+
+    req.employee = {
+      employeeId: decoded.employeeId,
+      employeeID: decoded.employeeID,
+      name:       decoded.name,
+      role:       'employee',
+    }
     next()
   } catch (e) {
-    return res.status(401).json({ success:false, message:'Token invalid or expired' })
+    return res.status(401).json({ success: false, message: 'Token invalid or expired' })
   }
 }
 
+// Admin OR Employee — used for shared routes
 const protectAdminOrEmployee = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization
     if (!authHeader || !authHeader.startsWith('Bearer '))
-      return res.status(401).json({ success:false, message:'No token. Access denied.' })
+      return res.status(401).json({ success: false, message: 'No token. Access denied.' })
+
     const token   = authHeader.split(' ')[1]
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
     if (decoded.role === 'admin') {
       req.admin = decoded
       req.role  = 'admin'
       return next()
     }
+
     if (decoded.role === 'employee') {
       const employee = await Employee.findById(decoded.employeeId)
       if (!employee || !employee.isActive)
-        return res.status(403).json({ success:false, message:'Employee not found or inactive' })
-      req.employee = decoded
-      req.role     = 'employee'
+        return res.status(403).json({ success: false, message: 'Employee not found or inactive' })
+
+      // Set employee info clearly on req
+      req.employee = {
+        employeeId: decoded.employeeId,
+        employeeID: decoded.employeeID,  // e.g. "EMP000001"
+        name:       decoded.name,
+        role:       'employee',
+      }
+      req.role = 'employee'
       return next()
     }
-    return res.status(403).json({ success:false, message:'Access denied' })
+
+    return res.status(403).json({ success: false, message: 'Access denied' })
   } catch (e) {
-    return res.status(401).json({ success:false, message:'Token invalid or expired' })
+    return res.status(401).json({ success: false, message: 'Token invalid or expired' })
   }
 }
 
+// Customer only
 const protectCustomer = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization
     if (!authHeader || !authHeader.startsWith('Bearer '))
-      return res.status(401).json({ success:false, message:'No token. Access denied.' })
+      return res.status(401).json({ success: false, message: 'No token. Access denied.' })
+
     const token   = authHeader.split(' ')[1]
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
     if (decoded.role !== 'customer')
-      return res.status(403).json({ success:false, message:'Customer access required' })
+      return res.status(403).json({ success: false, message: 'Customer access required' })
+
     req.customer = decoded
     next()
   } catch (e) {
-    return res.status(401).json({ success:false, message:'Token invalid or expired' })
+    return res.status(401).json({ success: false, message: 'Token invalid or expired' })
   }
 }
 
