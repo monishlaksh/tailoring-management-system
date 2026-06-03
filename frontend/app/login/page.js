@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Scissors, Shield, Eye, Users, ArrowLeft } from 'lucide-react'
+import { Scissors, Shield, Eye, Users} from 'lucide-react'
 
 export default function LoginChoice() {
   const router = useRouter()
@@ -11,8 +11,7 @@ export default function LoginChoice() {
     <main style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'24px' }}>
 
       <button onClick={() => router.push('/')}
-        style={{ position:'fixed', top:24, left:24, display:'flex', alignItems:'center', gap:6, background:'rgba(255,255,255,0.7)', backdropFilter:'blur(10px)', border:'1px solid rgba(79,70,229,0.2)', borderRadius:8, padding:'8px 14px', cursor:'pointer', color:'#6B7280', fontFamily:'Poppins,sans-serif', fontSize:'0.85rem', fontWeight:500 }}>
-        <ArrowLeft size={16} /> Back to Home
+        lstyle={{ position:'fixed', top:24, left:24, display:'flex', alignItems:'center', gap:6, background:'rgba(255,255,255,0.7)', backdropFilter:'blur(10px)', border:'1px solid rgba(79,70,229,0.2)', borderRadius:8, padding:'8px 14px', cursor:'pointer', color:'#6B7280', fontFamily:'Poppins,sans-serif', fontSize:'0.85rem', fontWeight:500 }}>
       </button>
 
       <div className="fade-up" style={{ textAlign:'center', marginBottom:'40px' }}>
