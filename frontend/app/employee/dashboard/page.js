@@ -33,7 +33,6 @@ export default function EmployeeDashboard() {
   const fetchOrders = async () => {
     try {
       const res = await API.get('/api/orders')
-      console.log('Orders fetched:', res.data.orders)
       setOrders(res.data.orders || [])
     } catch (e) {
       console.error('Failed to fetch orders:', e)
@@ -49,7 +48,6 @@ export default function EmployeeDashboard() {
   }
 
   const handleViewOrder = (order) => {
-    console.log('Navigating to order:', order.orderID)
     if (!order.orderID) {
       alert('Order ID is missing. Please contact admin.')
       return

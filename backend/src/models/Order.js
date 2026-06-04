@@ -39,6 +39,12 @@ const orderSchema = new mongoose.Schema({
     employeeID: { type: String, default: '' },
     name:       { type: String, default: 'Admin' },
   },
+  // ── Payment fields ──────────────────────────────────────
+  payment: {
+    totalCost:     { type: Number, default: 0 },
+    amountSettled: { type: Number, default: 0 },
+    balance:       { type: Number, default: 0 },
+  },
 }, { timestamps: true })
 
 module.exports = mongoose.model('Order', orderSchema)

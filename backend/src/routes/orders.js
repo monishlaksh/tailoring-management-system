@@ -267,4 +267,40 @@ router.get('/debug/:orderID', async (req, res) => {
   })
 })
 
+// ── Update payment — admin only ──────────────────────────────
+router.patch('/:orderID/payment', protect, async (req, res) => {
+  try {
+    const { totalCost, amountSettled } = req.body
+
+    if (totalCost === undefined || amountSettled === undefined)
+      return res.status(400).json({ success: false, message: 'totalCost and amountSettled are required' })
+
+    const total    = parseFloat(totalCost)    || 0
+    const settled  = parseFloat(amountSettled) || 0
+    const balance  = total - settled
+
+    if (settled > total)
+      return res.status(400).json({ success: false, message: 'Amount settled cannot exceed total cost' })
+
+    const order = await Order.findOneAndUpdate(
+      { orderID: req.params.orderID },
+      {
+        $set: {
+          'payment.totalCost':     total,
+          'payment.amountSettled': settled,
+          'payment.balance':       balance,
+        },
+      },
+      { new: true }
+    ).populate('customerRef', 'name phone customerID')
+
+    if (!order)
+      return res.status(404).json({ success: false, message: 'Order not found' })
+
+    res.json({ success: true, message: 'Payment updated', order })
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message })
+  }
+})
+
 module.exports = router

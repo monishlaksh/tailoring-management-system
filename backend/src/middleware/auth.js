@@ -52,8 +52,6 @@ const protectAdminOrEmployee = async (req, res, next) => {
     const token   = authHeader.split(' ')[1]
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
 
-    // Log decoded token to see exactly what's inside
-    console.log('protectAdminOrEmployee decoded token:', decoded)
 
     if (decoded.role === 'admin') {
       req.admin = decoded
@@ -65,11 +63,6 @@ const protectAdminOrEmployee = async (req, res, next) => {
       const employee = await Employee.findById(decoded.employeeId)
       if (!employee || !employee.isActive)
         return res.status(403).json({ success: false, message: 'Employee not found or inactive' })
-
-      console.log('Employee from DB:', {
-        employeeID: employee.employeeID,
-        name:       employee.name,
-      })
 
       req.employee = {
         employeeId: decoded.employeeId,

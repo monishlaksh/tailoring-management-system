@@ -171,6 +171,27 @@ export default function CustomerDashboard() {
                           ))}
                         </div>
 
+                        {/* Payment info for customer */}
+                            {order.payment?.totalCost > 0 && (
+                              <div style={{ marginTop:12 }}>
+                                <p style={{ fontSize:'0.78rem', color:'#4F46E5', fontWeight:600, marginBottom:8 }}>
+                                  💰 Payment
+                                </p>
+                                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8 }}>
+                                  {[
+                                    { label:'Total',   value:`₹${order.payment.totalCost.toLocaleString('en-IN')}`,     color:'#4F46E5' },
+                                    { label:'Settled', value:`₹${order.payment.amountSettled.toLocaleString('en-IN')}`, color:'#059669' },
+                                    { label:'Balance', value:`₹${order.payment.balance.toLocaleString('en-IN')}`,       color: order.payment.balance > 0 ? '#DC2626' : '#059669' },
+                                  ].map((p,i) => (
+                                    <div key={i} style={{ background:'rgba(79,70,229,0.05)', borderRadius:8, padding:'8px 10px', textAlign:'center' }}>
+                                      <p style={{ fontSize:'0.68rem', color:'#9CA3AF', fontWeight:600, marginBottom:2 }}>{p.label}</p>
+                                      <p style={{ fontSize:'0.9rem', fontWeight:700, color:p.color }}>{p.value}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
                         {/* Measurements */}
                         {order.measurements && Object.values(order.measurements).some(v => v) && (
                           <div style={{ marginTop:12 }}>

@@ -40,7 +40,6 @@ export default function EmployeeOrderDetail() {
 
   const fetchOrder = async () => {
     try {
-      console.log('Fetching order:', orderID)
       const res = await API.get(`/api/orders/${orderID}`)
       setOrder(res.data.order)
     } catch (e) {

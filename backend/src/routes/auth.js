@@ -49,14 +49,7 @@ router.post('/employee/login', async (req, res) => {
     if (!match)
       return res.status(401).json({ success: false, message: 'Invalid username or password' })
 
-    // Log what we are putting in the token
-    console.log('Employee login - token payload:', {
-      employeeId: employee._id,
-      employeeID: employee.employeeID,
-      name:       employee.name,
-      role:       'employee',
-    })
-
+   
     const token = jwt.sign(
       {
         employeeId: employee._id.toString(),
