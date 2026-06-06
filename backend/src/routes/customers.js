@@ -1,7 +1,7 @@
 const express  = require('express')
 const Customer = require('../models/Customer')
 const { protect, protectAdminOrEmployee } = require('../middleware/auth')
-const router = express.Router()
+const router   = express.Router()
 
 const getNextCustomerID = async () => {
   const last = await Customer.findOne()
@@ -22,32 +22,44 @@ const getNextCustomerID = async () => {
   return newID
 }
 
-// ── GET payment summary — MUST be before /:customerID ───────
+// ── Payment summary — MUST be before /:customerID ───────────
 router.get('/stats/payment-summary', protect, async (req, res) => {
   try {
-    const result = await Customer.aggregate([
-      { $match: { isActive: true } },
-      {
-        $group: {
-          _id:              null,
-          totalCost:        { $sum: '$payment.totalCost' },
-          totalSettled:     { $sum: '$payment.amountSettled' },
-          totalBalance:     { $sum: '$payment.balance' },
-          customersWithDue: {
-            $sum: { $cond: [{ $gt: ['$payment.balance', 0] }, 1, 0] },
-          },
-        },
+    const customers = await Customer.find({ isActive: true })
+      .select('customerID name payment')
+      .lean()
+
+    let totalCost    = 0
+    let totalSettled = 0
+    let totalBalance = 0
+    const customersWithDue = []
+
+    customers.forEach(c => {
+      const p = c.payment || {}
+      totalCost    += p.totalCost     || 0
+      totalSettled += p.amountSettled || 0
+      totalBalance += p.balance       || 0
+      if ((p.balance || 0) > 0) {
+        customersWithDue.push({
+          customerID: c.customerID,
+          name:       c.name,
+          balance:    p.balance,
+          totalCost:  p.totalCost,
+          settled:    p.amountSettled,
+        })
+      }
+    })
+
+    res.json({
+      success: true,
+      summary: {
+        totalCost,
+        totalSettled,
+        totalBalance,
+        customersWithDue,
+        customersWithDueCount: customersWithDue.length,
       },
-    ])
-
-    const summary = result[0] || {
-      totalCost:        0,
-      totalSettled:     0,
-      totalBalance:     0,
-      customersWithDue: 0,
-    }
-
-    res.json({ success: true, summary })
+    })
   } catch (e) {
     res.status(500).json({ success: false, message: e.message })
   }
@@ -97,7 +109,6 @@ router.post('/', protectAdminOrEmployee, async (req, res) => {
 
     const customerID = await getNextCustomerID()
     const customer   = await Customer.create({ customerID, name, phone, address, notes })
-
     res.status(201).json({ success: true, message: 'Customer created', customer })
   } catch (e) {
     res.status(500).json({ success: false, message: e.message })
@@ -121,11 +132,10 @@ router.put('/:customerID', protect, async (req, res) => {
   }
 })
 
-// ── PATCH update payment — admin only ────────────────────────
+// ── PATCH payment — admin only ───────────────────────────────
 router.patch('/:customerID/payment', protect, async (req, res) => {
   try {
     const { totalCost, amountSettled } = req.body
-
     if (totalCost === undefined || amountSettled === undefined)
       return res.status(400).json({ success: false, message: 'totalCost and amountSettled required' })
 
@@ -133,10 +143,9 @@ router.patch('/:customerID/payment', protect, async (req, res) => {
     const settled = parseFloat(amountSettled) || 0
 
     if (settled > total)
-      return res.status(400).json({ success: false, message: 'Amount settled cannot exceed total cost' })
+      return res.status(400).json({ success: false, message: 'Settled cannot exceed total cost' })
 
     const balance  = total - settled
-
     const customer = await Customer.findOneAndUpdate(
       { customerID: req.params.customerID },
       {
@@ -148,7 +157,6 @@ router.patch('/:customerID/payment', protect, async (req, res) => {
       },
       { new: true }
     )
-
     if (!customer)
       return res.status(404).json({ success: false, message: 'Customer not found' })
 

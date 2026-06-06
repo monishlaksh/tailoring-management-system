@@ -3,10 +3,10 @@ const jwt      = require('jsonwebtoken')
 const bcrypt   = require('bcryptjs')
 const Customer = require('../models/Customer')
 const Employee = require('../models/Employee')
-const { protect, protectCustomer } = require('../middleware/auth')
-const router = express.Router()
+const { protect } = require('../middleware/auth')
+const router   = express.Router()
 
-// Admin login
+// ── Admin login ──────────────────────────────────────────────
 router.post('/admin/login', (req, res) => {
   try {
     const { username, password } = req.body
@@ -25,12 +25,12 @@ router.post('/admin/login', (req, res) => {
   }
 })
 
-// Admin verify
+// ── Admin verify ─────────────────────────────────────────────
 router.get('/admin/verify', protect, (req, res) => {
   res.json({ success: true, admin: req.admin })
 })
 
-// Employee login
+// ── Employee login ───────────────────────────────────────────
 router.post('/employee/login', async (req, res) => {
   try {
     const { username, password } = req.body
@@ -41,7 +41,6 @@ router.post('/employee/login', async (req, res) => {
       username: username.trim(),
       isActive: true,
     })
-
     if (!employee)
       return res.status(401).json({ success: false, message: 'Invalid username or password' })
 
@@ -75,7 +74,7 @@ router.post('/employee/login', async (req, res) => {
   }
 })
 
-// Customer login
+// ── Customer login ───────────────────────────────────────────
 router.post('/customer/login', async (req, res) => {
   try {
     const { customerID, phone } = req.body
@@ -87,7 +86,6 @@ router.post('/customer/login', async (req, res) => {
       phone:      phone.trim(),
       isActive:   true,
     })
-
     if (!customer)
       return res.status(401).json({ success: false, message: 'Invalid Customer ID or Phone number' })
 
@@ -101,8 +99,6 @@ router.post('/customer/login', async (req, res) => {
       { expiresIn: '7d' }
     )
 
-    // Only store minimal data in token
-    // Full data always fetched fresh from server
     res.json({
       success: true,
       token,
@@ -117,12 +113,22 @@ router.post('/customer/login', async (req, res) => {
   }
 })
 
-// GET /api/auth/customer/me — fetch fresh customer profile
-// Called every time customer dashboard loads
-router.get('/customer/me', protectCustomer, async (req, res) => {
+// ── Customer: get fresh profile from server ──────────────────
+// Uses token to identify customer — always returns latest data
+router.get('/customer/me', async (req, res) => {
   try {
+    const authHeader = req.headers.authorization
+    if (!authHeader || !authHeader.startsWith('Bearer '))
+      return res.status(401).json({ success: false, message: 'No token' })
+
+    const token   = authHeader.split(' ')[1]
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
+    if (decoded.role !== 'customer')
+      return res.status(403).json({ success: false, message: 'Not a customer token' })
+
     const customer = await Customer.findOne({
-      customerID: req.customer.customerID,
+      customerID: decoded.customerID,
       isActive:   true,
     })
 
@@ -136,12 +142,11 @@ router.get('/customer/me', protectCustomer, async (req, res) => {
         name:          customer.name,
         phone:         customer.phone,
         address:       customer.address,
-        notes:         customer.notes,
-        payment:       customer.payment,
+        payment:       customer.payment || { totalCost: 0, amountSettled: 0, balance: 0 },
       },
     })
   } catch (e) {
-    res.status(500).json({ success: false, message: e.message })
+    res.status(401).json({ success: false, message: 'Token invalid or expired' })
   }
 })
 

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import {
   Scissors, LogOut, Users, Package,
   CheckCircle, AlertTriangle, Calendar, Plus,
-  Search, ChevronRight, X
+  Search, ChevronRight, X,
 } from 'lucide-react'
 import API from '../../../lib/api'
 
@@ -21,57 +21,44 @@ export default function AdminDashboard() {
   const [admin, setAdmin]               = useState(null)
   const [stats, setStats]               = useState(null)
   const [orders, setOrders]             = useState([])
+  const [pendingCustomers, setPendingCustomers] = useState([])
   const [search, setSearch]             = useState('')
   const [loading, setLoading]           = useState(true)
   const [activeFilter, setActiveFilter] = useState(null)
+  const [showPending, setShowPending]   = useState(false)
   const [sortByDate, setSortByDate]     = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken')
     const user  = localStorage.getItem('adminUser')
-    if (!token) {
-      router.push('/admin/login')
-      return
-    }
+    if (!token) { router.push('/admin/login'); return }
     setAdmin(user ? JSON.parse(user) : { username: 'admin' })
     fetchData()
   }, [])
 
   const fetchData = async () => {
     try {
-      // Fetch orders and stats
       const [statsRes, ordersRes] = await Promise.all([
         API.get('/api/orders/stats/dashboard'),
         API.get('/api/orders'),
       ])
-
-      const baseStats = statsRes.data.stats || {}
+      setStats(statsRes.data.stats || {})
       setOrders(ordersRes.data.orders || [])
 
-      // Fetch payment summary separately — if it fails dashboard still works
-      let totalPending     = 0
-      let customersWithDue = 0
       try {
         const payRes = await API.get('/api/customers/stats/payment-summary')
-        totalPending     = payRes.data.summary?.totalBalance     || 0
-        customersWithDue = payRes.data.summary?.customersWithDue || 0
-      } catch (payErr) {
-        // Payment summary failed silently — not critical
+        const s      = payRes.data.summary || {}
+        setStats(prev => ({
+          ...prev,
+          totalPending:     s.totalBalance          || 0,
+          customersWithDue: s.customersWithDueCount || 0,
+        }))
+        setPendingCustomers(s.customersWithDue || [])
+      } catch (_) {
+        setStats(prev => ({ ...prev, totalPending: 0, customersWithDue: 0 }))
       }
-
-      setStats({
-        ...baseStats,
-        totalPending,
-        customersWithDue,
-      })
-
     } catch (e) {
-      // If orders/stats fail — set empty defaults so dashboard still renders
-      setStats({
-        total: 0, booking: 0, cutting: 0, stitching: 0,
-        finishing: 0, ready: 0, todayDelivery: 0, delayed: 0,
-        totalPending: 0, customersWithDue: 0,
-      })
+      setStats({ total:0, booking:0, cutting:0, stitching:0, finishing:0, ready:0, todayDelivery:0, delayed:0, totalPending:0, customersWithDue:0 })
       setOrders([])
     } finally {
       setLoading(false)
@@ -94,12 +81,7 @@ export default function AdminDashboard() {
     }
     const s = map[status] || map['Booking']
     return (
-      <span style={{
-        display:'inline-flex', alignItems:'center', gap:4,
-        padding:'4px 12px', borderRadius:999,
-        background:s.bg, color:s.color,
-        fontSize:'0.75rem', fontWeight:600,
-      }}>
+      <span style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'4px 12px', borderRadius:999, background:s.bg, color:s.color, fontSize:'0.75rem', fontWeight:600 }}>
         {STAGE_ICONS[status]} {status}
       </span>
     )
@@ -131,14 +113,14 @@ export default function AdminDashboard() {
   let filtered = orders.filter(o =>
     applyFilter(o) &&
     (!search || (
-      (o.orderID?.toLowerCase() || '').includes(search.toLowerCase()) ||
-      (o.customerID?.toLowerCase() || '').includes(search.toLowerCase()) ||
-      (o.clothType?.toLowerCase() || '').includes(search.toLowerCase()) ||
-      (o.customerRef?.name?.toLowerCase() || '').includes(search.toLowerCase())
+      (o.orderID?.toLowerCase()||'').includes(search.toLowerCase()) ||
+      (o.customerID?.toLowerCase()||'').includes(search.toLowerCase()) ||
+      (o.clothType?.toLowerCase()||'').includes(search.toLowerCase()) ||
+      (o.customerRef?.name?.toLowerCase()||'').includes(search.toLowerCase())
     ))
   )
 
-  if (activeFilter === 'delivery' || sortByDate) {
+  if (sortByDate) {
     filtered = [...filtered].sort((a,b) => new Date(a.deliveryDate) - new Date(b.deliveryDate))
   }
 
@@ -154,78 +136,25 @@ export default function AdminDashboard() {
   }
 
   const statCards = [
+    { key:'total',     label:'Total Orders',     value:stats?.total         ?? 0, icon:<Package size={18} color="#4F46E5" />,       bg:'rgba(79,70,229,0.07)',  border:'rgba(79,70,229,0.2)',   clickKey:null       },
+    { key:'booking',   label:'Booking',           value:stats?.booking       ?? 0, icon:<span style={{fontSize:'1rem'}}>📘</span>,   bg:'rgba(79,70,229,0.04)',  border:'rgba(79,70,229,0.15)', clickKey:'booking'  },
+    { key:'cutting',   label:'Cutting',           value:stats?.cutting       ?? 0, icon:<span style={{fontSize:'1rem'}}>✂️</span>,   bg:'rgba(245,158,11,0.05)', border:'rgba(245,158,11,0.2)', clickKey:'cutting'  },
+    { key:'stitching', label:'Stitching',         value:stats?.stitching     ?? 0, icon:<span style={{fontSize:'1rem'}}>🧵</span>,   bg:'rgba(59,130,246,0.05)', border:'rgba(59,130,246,0.2)', clickKey:'stitching'},
+    { key:'finishing', label:'Finishing',         value:stats?.finishing     ?? 0, icon:<span style={{fontSize:'1rem'}}>🚩</span>,   bg:'rgba(168,85,247,0.05)', border:'rgba(168,85,247,0.2)', clickKey:'finishing'},
+    { key:'ready',     label:'Ready',             value:stats?.ready         ?? 0, icon:<CheckCircle size={18} color="#059669" />,   bg:'rgba(16,185,129,0.05)', border:'rgba(16,185,129,0.2)', clickKey:'ready'    },
+    { key:'today',     label:"Today's Delivery",  value:stats?.todayDelivery ?? 0, icon:<Calendar size={18} color="#0EA5E9" />,      bg:'rgba(14,165,233,0.05)', border:'rgba(14,165,233,0.2)', clickKey:'today'    },
+    { key:'delayed',   label:'Delayed',           value:stats?.delayed       ?? 0, icon:<AlertTriangle size={18} color="#EF4444" />, bg:'rgba(239,68,68,0.05)',  border:'rgba(239,68,68,0.2)',  clickKey:'delayed'  },
+    { key:'delivery',  label:'By Delivery Date',  value:'↕',                       icon:<span style={{fontSize:'1rem'}}>🗓️</span>,  bg:'rgba(16,185,129,0.04)', border:'rgba(16,185,129,0.15)',clickKey:'delivery' },
     {
-      key:'total', label:'Total Orders',
-      value: stats?.total ?? 0,
-      icon: <Package size={18} color="#4F46E5" />,
-      bg:'rgba(79,70,229,0.07)', border:'rgba(79,70,229,0.2)',
-      clickKey: null,
-    },
-    {
-      key:'booking', label:'Booking',
-      value: stats?.booking ?? 0,
-      icon: <span style={{fontSize:'1rem'}}>📘</span>,
-      bg:'rgba(79,70,229,0.04)', border:'rgba(79,70,229,0.15)',
-      clickKey:'booking',
-    },
-    {
-      key:'cutting', label:'Cutting',
-      value: stats?.cutting ?? 0,
-      icon: <span style={{fontSize:'1rem'}}>✂️</span>,
-      bg:'rgba(245,158,11,0.05)', border:'rgba(245,158,11,0.2)',
-      clickKey:'cutting',
-    },
-    {
-      key:'stitching', label:'Stitching',
-      value: stats?.stitching ?? 0,
-      icon: <span style={{fontSize:'1rem'}}>🧵</span>,
-      bg:'rgba(59,130,246,0.05)', border:'rgba(59,130,246,0.2)',
-      clickKey:'stitching',
-    },
-    {
-      key:'finishing', label:'Finishing',
-      value: stats?.finishing ?? 0,
-      icon: <span style={{fontSize:'1rem'}}>🚩</span>,
-      bg:'rgba(168,85,247,0.05)', border:'rgba(168,85,247,0.2)',
-      clickKey:'finishing',
-    },
-    {
-      key:'ready', label:'Ready',
-      value: stats?.ready ?? 0,
-      icon: <CheckCircle size={18} color="#059669" />,
-      bg:'rgba(16,185,129,0.05)', border:'rgba(16,185,129,0.2)',
-      clickKey:'ready',
-    },
-    {
-      key:'today', label:"Today's Delivery",
-      value: stats?.todayDelivery ?? 0,
-      icon: <Calendar size={18} color="#0EA5E9" />,
-      bg:'rgba(14,165,233,0.05)', border:'rgba(14,165,233,0.2)',
-      clickKey:'today',
-    },
-    {
-      key:'delayed', label:'Delayed',
-      value: stats?.delayed ?? 0,
-      icon: <AlertTriangle size={18} color="#EF4444" />,
-      bg:'rgba(239,68,68,0.05)', border:'rgba(239,68,68,0.2)',
-      clickKey:'delayed',
-    },
-    {
-      key:'delivery', label:'By Delivery Date',
-      value: '↕',
-      icon: <span style={{fontSize:'1rem'}}>🗓️</span>,
-      bg:'rgba(16,185,129,0.04)', border:'rgba(16,185,129,0.15)',
-      clickKey:'delivery',
-    },
-    {
-      key:'pending', label:'Total Pending',
-      value: stats?.totalPending > 0
+      key:'pending',
+      label:'Total Pending',
+      value: (stats?.totalPending || 0) > 0
         ? `₹${Number(stats.totalPending).toLocaleString('en-IN')}`
         : '₹0',
       icon: <span style={{fontSize:'1rem'}}>💰</span>,
-      bg:'rgba(239,68,68,0.04)', border:'rgba(239,68,68,0.12)',
-      clickKey: null,
-      sub: stats?.customersWithDue > 0
+      bg:'rgba(239,68,68,0.04)', border:'rgba(239,68,68,0.15)',
+      clickKey: 'pending-special',
+      sub: (stats?.customersWithDue || 0) > 0
         ? `${stats.customersWithDue} customers with due`
         : 'All settled',
     },
@@ -244,11 +173,8 @@ export default function AdminDashboard() {
   return (
     <main style={{ minHeight:'100vh', padding:'20px', maxWidth:1200, margin:'0 auto' }}>
 
-      {/* ── Top Bar ── */}
-      <div className="glass" style={{
-        display:'flex', alignItems:'center', justifyContent:'space-between',
-        padding:'14px 22px', marginBottom:20, flexWrap:'wrap', gap:12,
-      }}>
+      {/* Top Bar */}
+      <div className="glass" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 22px', marginBottom:20, flexWrap:'wrap', gap:12 }}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <img src="/logo.png" alt="Logo"
             style={{ width:40, height:40, borderRadius:10, objectFit:'cover', border:'2px solid rgba(255,255,255,0.8)' }}
@@ -278,59 +204,45 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* ── Stat Cards ── */}
-      <div className="fade-up" style={{
-        display:'grid',
-        gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))',
-        gap:12, marginBottom:20,
-      }}>
+      {/* Stat Cards */}
+      <div className="fade-up" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:12, marginBottom:20 }}>
         {statCards.map(card => (
           <div key={card.key}
             onClick={() => {
               if (!card.clickKey) return
+              if (card.clickKey === 'pending-special') {
+                setShowPending(!showPending)
+                setActiveFilter(null)
+                return
+              }
+              setShowPending(false)
               setActiveFilter(activeFilter === card.clickKey ? null : card.clickKey)
             }}
             className="glass"
             style={{
               padding:'16px 14px',
               cursor: card.clickKey ? 'pointer' : 'default',
-              background: activeFilter === card.clickKey ? card.border : card.bg,
-              border: `2px solid ${activeFilter === card.clickKey
-                ? card.border.replace('0.2','0.6').replace('0.15','0.5').replace('0.12','0.5')
-                : card.border}`,
+              background: (activeFilter === card.clickKey || (card.clickKey === 'pending-special' && showPending)) ? card.border : card.bg,
+              border:`2px solid ${card.border}`,
               transition:'all 0.25s ease',
-              transform: activeFilter === card.clickKey ? 'translateY(-4px)' : 'none',
+              transform: (activeFilter === card.clickKey || (card.clickKey === 'pending-special' && showPending)) ? 'translateY(-4px)' : 'none',
               position:'relative',
             }}
-            onMouseEnter={e => {
-              if (card.clickKey && activeFilter !== card.clickKey)
-                e.currentTarget.style.transform = 'translateY(-2px)'
-            }}
-            onMouseLeave={e => {
-              if (card.clickKey && activeFilter !== card.clickKey)
-                e.currentTarget.style.transform = 'none'
-            }}
+            onMouseEnter={e => { if (card.clickKey) e.currentTarget.style.transform='translateY(-2px)' }}
+            onMouseLeave={e => { if (card.clickKey && !(activeFilter === card.clickKey || (card.clickKey === 'pending-special' && showPending))) e.currentTarget.style.transform='none' }}
           >
-            {activeFilter === card.clickKey && (
-              <div style={{ position:'absolute', top:8, right:8, width:8, height:8, borderRadius:'50%', background:'#4F46E5' }} />
-            )}
             <div style={{ marginBottom:8 }}>{card.icon}</div>
-            <p style={{ fontSize:'0.65rem', color:'#6B7280', marginBottom:3, fontWeight:500 }}>
-              {card.label}
-            </p>
+            <p style={{ fontSize:'0.65rem', color:'#6B7280', marginBottom:3, fontWeight:500 }}>{card.label}</p>
             <p style={{
-              fontSize: card.key === 'pending' ? '0.95rem' : '1.4rem',
+              fontSize: card.key === 'pending' ? '0.9rem' : '1.4rem',
               fontWeight:800,
-              color: card.key === 'pending' && (stats?.totalPending || 0) > 0 ? '#DC2626' : '#1E1B4B',
+              color: card.key === 'pending' && (stats?.totalPending||0) > 0 ? '#DC2626' : '#1E1B4B',
               lineHeight:1,
             }}>
               {card.value}
             </p>
             {card.sub && (
-              <p style={{
-                fontSize:'0.62rem', marginTop:4, fontWeight:500,
-                color: (stats?.customersWithDue || 0) > 0 ? '#DC2626' : '#059669',
-              }}>
+              <p style={{ fontSize:'0.62rem', marginTop:4, fontWeight:500, color:(stats?.customersWithDue||0)>0?'#DC2626':'#059669' }}>
                 {card.sub}
               </p>
             )}
@@ -338,39 +250,91 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* ── Orders Table ── */}
-      <div className="glass fade-up-1" style={{ padding:'22px' }}>
+      {/* Pending Customers Panel */}
+      {showPending && (
+        <div className="glass fade-up" style={{ padding:24, marginBottom:20, border:'1.5px solid rgba(239,68,68,0.2)', background:'rgba(239,68,68,0.02)' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+            <h2 style={{ fontWeight:700, color:'#1E1B4B', fontSize:'0.95rem' }}>
+              💰 Customers with Pending Balance
+            </h2>
+            <button onClick={() => setShowPending(false)}
+              style={{ background:'none', border:'none', cursor:'pointer', color:'#9CA3AF', display:'flex' }}>
+              <X size={18} />
+            </button>
+          </div>
 
-        {/* Table header */}
+          {pendingCustomers.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'24px 0' }}>
+              <p style={{ fontSize:'2rem', marginBottom:8 }}>🎉</p>
+              <p style={{ color:'#059669', fontWeight:600 }}>All customers are fully settled!</p>
+            </div>
+          ) : (
+            <>
+              {/* Summary totals */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:12, marginBottom:16 }}>
+                {[
+                  { label:'Total Due',          value:`₹${(stats?.totalPending||0).toLocaleString('en-IN')}`,  color:'#DC2626', bg:'rgba(239,68,68,0.06)'  },
+                  { label:'Customers with Due',  value:pendingCustomers.length,                                 color:'#D97706', bg:'rgba(245,158,11,0.06)' },
+                ].map((s,i) => (
+                  <div key={i} style={{ background:s.bg, borderRadius:10, padding:'12px 16px', textAlign:'center' }}>
+                    <p style={{ fontSize:'0.7rem', color:'#9CA3AF', fontWeight:600, textTransform:'uppercase', marginBottom:4 }}>{s.label}</p>
+                    <p style={{ fontSize:'1.2rem', fontWeight:800, color:s.color }}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Customer list */}
+              <div style={{ display:'grid', gap:8 }}>
+                {pendingCustomers.map((c, i) => (
+                  <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12, padding:'14px 18px', background:'rgba(255,255,255,0.7)', borderRadius:10, border:'1px solid rgba(239,68,68,0.1)' }}>
+                    <div>
+                      <p style={{ fontWeight:700, color:'#1E1B4B', fontSize:'0.9rem' }}>{c.name}</p>
+                      <p style={{ fontSize:'0.75rem', color:'#4F46E5', fontWeight:600 }}>{c.customerID}</p>
+                    </div>
+                    <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
+                      <span style={{ fontSize:'0.78rem', padding:'4px 10px', borderRadius:999, background:'rgba(79,70,229,0.08)', color:'#4F46E5', fontWeight:600 }}>
+                        Total: ₹{(c.totalCost||0).toLocaleString('en-IN')}
+                      </span>
+                      <span style={{ fontSize:'0.78rem', padding:'4px 10px', borderRadius:999, background:'rgba(16,185,129,0.08)', color:'#059669', fontWeight:600 }}>
+                        Paid: ₹{(c.settled||0).toLocaleString('en-IN')}
+                      </span>
+                      <span style={{ fontSize:'0.85rem', padding:'5px 14px', borderRadius:999, background:'rgba(239,68,68,0.1)', color:'#DC2626', fontWeight:700 }}>
+                        Due: ₹{(c.balance||0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Orders Table */}
+      <div className="glass fade-up-1" style={{ padding:'22px' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18, flexWrap:'wrap', gap:12 }}>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
             <h2 style={{ fontSize:'0.95rem', fontWeight:700, color:'#1E1B4B' }}>
               {activeFilter ? filterLabel[activeFilter] : 'All Orders'}
             </h2>
             {activeFilter && (
-              <button
-                onClick={() => { setActiveFilter(null); setSearch('') }}
+              <button onClick={() => { setActiveFilter(null); setSearch('') }}
                 style={{ display:'flex', alignItems:'center', gap:5, background:'rgba(79,70,229,0.1)', border:'1.5px solid rgba(79,70,229,0.25)', borderRadius:999, padding:'4px 12px', color:'#4F46E5', fontSize:'0.75rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif' }}>
                 {filterLabel[activeFilter]} <X size={13} />
               </button>
             )}
           </div>
-
           <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
-            <button
-              onClick={() => setSortByDate(!sortByDate)}
-              style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:8, background: sortByDate ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.7)', border: sortByDate ? '1.5px solid rgba(16,185,129,0.3)' : '1.5px solid rgba(79,70,229,0.2)', color: sortByDate ? '#059669' : '#6B7280', fontSize:'0.78rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif', transition:'all 0.2s' }}>
-              <Calendar size={13} />
-              {sortByDate ? 'Date ✓' : 'Sort by Date'}
+            <button onClick={() => setSortByDate(!sortByDate)}
+              style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:8, background:sortByDate?'rgba(16,185,129,0.1)':'rgba(255,255,255,0.7)', border:sortByDate?'1.5px solid rgba(16,185,129,0.3)':'1.5px solid rgba(79,70,229,0.2)', color:sortByDate?'#059669':'#6B7280', fontSize:'0.78rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif' }}>
+              <Calendar size={13} />{sortByDate ? 'Date ✓' : 'Sort by Date'}
             </button>
-
             <div style={{ position:'relative' }}>
               <Search size={14} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#9CA3AF' }} />
               <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)}
                 style={{ padding:'8px 30px 8px 30px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:8, fontFamily:'Poppins,sans-serif', fontSize:'0.82rem', outline:'none', width:180, color:'#1E1B4B' }} />
               {search && (
-                <button onClick={() => setSearch('')}
-                  style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#9CA3AF', display:'flex' }}>
+                <button onClick={() => setSearch('')} style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#9CA3AF', display:'flex' }}>
                   <X size={13} />
                 </button>
               )}
@@ -379,27 +343,24 @@ export default function AdminDashboard() {
         </div>
 
         <p style={{ fontSize:'0.72rem', color:'#9CA3AF', marginBottom:14 }}>
-          Showing {filtered.length} order{filtered.length !== 1 ? 's' : ''}
+          Showing {filtered.length} order{filtered.length!==1?'s':''}
         </p>
 
-        {/* Empty state */}
         {filtered.length === 0 ? (
           <div style={{ textAlign:'center', padding:'48px 0' }}>
             <p style={{ fontSize:'2.5rem', marginBottom:12 }}>
-              {activeFilter === 'delayed' ? '🎉' : '📋'}
+              {activeFilter==='delayed'?'🎉':'📋'}
             </p>
             <p style={{ color:'#6B7280', fontSize:'0.9rem', marginBottom:16 }}>
-              {activeFilter === 'delayed' ? 'No delayed orders!' : activeFilter ? `No orders in this stage.` : 'No orders yet.'}
+              {activeFilter==='delayed' ? 'No delayed orders!' : activeFilter ? 'No orders in this stage.' : 'No orders yet.'}
             </p>
             {!activeFilter && (
-              <button onClick={() => router.push('/admin/orders/new')} className="btn-primary"
-                style={{ padding:'10px 24px', fontSize:'0.85rem' }}>
+              <button onClick={() => router.push('/admin/orders/new')} className="btn-primary" style={{ padding:'10px 24px', fontSize:'0.85rem' }}>
                 + Create First Order
               </button>
             )}
             {activeFilter && (
-              <button onClick={() => setActiveFilter(null)} className="btn-ghost"
-                style={{ padding:'9px 20px', fontSize:'0.82rem', display:'inline-flex', alignItems:'center', gap:6 }}>
+              <button onClick={() => setActiveFilter(null)} className="btn-ghost" style={{ padding:'9px 20px', fontSize:'0.82rem', display:'inline-flex', alignItems:'center', gap:6 }}>
                 <X size={14} /> Clear Filter
               </button>
             )}
@@ -422,46 +383,30 @@ export default function AdminDashboard() {
                   const diffDays   = Math.ceil((delivDate - new Date()) / (1000*60*60*24))
                   const isOverdue  = diffDays < 0 && order.status !== 'Ready For Delivery'
                   const isDueToday = diffDays === 0
-
                   return (
-                    <tr key={order._id}
-                      style={{ cursor:'pointer' }}
+                    <tr key={order._id} style={{ cursor:'pointer' }}
                       onClick={() => router.push(`/admin/orders/${order.orderID}`)}>
                       {[
-                        <span style={{ fontWeight:700, color:'#4F46E5', fontSize:'0.82rem', whiteSpace:'nowrap' }}>
-                          {order.orderID}
-                        </span>,
+                        <span style={{ fontWeight:700, color:'#4F46E5', fontSize:'0.82rem', whiteSpace:'nowrap' }}>{order.orderID}</span>,
                         <div>
-                          <p style={{ fontWeight:600, fontSize:'0.82rem', color:'#1E1B4B', whiteSpace:'nowrap' }}>
-                            {order.customerRef?.name || '—'}
-                          </p>
+                          <p style={{ fontWeight:600, fontSize:'0.82rem', color:'#1E1B4B', whiteSpace:'nowrap' }}>{order.customerRef?.name||'—'}</p>
                           <p style={{ fontSize:'0.68rem', color:'#9CA3AF' }}>{order.customerID}</p>
                         </div>,
                         <span style={{ fontSize:'0.82rem', whiteSpace:'nowrap' }}>{order.clothType}</span>,
                         <span style={{ fontSize:'0.82rem' }}>{order.quantity}</span>,
                         getStatusBadge(order.status),
                         <span style={{ fontSize:'0.8rem', color:'#4B5563', whiteSpace:'nowrap' }}>
-                          {order.deliveryDate
-                            ? new Date(order.deliveryDate).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })
-                            : '—'}
+                          {order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : '—'}
                         </span>,
-                        <span style={{ fontSize:'0.76rem', fontWeight:600, whiteSpace:'nowrap', color: isOverdue ? '#DC2626' : isDueToday ? '#D97706' : diffDays <= 3 ? '#F59E0B' : '#059669' }}>
-                          {order.status === 'Ready For Delivery' ? '✅ Done'
-                            : isOverdue  ? `${Math.abs(diffDays)}d overdue`
-                            : isDueToday ? '⚡ Today'
-                            : `${diffDays}d left`}
+                        <span style={{ fontSize:'0.76rem', fontWeight:600, whiteSpace:'nowrap', color:isOverdue?'#DC2626':isDueToday?'#D97706':diffDays<=3?'#F59E0B':'#059669' }}>
+                          {order.status==='Ready For Delivery'?'✅ Done':isOverdue?`${Math.abs(diffDays)}d overdue`:isDueToday?'⚡ Today':`${diffDays}d left`}
                         </span>,
-                        <button
-                          onClick={e => { e.stopPropagation(); router.push(`/admin/orders/${order.orderID}`) }}
+                        <button onClick={e => { e.stopPropagation(); router.push(`/admin/orders/${order.orderID}`) }}
                           style={{ display:'flex', alignItems:'center', gap:3, background:'rgba(79,70,229,0.08)', border:'1px solid rgba(79,70,229,0.2)', borderRadius:6, padding:'6px 10px', color:'#4F46E5', fontSize:'0.76rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif', whiteSpace:'nowrap' }}>
                           View <ChevronRight size={12} />
                         </button>,
-                      ].map((cell, ci) => (
-                        <td key={ci} style={{
-                          padding:'11px 12px',
-                          background: isOverdue ? 'rgba(239,68,68,0.04)' : isDueToday ? 'rgba(245,158,11,0.04)' : 'rgba(255,255,255,0.6)',
-                          borderRadius: ci===0 ? '10px 0 0 10px' : ci===7 ? '0 10px 10px 0' : 0,
-                        }}>
+                      ].map((cell,ci) => (
+                        <td key={ci} style={{ padding:'11px 12px', background:isOverdue?'rgba(239,68,68,0.04)':isDueToday?'rgba(245,158,11,0.04)':'rgba(255,255,255,0.6)', borderRadius:ci===0?'10px 0 0 10px':ci===7?'0 10px 10px 0':0 }}>
                           {cell}
                         </td>
                       ))}
@@ -473,7 +418,6 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
-
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>
   )
