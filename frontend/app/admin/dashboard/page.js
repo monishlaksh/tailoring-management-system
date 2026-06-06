@@ -33,19 +33,31 @@ export default function AdminDashboard() {
 
  const fetchData = async () => {
   try {
-    const [statsRes, ordersRes, paymentRes] = await Promise.all([
+    const [statsRes, ordersRes] = await Promise.all([
       API.get('/api/orders/stats/dashboard'),
       API.get('/api/orders'),
-      API.get('/api/customers/stats/payment-summary'),
     ])
-    setStats({
-      ...statsRes.data.stats,
-      totalPending:     paymentRes.data.summary.totalBalance      || 0,
-      customersWithDue: paymentRes.data.summary.customersWithDue  || 0,
-    })
+    setStats(statsRes.data.stats)
     setOrders(ordersRes.data.orders)
-  } catch (e) { console.error(e) }
-  finally { setLoading(false) }
+
+    // Fetch payment summary separately so it doesn't crash dashboard
+    try {
+      const paymentRes = await API.get('/api/customers/stats/payment-summary')
+      setStats(prev => ({
+        ...prev,
+        totalPending:     paymentRes.data.summary.totalBalance     || 0,
+        customersWithDue: paymentRes.data.summary.customersWithDue || 0,
+      }))
+    } catch (pe) {
+      // Payment summary failed — dashboard still works
+      setStats(prev => ({ ...prev, totalPending: 0, customersWithDue: 0 }))
+    }
+
+  } catch (e) {
+    console.error('Dashboard fetch error:', e)
+  } finally {
+    setLoading(false)
+  }
 }
   const getStatusBadge = (status) => {
     const map = {
