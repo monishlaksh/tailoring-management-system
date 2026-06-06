@@ -31,24 +31,22 @@ export default function AdminDashboard() {
     fetchData()
   }, [])
 
-  const fetchData = async () => {
-    try {
-      const [statsRes, ordersRes] = await Promise.all([
-        API.get('/api/orders/stats/dashboard'),
-        API.get('/api/orders'),
-      ])
-      setStats(statsRes.data.stats)
-      setOrders(ordersRes.data.orders)
-    } catch (e) { console.error(e) }
-    finally { setLoading(false) }
-  }
-
-  const handleLogout = () => {
-    localStorage.removeItem('adminToken')
-    localStorage.removeItem('adminUser')
-    router.push('/admin/login')
-  }
-
+ const fetchData = async () => {
+  try {
+    const [statsRes, ordersRes, paymentRes] = await Promise.all([
+      API.get('/api/orders/stats/dashboard'),
+      API.get('/api/orders'),
+      API.get('/api/customers/stats/payment-summary'),
+    ])
+    setStats({
+      ...statsRes.data.stats,
+      totalPending:     paymentRes.data.summary.totalBalance      || 0,
+      customersWithDue: paymentRes.data.summary.customersWithDue  || 0,
+    })
+    setOrders(ordersRes.data.orders)
+  } catch (e) { console.error(e) }
+  finally { setLoading(false) }
+}
   const getStatusBadge = (status) => {
     const map = {
       'Booking':            { bg:'rgba(79,70,229,0.12)',  color:'#4F46E5' },
@@ -113,16 +111,26 @@ export default function AdminDashboard() {
   }
 
   const statCards = [
-    { key:'total',     label:'Total Orders',     value:stats?.total,         icon:<Package size={18} color="#4F46E5" />,       bg:'rgba(79,70,229,0.07)',  border:'rgba(79,70,229,0.2)',  clickKey: null },
-    { key:'booking',   label:'Booking',           value:stats?.booking,       icon:<span style={{fontSize:'1rem'}}>📘</span>,   bg:'rgba(79,70,229,0.04)',  border:'rgba(79,70,229,0.15)', clickKey:'booking' },
-    { key:'cutting',   label:'Cutting',           value:stats?.cutting,       icon:<span style={{fontSize:'1rem'}}>✂️</span>,   bg:'rgba(245,158,11,0.05)', border:'rgba(245,158,11,0.2)', clickKey:'cutting' },
-    { key:'stitching', label:'Stitching',         value:stats?.stitching,     icon:<span style={{fontSize:'1rem'}}>🧵</span>,   bg:'rgba(59,130,246,0.05)', border:'rgba(59,130,246,0.2)', clickKey:'stitching' },
-    { key:'finishing', label:'Finishing',         value:stats?.finishing,     icon:<span style={{fontSize:'1rem'}}>🚩</span>,   bg:'rgba(168,85,247,0.05)', border:'rgba(168,85,247,0.2)', clickKey:'finishing' },
-    { key:'ready',     label:'Ready',             value:stats?.ready,         icon:<CheckCircle size={18} color="#059669" />,   bg:'rgba(16,185,129,0.05)', border:'rgba(16,185,129,0.2)', clickKey:'ready' },
-    { key:'today',     label:"Today's Delivery",  value:stats?.todayDelivery, icon:<Calendar size={18} color="#0EA5E9" />,      bg:'rgba(14,165,233,0.05)', border:'rgba(14,165,233,0.2)', clickKey:'today' },
-    { key:'delayed',   label:'Delayed',           value:stats?.delayed,       icon:<AlertTriangle size={18} color="#EF4444" />, bg:'rgba(239,68,68,0.05)',  border:'rgba(239,68,68,0.2)',  clickKey:'delayed' },
-    { key:'delivery',  label:'By Delivery Date',  value:'↕',                  icon:<span style={{fontSize:'1rem'}}>🗓️</span>,  bg:'rgba(16,185,129,0.04)', border:'rgba(16,185,129,0.15)',clickKey:'delivery' },
-  ]
+  { key:'total',     label:'Total Orders',      value:stats?.total,           icon:<Package size={18} color="#4F46E5" />,         bg:'rgba(79,70,229,0.07)',  border:'rgba(79,70,229,0.2)',   clickKey: null },
+  { key:'booking',   label:'Booking',            value:stats?.booking,         icon:<span style={{fontSize:'1rem'}}>📘</span>,     bg:'rgba(79,70,229,0.04)',  border:'rgba(79,70,229,0.15)', clickKey:'booking'   },
+  { key:'cutting',   label:'Cutting',            value:stats?.cutting,         icon:<span style={{fontSize:'1rem'}}>✂️</span>,     bg:'rgba(245,158,11,0.05)', border:'rgba(245,158,11,0.2)', clickKey:'cutting'   },
+  { key:'stitching', label:'Stitching',          value:stats?.stitching,       icon:<span style={{fontSize:'1rem'}}>🧵</span>,     bg:'rgba(59,130,246,0.05)', border:'rgba(59,130,246,0.2)', clickKey:'stitching' },
+  { key:'finishing', label:'Finishing',          value:stats?.finishing,       icon:<span style={{fontSize:'1rem'}}>🚩</span>,     bg:'rgba(168,85,247,0.05)', border:'rgba(168,85,247,0.2)', clickKey:'finishing' },
+  { key:'ready',     label:'Ready',              value:stats?.ready,           icon:<CheckCircle size={18} color="#059669" />,     bg:'rgba(16,185,129,0.05)', border:'rgba(16,185,129,0.2)', clickKey:'ready'     },
+  { key:'today',     label:"Today's Delivery",   value:stats?.todayDelivery,   icon:<Calendar size={18} color="#0EA5E9" />,        bg:'rgba(14,165,233,0.05)', border:'rgba(14,165,233,0.2)', clickKey:'today'     },
+  { key:'delayed',   label:'Delayed',            value:stats?.delayed,         icon:<AlertTriangle size={18} color="#EF4444" />,   bg:'rgba(239,68,68,0.05)',  border:'rgba(239,68,68,0.2)',  clickKey:'delayed'   },
+  { key:'delivery',  label:'By Delivery Date',   value:'↕',                    icon:<span style={{fontSize:'1rem'}}>🗓️</span>,    bg:'rgba(16,185,129,0.04)', border:'rgba(16,185,129,0.15)',clickKey:'delivery'  },
+  {
+    key:'pending',
+    label:'Total Pending (₹)',
+    value: stats?.totalPending > 0 ? `₹${Number(stats.totalPending).toLocaleString('en-IN')}` : '₹0',
+    icon:<span style={{fontSize:'1rem'}}>💰</span>,
+    bg:'rgba(239,68,68,0.05)',
+    border:'rgba(239,68,68,0.15)',
+    clickKey: null,
+    sub: stats?.customersWithDue > 0 ? `${stats.customersWithDue} customers with due` : 'All clear',
+  },
+]
 
   if (loading) return (
     <main style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -184,13 +192,19 @@ export default function AdminDashboard() {
               onMouseEnter={e => { if(card.clickKey && activeFilter !== card.clickKey) e.currentTarget.style.transform='translateY(-2px)' }}
               onMouseLeave={e => { if(card.clickKey && activeFilter !== card.clickKey) e.currentTarget.style.transform='none' }}
             >
-              {/* Active indicator dot */}
               {activeFilter === card.clickKey && (
                 <div style={{ position:'absolute', top:8, right:8, width:8, height:8, borderRadius:'50%', background:'#4F46E5' }} />
               )}
               <div style={{ marginBottom:8 }}>{card.icon}</div>
               <p style={{ fontSize:'0.65rem', color:'#6B7280', marginBottom:3, fontWeight:500 }}>{card.label}</p>
-              <p style={{ fontSize:'1.4rem', fontWeight:800, color:'#1E1B4B', lineHeight:1 }}>{card.value ?? 0}</p>
+              <p style={{ fontSize: card.key === 'pending' ? '1rem' : '1.4rem', fontWeight:800, color: card.key === 'pending' && stats?.totalPending > 0 ? '#DC2626' : '#1E1B4B', lineHeight:1 }}>
+                {card.value ?? 0}
+              </p>
+              {card.sub && (
+                <p style={{ fontSize:'0.62rem', color: stats?.customersWithDue > 0 ? '#DC2626' : '#059669', marginTop:4, fontWeight:500 }}>
+                  {card.sub}
+                </p>
+              )}
             </div>
           ))}
         </div>

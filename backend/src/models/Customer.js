@@ -7,6 +7,11 @@ const customerSchema = new mongoose.Schema({
   address:    { type: String, default: '' },
   notes:      { type: String, default: '' },
   isActive:   { type: Boolean, default: true },
+  payment: {
+    totalCost:     { type: Number, default: 0 },
+    amountSettled: { type: Number, default: 0 },
+    balance:       { type: Number, default: 0 },
+  },
 }, { timestamps: true })
 
 module.exports = mongoose.model('Customer', customerSchema)

@@ -92,6 +92,24 @@ export default function CustomerDashboard() {
             <div style={{ display:'flex', gap:14, flexWrap:'wrap' }}>
               <span style={{ display:'flex', alignItems:'center', gap:5, fontSize:'0.8rem', color:'#0EA5E9', fontWeight:600 }}><CreditCard size={13} />{customer.customerID}</span>
               <span style={{ display:'flex', alignItems:'center', gap:5, fontSize:'0.8rem', color:'#6B7280' }}><Phone size={13} />{customer.phone}</span>
+              {/* Payment status for customer */}
+                {customer.payment?.totalCost > 0 && (
+                  <div style={{ marginTop:10, display:'flex', gap:10, flexWrap:'wrap' }}>
+                    <span style={{ fontSize:'0.78rem', fontWeight:600, padding:'4px 12px', borderRadius:999, background:'rgba(79,70,229,0.08)', color:'#4F46E5' }}>
+                      Total: ₹{customer.payment.totalCost.toLocaleString('en-IN')}
+                    </span>
+                    <span style={{ fontSize:'0.78rem', fontWeight:600, padding:'4px 12px', borderRadius:999, background:'rgba(16,185,129,0.08)', color:'#059669' }}>
+                      Settled: ₹{customer.payment.amountSettled.toLocaleString('en-IN')}
+                    </span>
+                    <span style={{
+                      fontSize:'0.78rem', fontWeight:600, padding:'4px 12px', borderRadius:999,
+                      background: customer.payment.balance > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)',
+                      color:      customer.payment.balance > 0 ? '#DC2626' : '#059669',
+                    }}>
+                      {customer.payment.balance > 0 ? `Balance: ₹${customer.payment.balance.toLocaleString('en-IN')}` : 'Fully Paid ✅'}
+                    </span>
+                  </div>
+                )}
             </div>
           </div>
         </div>

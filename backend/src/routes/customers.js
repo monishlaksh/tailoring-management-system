@@ -22,7 +22,7 @@ const getNextCustomerID = async () => {
   return newID
 }
 
-// ── GET all customers — admin AND employee can search ────────
+// GET all customers
 router.get('/', protectAdminOrEmployee, async (req, res) => {
   try {
     const { search } = req.query
@@ -41,7 +41,7 @@ router.get('/', protectAdminOrEmployee, async (req, res) => {
   }
 })
 
-// ── GET single customer — admin and employee ─────────────────
+// GET single customer
 router.get('/:customerID', protectAdminOrEmployee, async (req, res) => {
   try {
     const customer = await Customer.findOne({ customerID: req.params.customerID })
@@ -53,27 +53,24 @@ router.get('/:customerID', protectAdminOrEmployee, async (req, res) => {
   }
 })
 
-// ── POST create customer — admin and employee ────────────────
+// POST create customer
 router.post('/', protectAdminOrEmployee, async (req, res) => {
   try {
     const { name, phone, address, notes } = req.body
     if (!name || !phone)
       return res.status(400).json({ success: false, message: 'Name and phone required' })
-
     const existing = await Customer.findOne({ phone, isActive: true })
     if (existing)
       return res.status(400).json({ success: false, message: 'Phone number already exists' })
-
     const customerID = await getNextCustomerID()
     const customer   = await Customer.create({ customerID, name, phone, address, notes })
-
     res.status(201).json({ success: true, message: 'Customer created', customer })
   } catch (e) {
     res.status(500).json({ success: false, message: e.message })
   }
 })
 
-// ── PUT update customer — admin only ─────────────────────────
+// PUT update customer info — admin only
 router.put('/:customerID', protect, async (req, res) => {
   try {
     const { name, phone, address, notes } = req.body
@@ -90,7 +87,75 @@ router.put('/:customerID', protect, async (req, res) => {
   }
 })
 
-// ── DELETE customer — admin only ──────────────────────────────
+// PATCH update payment — admin only
+router.patch('/:customerID/payment', protect, async (req, res) => {
+  try {
+    const { totalCost, amountSettled } = req.body
+
+    if (totalCost === undefined || amountSettled === undefined)
+      return res.status(400).json({ success: false, message: 'totalCost and amountSettled required' })
+
+    const total   = parseFloat(totalCost)    || 0
+    const settled = parseFloat(amountSettled) || 0
+
+    if (settled > total)
+      return res.status(400).json({ success: false, message: 'Amount settled cannot exceed total cost' })
+
+    const balance  = total - settled
+
+    const customer = await Customer.findOneAndUpdate(
+      { customerID: req.params.customerID },
+      {
+        $set: {
+          'payment.totalCost':     total,
+          'payment.amountSettled': settled,
+          'payment.balance':       balance,
+        },
+      },
+      { new: true }
+    )
+
+    if (!customer)
+      return res.status(404).json({ success: false, message: 'Customer not found' })
+
+    res.json({ success: true, message: 'Payment updated', customer })
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message })
+  }
+})
+
+// GET payment summary — total pending across all customers
+router.get('/stats/payment-summary', protect, async (req, res) => {
+  try {
+    const result = await Customer.aggregate([
+      { $match: { isActive: true } },
+      {
+        $group: {
+          _id:              null,
+          totalCost:        { $sum: '$payment.totalCost' },
+          totalSettled:     { $sum: '$payment.amountSettled' },
+          totalBalance:     { $sum: '$payment.balance' },
+          customersWithDue: {
+            $sum: { $cond: [{ $gt: ['$payment.balance', 0] }, 1, 0] },
+          },
+        },
+      },
+    ])
+
+    const summary = result[0] || {
+      totalCost:        0,
+      totalSettled:     0,
+      totalBalance:     0,
+      customersWithDue: 0,
+    }
+
+    res.json({ success: true, summary })
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message })
+  }
+})
+
+// DELETE customer — admin only
 router.delete('/:customerID', protect, async (req, res) => {
   try {
     const customer = await Customer.findOneAndUpdate(

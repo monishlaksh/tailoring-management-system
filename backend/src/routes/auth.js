@@ -103,15 +103,16 @@ router.post('/customer/login', async (req, res) => {
     )
 
     res.json({
-      success: true,
-      token,
-      customer: {
-        customerID: customer.customerID,
-        name:       customer.name,
-        phone:      customer.phone,
-        address:    customer.address,
-      },
-    })
+  success: true,
+  token,
+  customer: {
+    customerID:    customer.customerID,
+    name:          customer.name,
+    phone:         customer.phone,
+    address:       customer.address,
+    payment:       customer.payment,  // add this line
+  },
+})
   } catch (e) {
     res.status(500).json({ success: false, message: e.message })
   }
