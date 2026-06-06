@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import {
   Scissors, LogOut, User, Phone, CreditCard,
   Package, Clock, CheckCircle, Calendar,
-  ChevronRight, IndianRupee,
+  ChevronRight, 
 } from 'lucide-react'
 import API from '../../../lib/api'
 
@@ -159,7 +159,7 @@ export default function CustomerDashboard() {
             {payment.totalCost > 0 && (
               <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
                 <span style={{ fontSize:'0.78rem', fontWeight:600, padding:'5px 12px', borderRadius:999, background:'rgba(79,70,229,0.08)', color:'#4F46E5', display:'flex', alignItems:'center', gap:4 }}>
-                  <IndianRupee size={12} />
+                  <span>₹</span>
                   Total: ₹{payment.totalCost.toLocaleString('en-IN')}
                 </span>
                 <span style={{ fontSize:'0.78rem', fontWeight:600, padding:'5px 12px', borderRadius:999, background:'rgba(16,185,129,0.08)', color:'#059669' }}>

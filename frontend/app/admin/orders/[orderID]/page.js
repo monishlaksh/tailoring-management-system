@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { ArrowLeft, Save, Trash2, ChevronRight, IndianRupee } from 'lucide-react'
+import { ArrowLeft, Save, Trash2, ChevronRight} from 'lucide-react'
 import API from '../../../../lib/api'
 
 const STAGES      = ['Booking','Cutting','Stitching','Finishing','Ready For Delivery']
@@ -212,7 +212,7 @@ export default function OrderDetail() {
         {/* ── Payment Section ── */}
         <div className="glass fade-up-1" style={{ padding:24, background:'rgba(16,185,129,0.03)', border:'1.5px solid rgba(16,185,129,0.15)' }}>
           <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:20, fontSize:'0.95rem', display:'flex', alignItems:'center', gap:8 }}>
-            <IndianRupee size={18} color="#059669" /> Payment Details
+            <span>₹</span> Payment Details
           </h2>
 
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:14, marginBottom:20 }}>
@@ -329,7 +329,7 @@ export default function OrderDetail() {
             }}>
             {paymentSaving
               ? <><div className="spinner" />Saving...</>
-              : <><IndianRupee size={15} />Update Payment</>}
+              : <><span>₹</span>Update Payment</>}
           </button>
         </div>
 

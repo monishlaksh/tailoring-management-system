@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Plus, Search, Edit2, Trash2,
-  X, Check, User, IndianRupee, ChevronDown, ChevronUp
+  X, Check, User, ChevronDown, ChevronUp
 } from 'lucide-react'
 import API from '../../../lib/api'
 
@@ -195,7 +195,7 @@ export default function CustomersPage() {
                       <button
                         onClick={() => setExpandedPayment(isExpanded ? null : c.customerID)}
                         style={{ display:'flex', alignItems:'center', gap:5, background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.2)', borderRadius:8, padding:'7px 12px', color:'#059669', fontSize:'0.78rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif' }}>
-                        <IndianRupee size={13} />
+                        <span>₹</span>
                         Payment
                         {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                       </button>
