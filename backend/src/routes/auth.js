@@ -3,7 +3,7 @@ const jwt      = require('jsonwebtoken')
 const bcrypt   = require('bcryptjs')
 const Customer = require('../models/Customer')
 const Employee = require('../models/Employee')
-const { protect } = require('../middleware/auth')
+const { protect, protectCustomer } = require('../middleware/auth')
 const router = express.Router()
 
 // Admin login
@@ -49,7 +49,6 @@ router.post('/employee/login', async (req, res) => {
     if (!match)
       return res.status(401).json({ success: false, message: 'Invalid username or password' })
 
-   
     const token = jwt.sign(
       {
         employeeId: employee._id.toString(),
@@ -102,17 +101,45 @@ router.post('/customer/login', async (req, res) => {
       { expiresIn: '7d' }
     )
 
+    // Only store minimal data in token
+    // Full data always fetched fresh from server
     res.json({
-  success: true,
-  token,
-  customer: {
-    customerID:    customer.customerID,
-    name:          customer.name,
-    phone:         customer.phone,
-    address:       customer.address,
-    payment:       customer.payment,  // add this line
-  },
+      success: true,
+      token,
+      customer: {
+        customerID: customer.customerID,
+        name:       customer.name,
+        phone:      customer.phone,
+      },
+    })
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message })
+  }
 })
+
+// GET /api/auth/customer/me — fetch fresh customer profile
+// Called every time customer dashboard loads
+router.get('/customer/me', protectCustomer, async (req, res) => {
+  try {
+    const customer = await Customer.findOne({
+      customerID: req.customer.customerID,
+      isActive:   true,
+    })
+
+    if (!customer)
+      return res.status(404).json({ success: false, message: 'Customer not found' })
+
+    res.json({
+      success: true,
+      customer: {
+        customerID:    customer.customerID,
+        name:          customer.name,
+        phone:         customer.phone,
+        address:       customer.address,
+        notes:         customer.notes,
+        payment:       customer.payment,
+      },
+    })
   } catch (e) {
     res.status(500).json({ success: false, message: e.message })
   }
