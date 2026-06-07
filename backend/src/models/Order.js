@@ -10,6 +10,7 @@ const orderSchema = new mongoose.Schema({
   },
   quantity:            { type: Number, default: 1 },
   unitCost:            { type: Number, default: 0 },
+  amountSettled:       { type: Number, default: 0 },
   fabricNotes:         { type: String, default: '' },
   specialInstructions: { type: String, default: '' },
   measurements: {

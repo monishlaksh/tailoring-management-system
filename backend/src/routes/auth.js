@@ -7,7 +7,6 @@ const Order    = require('../models/Order')
 const { protect } = require('../middleware/auth')
 const router   = express.Router()
 
-// Admin login
 router.post('/admin/login', (req, res) => {
   try {
     const { username, password } = req.body
@@ -30,7 +29,6 @@ router.get('/admin/verify', protect, (req, res) => {
   res.json({ success: true, admin: req.admin })
 })
 
-// Employee login
 router.post('/employee/login', async (req, res) => {
   try {
     const { username, password } = req.body
@@ -56,7 +54,6 @@ router.post('/employee/login', async (req, res) => {
   }
 })
 
-// Customer login
 router.post('/customer/login', async (req, res) => {
   try {
     const { customerID, phone } = req.body
@@ -64,8 +61,8 @@ router.post('/customer/login', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Provide Customer ID and Phone' })
     const customer = await Customer.findOne({
       customerID: customerID.trim().toUpperCase(),
-      phone: phone.trim(),
-      isActive: true,
+      phone:      phone.trim(),
+      isActive:   true,
     })
     if (!customer)
       return res.status(401).json({ success: false, message: 'Invalid Customer ID or Phone number' })
@@ -83,7 +80,7 @@ router.post('/customer/login', async (req, res) => {
   }
 })
 
-// Customer: get fresh profile — always live from DB
+// Customer: get fresh profile — payment calculated from orders
 router.get('/customer/me', async (req, res) => {
   try {
     const authHeader = req.headers.authorization
@@ -103,11 +100,11 @@ router.get('/customer/me', async (req, res) => {
     if (!customer)
       return res.status(404).json({ success: false, message: 'Customer not found' })
 
-    // Calculate live payment from orders
-    const orders    = await Order.find({ customerID: decoded.customerID }).lean()
-    const totalCost = orders.reduce((sum, o) => sum + (o.unitCost || 0), 0)
-    const settled   = customer.amountSettled || 0
-    const balance   = totalCost - settled
+    // Calculate payment live from orders
+    const orders       = await Order.find({ customerID: decoded.customerID }).lean()
+    const totalCost    = orders.reduce((sum, o) => sum + (o.unitCost      || 0), 0)
+    const totalSettled = orders.reduce((sum, o) => sum + (o.amountSettled || 0), 0)
+    const balance      = Math.max(totalCost - totalSettled, 0)
 
     res.json({
       success: true,
@@ -118,8 +115,8 @@ router.get('/customer/me', async (req, res) => {
         address:    customer.address,
         payment: {
           totalCost,
-          amountSettled: settled,
-          balance:       Math.max(balance, 0),
+          amountSettled: totalSettled,
+          balance,
         },
       },
     })
