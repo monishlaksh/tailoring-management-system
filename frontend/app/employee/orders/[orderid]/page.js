@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
-import API from '../../../../lib/api'
+import { employeeAPI as API } from '../../../../lib/api'
 
 const STAGES = ['Booking','Cutting','Stitching','Finishing','Ready For Delivery']
 const STAGE_ICONS = {

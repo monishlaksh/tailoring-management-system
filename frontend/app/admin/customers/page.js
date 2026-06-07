@@ -5,7 +5,7 @@ import {
   ArrowLeft, Plus, Search, Edit2, Trash2,
   X, Check, User, ChevronDown, ChevronUp
 } from 'lucide-react'
-import API from '../../../lib/api'
+import { adminAPI as API } from '../../../lib/api'
 
 export default function CustomersPage() {
   const router = useRouter()

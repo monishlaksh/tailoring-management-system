@@ -5,7 +5,7 @@ import {
   Scissors, LogOut, User, Phone, CreditCard,
   Package, Clock, CheckCircle, Calendar, ChevronRight,
 } from 'lucide-react'
-import API from '../../../lib/api'
+import { customerAPI as API } from '../../../lib/api'
 
 const STAGES      = ['Booking','Cutting','Stitching','Finishing','Ready For Delivery']
 const STAGE_ICONS = {

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Scissors, Phone, CreditCard, AlertCircle, Eye, EyeOff } from 'lucide-react'
-import API from '../../../lib/api'
+import { customerAPI as API } from '../../../lib/api'
 
 export default function CustomerLogin() {
   const router = useRouter()

@@ -5,7 +5,7 @@ import {
   Users, LogOut, Plus, Search,
   ChevronRight, X, Package, Clock, CheckCircle
 } from 'lucide-react'
-import API from '../../../lib/api'
+import { employeeAPI as API } from '../../../lib/api'
 
 const STAGE_ICONS = {
   'Booking':            '📘',
