@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Search } from 'lucide-react'
 import { adminAPI as API } from '../../../../lib/api'
+import NumInput from '../../../../components/NumInput'
 
 const CLOTH_TYPES = ['Blouse','Chudi','Saree Blouse','Shirt','Pant','Lehenga','Kids Dress','Custom Dress']
 const MEASUREMENT_FIELDS = ['shoulder','chest','waist','hip','sleeve','length','neck','custom']
@@ -121,7 +122,12 @@ export default function NewOrder() {
             </div>
             <div>
               <label className="input-label">QUANTITY</label>
-              <input type="number" min="1" value={form.quantity} onChange={e => setForm({...form, quantity:parseInt(e.target.value)||1})} onFocus={e => e.target.select()} className="input-field" />
+              <NumInput
+                value={form.quantity}
+                onChange={val => setForm({...form, quantity: Math.max(1, Math.round(val))})}
+                placeholder="1"
+                min={1}
+              />
             </div>
             <div>
               <label className="input-label">DELIVERY DATE</label>

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Plus, Edit2, Trash2, X, Check, Users, Eye, EyeOff } from 'lucide-react'
 import { adminAPI as API } from '../../../lib/api'
 
+
 export default function EmployeesPage() {
   const router = useRouter()
   const [employees, setEmployees] = useState([])
@@ -95,9 +96,10 @@ export default function EmployeesPage() {
             <button onClick={openAdd} className="btn-primary" style={{ padding:'10px 24px', fontSize:'0.85rem' }}>+ Add First Employee</button>
           </div>
         ) : (
-          <div style={{ display:'grid', gap:10 }}>
+          <div  style={{ display:'grid', gap:10 }}>
             {employees.map(emp => (
-              <div key={emp._id} className="glass" style={{ padding:'16px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12, background: emp.isActive?'rgba(255,255,255,0.5)':'rgba(239,68,68,0.03)', border: emp.isActive?'1px solid rgba(255,255,255,0.8)':'1px solid rgba(239,68,68,0.15)' }}>
+              <div  key={emp._id} onClick={() => router.push(`/admin/employees/${emp.employeeID}`)}
+                 className="glass" style={{ padding:'16px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12, background: emp.isActive?'rgba(255,255,255,0.5)':'rgba(239,68,68,0.03)', border: emp.isActive?'1px solid rgba(255,255,255,0.8)':'1px solid rgba(239,68,68,0.15)',cursor:'pointer' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:14 }}>
                   <div style={{ width:44, height:44, borderRadius:'50%', background: emp.isActive?'linear-gradient(135deg,#F59E0B,#D97706)':'#D1D5DB', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                     <Users size={20} color="white" />

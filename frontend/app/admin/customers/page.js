@@ -6,6 +6,7 @@ import {
   X, Check, User, ChevronDown, ChevronUp
 } from 'lucide-react'
 import { adminAPI as API } from '../../../lib/api'
+import NumInput from '../../../components/NumInput'
 
 export default function CustomersPage() {
   const router = useRouter()
@@ -236,16 +237,13 @@ export default function CustomersPage() {
                       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12 }}>
                         <div>
                           <label className="input-label">AMOUNT SETTLED (₹)</label>
-                          <div style={{ position:'relative' }}>
-                            <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#9CA3AF' }}>₹</span>
-                            <input type="number" min="0" value={settled}
-                              onChange={e => setSettledInputs(prev => ({ ...prev, [c.customerID]:e.target.value }))}
-                              placeholder="0"
-                              style={{ width:'100%', padding:'11px 12px 11px 24px', background:'rgba(255,255,255,0.9)', border:'1.5px solid rgba(16,185,129,0.25)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.88rem', color:'#1E1B4B', outline:'none' }}
-                              onFocus={e => {e.target.select();e.target.style.borderColor='#10B981'}}
-                              onBlur={e  => e.target.style.borderColor='rgba(16,185,129,0.25)'}
-                            />
-                          </div>
+                          <NumInput
+                            prefix="₹"
+                            value={parseFloat(settled) || 0}
+                            onChange={val => setSettledInputs(prev => ({ ...prev, [c.customerID]: val }))}
+                            placeholder="0"
+                            style={{ border:'1.5px solid rgba(16,185,129,0.25)' }}
+                          />
                         </div>
                         <div>
                           <label className="input-label">BALANCE (AUTO)</label>
