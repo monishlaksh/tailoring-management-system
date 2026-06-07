@@ -121,7 +121,7 @@ export default function NewOrder() {
             </div>
             <div>
               <label className="input-label">QUANTITY</label>
-              <input type="number" min="1" value={form.quantity} onChange={e => setForm({...form, quantity:parseInt(e.target.value)||1})} className="input-field" />
+              <input type="number" min="1" value={form.quantity} onChange={e => setForm({...form, quantity:parseInt(e.target.value)||1})} onFocus={e => e.target.select()} className="input-field" />
             </div>
             <div>
               <label className="input-label">DELIVERY DATE</label>

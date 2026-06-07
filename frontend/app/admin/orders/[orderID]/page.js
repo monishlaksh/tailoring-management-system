@@ -252,6 +252,7 @@ export default function OrderDetail() {
               <label className="input-label">QUANTITY</label>
               <input type="number" min="1" value={form.quantity}
                 onChange={e => setForm({ ...form, quantity: parseInt(e.target.value) || 1 })}
+                onFocus={e => e.target.select()}
                 className="input-field" />
             </div>
             <div>

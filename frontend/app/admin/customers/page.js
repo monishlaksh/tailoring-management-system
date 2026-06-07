@@ -242,7 +242,7 @@ export default function CustomersPage() {
                               onChange={e => setSettledInputs(prev => ({ ...prev, [c.customerID]:e.target.value }))}
                               placeholder="0"
                               style={{ width:'100%', padding:'11px 12px 11px 24px', background:'rgba(255,255,255,0.9)', border:'1.5px solid rgba(16,185,129,0.25)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.88rem', color:'#1E1B4B', outline:'none' }}
-                              onFocus={e => e.target.style.borderColor='#10B981'}
+                              onFocus={e => {e.target.select();e.target.style.borderColor='#10B981'}}
                               onBlur={e  => e.target.style.borderColor='rgba(16,185,129,0.25)'}
                             />
                           </div>
