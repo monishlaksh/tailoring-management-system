@@ -81,7 +81,7 @@ export default function CustomerDashboard() {
         <button onClick={fetchFreshData} className="btn-accent" style={{ padding:'10px 24px' }}>
           Retry
         </button>
-        console.log(error)
+        {console.log(error)}
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>
