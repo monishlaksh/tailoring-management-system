@@ -1,17 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { ArrowLeft, Save, Trash2, ChevronRight} from 'lucide-react'
+import { ArrowLeft, Save, Trash2, ChevronRight } from 'lucide-react'
 import API from '../../../../lib/api'
 
 const STAGES      = ['Booking','Cutting','Stitching','Finishing','Ready For Delivery']
-const STAGE_ICONS = {
-  'Booking':            '📘',
-  'Cutting':            '✂️',
-  'Stitching':          '🧵',
-  'Finishing':          '🚩',
-  'Ready For Delivery': '✅',
-}
+const STAGE_ICONS = { 'Booking':'📘','Cutting':'✂️','Stitching':'🧵','Finishing':'🚩','Ready For Delivery':'✅' }
 const MEASUREMENT_FIELDS = ['shoulder','chest','waist','hip','sleeve','length','neck','custom']
 
 export default function OrderDetail() {
@@ -27,11 +21,6 @@ export default function OrderDetail() {
   const [success, setSuccess]   = useState('')
   const [form, setForm]         = useState(null)
 
-  // Payment form state
-  const [paymentForm, setPaymentForm]   = useState({ totalCost:'', amountSettled:'' })
-  const [paymentSaving, setPaymentSaving] = useState(false)
-  const [paymentMsg, setPaymentMsg]     = useState('')
-
   useEffect(() => {
     if (!localStorage.getItem('adminToken')) { router.push('/admin/login'); return }
     if (orderID && orderID !== 'undefined') fetchOrder()
@@ -45,16 +34,13 @@ export default function OrderDetail() {
       setForm({
         clothType:           o.clothType,
         quantity:            o.quantity,
+        unitCost:            o.unitCost || 0,
         fabricNotes:         o.fabricNotes || '',
         specialInstructions: o.specialInstructions || '',
         deliveryDate:        o.deliveryDate ? new Date(o.deliveryDate).toISOString().split('T')[0] : '',
         measurements:        o.measurements || {},
         alteration:          o.alteration   || { required: false, notes: '' },
         status:              o.status,
-      })
-      setPaymentForm({
-        totalCost:     o.payment?.totalCost     || '',
-        amountSettled: o.payment?.amountSettled || '',
       })
     } catch (e) {
       setError('Order not found')
@@ -72,9 +58,7 @@ export default function OrderDetail() {
       setTimeout(() => setSuccess(''), 3000)
     } catch (e) {
       setError(e.response?.data?.message || 'Failed to update')
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
   const handleStatusChange = async (status) => {
@@ -84,36 +68,7 @@ export default function OrderDetail() {
       setOrder(o => ({ ...o, status }))
       setSuccess(`Status updated to "${status}"`)
       setTimeout(() => setSuccess(''), 3000)
-    } catch (e) {
-      setError('Failed to update status')
-    }
-  }
-
-  const handlePaymentSave = async () => {
-    setPaymentSaving(true); setPaymentMsg('')
-    try {
-      const total   = parseFloat(paymentForm.totalCost)    || 0
-      const settled = parseFloat(paymentForm.amountSettled) || 0
-
-      if (settled > total) {
-        setPaymentMsg('❌ Amount settled cannot exceed total cost')
-        setPaymentSaving(false)
-        return
-      }
-
-      const res = await API.patch(`/api/orders/${orderID}/payment`, {
-        totalCost:     total,
-        amountSettled: settled,
-      })
-
-      setOrder(o => ({ ...o, payment: res.data.order.payment }))
-      setPaymentMsg('✅ Payment updated successfully!')
-      setTimeout(() => setPaymentMsg(''), 3000)
-    } catch (e) {
-      setPaymentMsg('❌ ' + (e.response?.data?.message || 'Failed to update payment'))
-    } finally {
-      setPaymentSaving(false)
-    }
+    } catch (e) { setError('Failed to update status') }
   }
 
   const handleDelete = async () => {
@@ -122,10 +77,7 @@ export default function OrderDetail() {
     try {
       await API.delete(`/api/orders/${orderID}`)
       router.push('/admin/dashboard')
-    } catch (e) {
-      setError('Failed to delete')
-      setDeleting(false)
-    }
+    } catch (e) { setError('Failed to delete'); setDeleting(false) }
   }
 
   if (loading) return (
@@ -136,13 +88,10 @@ export default function OrderDetail() {
   )
 
   if (!order || !form) return (
-    <main style={{ padding:24 }}>
-      <p style={{ color:'#EF4444' }}>Order not found.</p>
-    </main>
+    <main style={{ padding:24 }}><p style={{ color:'#EF4444' }}>Order not found.</p></main>
   )
 
   const stageIndex = STAGES.indexOf(form.status)
-  const balance    = (parseFloat(paymentForm.totalCost) || 0) - (parseFloat(paymentForm.amountSettled) || 0)
 
   return (
     <main style={{ minHeight:'100vh', padding:'24px', maxWidth:900, margin:'0 auto' }}>
@@ -182,21 +131,15 @@ export default function OrderDetail() {
               const current = i === stageIndex
               return (
                 <div key={stage} style={{ display:'flex', alignItems:'center', gap:4 }}>
-                  <button
-                    onClick={() => handleStatusChange(stage)}
-                    style={{
-                      display:'flex', flexDirection:'column', alignItems:'center', gap:5,
-                      padding:'10px 14px', borderRadius:10, cursor:'pointer',
-                      fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.75rem',
-                      border:     current ? '2px solid #4F46E5' : done ? '2px solid #10B981' : '1.5px solid rgba(79,70,229,0.15)',
-                      background: current ? 'rgba(79,70,229,0.1)' : done ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.6)',
-                      color:      current ? '#4F46E5' : done ? '#059669' : '#9CA3AF',
-                      transition: 'all 0.2s',
-                    }}>
+                  <button onClick={() => handleStatusChange(stage)}
+                    style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5, padding:'10px 14px', borderRadius:10, cursor:'pointer', fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.75rem',
+                      border:     current?'2px solid #4F46E5':done?'2px solid #10B981':'1.5px solid rgba(79,70,229,0.15)',
+                      background: current?'rgba(79,70,229,0.1)':done?'rgba(16,185,129,0.08)':'rgba(255,255,255,0.6)',
+                      color:      current?'#4F46E5':done?'#059669':'#9CA3AF', transition:'all 0.2s' }}>
                     <span style={{ fontSize:'1.2rem' }}>{STAGE_ICONS[stage]}</span>
                     {stage}
                   </button>
-                  {i < STAGES.length - 1 && <ChevronRight size={14} color={done ? '#10B981' : '#D1D5DB'} />}
+                  {i < STAGES.length-1 && <ChevronRight size={14} color={done?'#10B981':'#D1D5DB'} />}
                 </div>
               )
             })}
@@ -209,139 +152,13 @@ export default function OrderDetail() {
           </p>
         </div>
 
-        {/* ── Payment Section ── */}
-        <div className="glass fade-up-1" style={{ padding:24, background:'rgba(16,185,129,0.03)', border:'1.5px solid rgba(16,185,129,0.15)' }}>
-          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:20, fontSize:'0.95rem', display:'flex', alignItems:'center', gap:8 }}>
-            <span>₹</span> Payment Details
-          </h2>
-
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:14, marginBottom:20 }}>
-
-            {/* Total Cost */}
-            <div>
-              <label className="input-label">TOTAL COST (₹)</label>
-              <div style={{ position:'relative' }}>
-                <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'#9CA3AF', fontSize:'0.9rem' }}>₹</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={paymentForm.totalCost}
-                  onChange={e => setPaymentForm({ ...paymentForm, totalCost: e.target.value })}
-                  placeholder="0"
-                  style={{
-                    width:'100%', padding:'13px 14px 13px 28px',
-                    background:'rgba(255,255,255,0.8)',
-                    border:'1.5px solid rgba(16,185,129,0.25)',
-                    borderRadius:10, fontFamily:'Poppins,sans-serif',
-                    fontSize:'0.9rem', color:'#1E1B4B', outline:'none',
-                  }}
-                  onFocus={e => { e.target.style.borderColor='#10B981'; e.target.style.boxShadow='0 0 0 4px rgba(16,185,129,0.08)' }}
-                  onBlur={e =>  { e.target.style.borderColor='rgba(16,185,129,0.25)'; e.target.style.boxShadow='none' }}
-                />
-              </div>
-            </div>
-
-            {/* Amount Settled */}
-            <div>
-              <label className="input-label">AMOUNT SETTLED (₹)</label>
-              <div style={{ position:'relative' }}>
-                <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'#9CA3AF', fontSize:'0.9rem' }}>₹</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={paymentForm.amountSettled}
-                  onChange={e => setPaymentForm({ ...paymentForm, amountSettled: e.target.value })}
-                  placeholder="0"
-                  style={{
-                    width:'100%', padding:'13px 14px 13px 28px',
-                    background:'rgba(255,255,255,0.8)',
-                    border:'1.5px solid rgba(16,185,129,0.25)',
-                    borderRadius:10, fontFamily:'Poppins,sans-serif',
-                    fontSize:'0.9rem', color:'#1E1B4B', outline:'none',
-                  }}
-                  onFocus={e => { e.target.style.borderColor='#10B981'; e.target.style.boxShadow='0 0 0 4px rgba(16,185,129,0.08)' }}
-                  onBlur={e =>  { e.target.style.borderColor='rgba(16,185,129,0.25)'; e.target.style.boxShadow='none' }}
-                />
-              </div>
-            </div>
-
-            {/* Balance — auto calculated */}
-            <div>
-              <label className="input-label">BALANCE (₹) — AUTO</label>
-              <div style={{
-                padding:'13px 16px',
-                background: balance > 0 ? 'rgba(239,68,68,0.06)' : balance === 0 && paymentForm.totalCost ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.5)',
-                border: `1.5px solid ${balance > 0 ? 'rgba(239,68,68,0.2)' : balance === 0 && paymentForm.totalCost ? 'rgba(16,185,129,0.2)' : 'rgba(79,70,229,0.1)'}`,
-                borderRadius:10,
-                display:'flex', alignItems:'center', gap:8,
-              }}>
-                <span style={{ fontSize:'0.9rem', color:'#9CA3AF' }}>₹</span>
-                <span style={{
-                  fontSize:'1.1rem', fontWeight:700,
-                  color: balance > 0 ? '#DC2626' : balance === 0 && paymentForm.totalCost ? '#059669' : '#9CA3AF',
-                }}>
-                  {balance > 0 ? balance.toLocaleString('en-IN') : balance === 0 && paymentForm.totalCost ? '0 (Paid ✅)' : '—'}
-                </span>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Payment summary cards */}
-          {order.payment?.totalCost > 0 && (
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
-              {[
-                { label:'Total Cost',     value:`₹${order.payment.totalCost.toLocaleString('en-IN')}`,     color:'#4F46E5', bg:'rgba(79,70,229,0.06)'  },
-                { label:'Settled',        value:`₹${order.payment.amountSettled.toLocaleString('en-IN')}`, color:'#059669', bg:'rgba(16,185,129,0.06)' },
-                { label:'Balance Due',    value:`₹${order.payment.balance.toLocaleString('en-IN')}`,       color: order.payment.balance > 0 ? '#DC2626' : '#059669', bg: order.payment.balance > 0 ? 'rgba(239,68,68,0.06)' : 'rgba(16,185,129,0.06)' },
-              ].map((s,i) => (
-                <div key={i} style={{ background:s.bg, borderRadius:10, padding:'12px 16px', textAlign:'center' }}>
-                  <p style={{ fontSize:'0.7rem', color:'#9CA3AF', fontWeight:600, textTransform:'uppercase', marginBottom:4 }}>{s.label}</p>
-                  <p style={{ fontSize:'1.1rem', fontWeight:800, color:s.color }}>{s.value}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {paymentMsg && (
-            <div style={{
-              padding:'10px 14px', borderRadius:8, marginBottom:14, fontSize:'0.85rem', fontWeight:500,
-              background: paymentMsg.startsWith('✅') ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)',
-              color:      paymentMsg.startsWith('✅') ? '#059669' : '#DC2626',
-              border:     paymentMsg.startsWith('✅') ? '1px solid rgba(16,185,129,0.2)' : '1px solid rgba(239,68,68,0.2)',
-            }}>
-              {paymentMsg}
-            </div>
-          )}
-
-          <button
-            onClick={handlePaymentSave}
-            disabled={paymentSaving}
-            style={{
-              display:'flex', alignItems:'center', gap:8,
-              padding:'11px 24px',
-              background:'linear-gradient(135deg,#10B981,#059669)',
-              color:'white', border:'none', borderRadius:10,
-              fontFamily:'Poppins,sans-serif', fontWeight:600,
-              fontSize:'0.88rem', cursor: paymentSaving ? 'not-allowed' : 'pointer',
-              opacity: paymentSaving ? 0.7 : 1,
-              boxShadow:'0 4px 12px rgba(16,185,129,0.3)',
-            }}>
-            {paymentSaving
-              ? <><div className="spinner" />Saving...</>
-              : <><span>₹</span>Update Payment</>}
-          </button>
-        </div>
-
         {/* Order Details */}
         <div className="glass fade-up-1" style={{ padding:24 }}>
           <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>Order Details</h2>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:14 }}>
             <div>
               <label className="input-label">CLOTH TYPE</label>
-              <select
-                value={form.clothType}
-                onChange={e => setForm({ ...form, clothType: e.target.value })}
+              <select value={form.clothType} onChange={e => setForm({...form, clothType:e.target.value})}
                 style={{ width:'100%', padding:'13px 16px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none' }}>
                 {['Blouse','Chudi','Saree Blouse','Shirt','Pant','Lehenga','Kids Dress','Custom Dress'].map(t => (
                   <option key={t}>{t}</option>
@@ -351,30 +168,44 @@ export default function OrderDetail() {
             <div>
               <label className="input-label">QUANTITY</label>
               <input type="number" min="1" value={form.quantity}
-                onChange={e => setForm({ ...form, quantity: parseInt(e.target.value) || 1 })}
+                onChange={e => setForm({...form, quantity:parseInt(e.target.value)||1})}
                 className="input-field" />
+            </div>
+            <div>
+              <label className="input-label">ORDER COST (₹)</label>
+              <div style={{ position:'relative' }}>
+                <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'#9CA3AF', fontSize:'0.9rem' }}>₹</span>
+                <input type="number" min="0" value={form.unitCost}
+                  onChange={e => setForm({...form, unitCost:parseFloat(e.target.value)||0})}
+                  placeholder="0"
+                  style={{ width:'100%', padding:'13px 14px 13px 28px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(16,185,129,0.25)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none' }}
+                  onFocus={e => { e.target.style.borderColor='#10B981'; e.target.style.boxShadow='0 0 0 4px rgba(16,185,129,0.08)' }}
+                  onBlur={e  => { e.target.style.borderColor='rgba(16,185,129,0.25)'; e.target.style.boxShadow='none' }}
+                />
+              </div>
+              <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:4 }}>
+                Cost for this order — auto-adds to customer total
+              </p>
             </div>
             <div>
               <label className="input-label">DELIVERY DATE</label>
               <input type="date" value={form.deliveryDate}
-                onChange={e => setForm({ ...form, deliveryDate: e.target.value })}
+                onChange={e => setForm({...form, deliveryDate:e.target.value})}
                 className="input-field" />
             </div>
             <div>
               <label className="input-label">FABRIC NOTES</label>
               <input type="text" value={form.fabricNotes}
-                onChange={e => setForm({ ...form, fabricNotes: e.target.value })}
+                onChange={e => setForm({...form, fabricNotes:e.target.value})}
                 placeholder="Fabric notes" className="input-field" />
             </div>
           </div>
           <div style={{ marginTop:14 }}>
             <label className="input-label">SPECIAL INSTRUCTIONS</label>
-            <textarea
-              value={form.specialInstructions}
-              onChange={e => setForm({ ...form, specialInstructions: e.target.value })}
+            <textarea value={form.specialInstructions}
+              onChange={e => setForm({...form, specialInstructions:e.target.value})}
               rows={3}
-              style={{ width:'100%', padding:'12px 16px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none', resize:'vertical' }}
-            />
+              style={{ width:'100%', padding:'12px 16px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none', resize:'vertical' }} />
           </div>
         </div>
 
@@ -387,13 +218,9 @@ export default function OrderDetail() {
             {MEASUREMENT_FIELDS.map(field => (
               <div key={field}>
                 <label className="input-label">{field.toUpperCase()}</label>
-                <input
-                  type="text"
-                  value={form.measurements?.[field] || ''}
-                  onChange={e => setForm({ ...form, measurements: { ...form.measurements, [field]: e.target.value } })}
-                  placeholder={field === 'custom' ? 'Any other' : 'e.g. 36'}
-                  className="input-field"
-                />
+                <input type="text" value={form.measurements?.[field]||''}
+                  onChange={e => setForm({...form, measurements:{...form.measurements,[field]:e.target.value}})}
+                  placeholder={field==='custom'?'Any other':'e.g. 36'} className="input-field" />
               </div>
             ))}
           </div>
@@ -403,35 +230,26 @@ export default function OrderDetail() {
         <div className="glass fade-up-3" style={{ padding:24 }}>
           <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>Alteration</h2>
           <div style={{ display:'flex', gap:12, marginBottom:14 }}>
-            {[true, false].map(v => (
-              <button
-                key={String(v)}
-                onClick={() => setForm({ ...form, alteration: { ...form.alteration, required: v } })}
-                style={{
-                  padding:'10px 24px', borderRadius:10,
-                  fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.85rem', cursor:'pointer',
-                  border:      form.alteration?.required === v ? '2px solid #4F46E5' : '1.5px solid rgba(79,70,229,0.2)',
-                  background:  form.alteration?.required === v ? 'rgba(79,70,229,0.1)' : 'rgba(255,255,255,0.7)',
-                  color:       form.alteration?.required === v ? '#4F46E5' : '#6B7280',
-                  transition: 'all 0.2s',
-                }}>
-                {v ? '✅ Yes' : '❌ No'}
+            {[true,false].map(v => (
+              <button key={String(v)}
+                onClick={() => setForm({...form, alteration:{...form.alteration, required:v}})}
+                style={{ padding:'10px 24px', borderRadius:10, fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.85rem', cursor:'pointer',
+                  border:      form.alteration?.required===v?'2px solid #4F46E5':'1.5px solid rgba(79,70,229,0.2)',
+                  background:  form.alteration?.required===v?'rgba(79,70,229,0.1)':'rgba(255,255,255,0.7)',
+                  color:       form.alteration?.required===v?'#4F46E5':'#6B7280', transition:'all 0.2s' }}>
+                {v?'✅ Yes':'❌ No'}
               </button>
             ))}
           </div>
           {form.alteration?.required && (
-            <textarea
-              value={form.alteration.notes || ''}
-              onChange={e => setForm({ ...form, alteration: { ...form.alteration, notes: e.target.value } })}
-              placeholder="e.g. Tight near waist, reduce sleeve by 1 inch"
-              rows={3}
-              style={{ width:'100%', padding:'12px 16px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none', resize:'vertical' }}
-            />
+            <textarea value={form.alteration.notes||''}
+              onChange={e => setForm({...form, alteration:{...form.alteration, notes:e.target.value}})}
+              placeholder="e.g. Tight near waist, reduce sleeve by 1 inch" rows={3}
+              style={{ width:'100%', padding:'12px 16px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none', resize:'vertical' }} />
           )}
         </div>
 
       </div>
-
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>
   )

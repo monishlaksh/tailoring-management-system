@@ -9,6 +9,7 @@ const orderSchema = new mongoose.Schema({
     enum: ['Blouse','Chudi','Saree Blouse','Shirt','Pant','Lehenga','Kids Dress','Custom Dress'],
   },
   quantity:            { type: Number, default: 1 },
+  unitCost:            { type: Number, default: 0 },
   fabricNotes:         { type: String, default: '' },
   specialInstructions: { type: String, default: '' },
   measurements: {
@@ -38,12 +39,6 @@ const orderSchema = new mongoose.Schema({
     role:       { type: String, enum: ['admin','employee'], default: 'admin' },
     employeeID: { type: String, default: '' },
     name:       { type: String, default: 'Admin' },
-  },
-  // ── Payment fields ──────────────────────────────────────
-  payment: {
-    totalCost:     { type: Number, default: 0 },
-    amountSettled: { type: Number, default: 0 },
-    balance:       { type: Number, default: 0 },
   },
 }, { timestamps: true })
 
