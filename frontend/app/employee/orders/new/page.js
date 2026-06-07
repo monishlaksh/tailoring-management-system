@@ -127,7 +127,7 @@ export default function EmployeeNewOrder() {
             </div>
             <div>
               <label className="input-label">QUANTITY</label>
-              <input type="number" min="1" value={form.quantity} onFocus={e => e.target.select()} onChange={e => setForm({...form, quantity:parseInt(e.target.value)||1})} className="input-field" />
+              <input type="number" min="0" value={form.quantity} onFocus={e => e.target.select()} onChange={e => setForm({...form, quantity:parseInt(e.target.value)||1})} className="input-field" />
             </div>
             <div>
               <label className="input-label">DELIVERY DATE</label>

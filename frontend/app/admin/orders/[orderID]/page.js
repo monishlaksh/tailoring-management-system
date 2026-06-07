@@ -250,7 +250,7 @@ export default function OrderDetail() {
             </div>
             <div>
               <label className="input-label">QUANTITY</label>
-              <input type="number" min="1" value={form.quantity}
+              <input type="number" min="0" value={form.quantity}
                 onChange={e => setForm({ ...form, quantity: parseInt(e.target.value) || 1 })}
                 onFocus={e => e.target.select()}
                 className="input-field" />
