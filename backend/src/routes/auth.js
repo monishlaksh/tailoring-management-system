@@ -6,7 +6,7 @@ const Customer      = require('../models/Customer')
 const Employee      = require('../models/Employee')
 const Order         = require('../models/Order')
 const { protect }   = require('../middleware/auth')
-const nodemailer = require("nodemailer")
+
 
 const router       = express.Router()
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
