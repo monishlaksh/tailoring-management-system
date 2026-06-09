@@ -214,6 +214,9 @@ router.post('/admin/forgot-password', async (req, res) => {
     global.adminResetCodes = global.adminResetCodes || {}
     global.adminResetCodes[email.toLowerCase()] = { code: resetCode, expiry: resetExpiry }
 
+    console.log("Entered Email:", email);
+console.log("Allowed Emails:", allowedEmails);
+
     // Send email
     const transporter = nodemailer.createTransport({
         host: "smtp.gmail.com",
