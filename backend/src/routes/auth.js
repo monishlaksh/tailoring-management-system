@@ -210,36 +210,18 @@ router.post('/admin/forgot-password', async (req, res) => {
     const resetCode   = Math.floor(100000 + Math.random() * 900000).toString()
     const resetExpiry = Date.now() + 15 * 60 * 1000 // 15 minutes
 
-    // Store in memory (simple — no DB needed for admin)
     global.adminResetCodes = global.adminResetCodes || {}
-    global.adminResetCodes[email.toLowerCase()] = { code: resetCode, expiry: resetExpiry }
+    global.adminResetCodes[email.toLowerCase()] = {
+      code:   resetCode,
+      expiry: resetExpiry,
+    }
 
-    console.log("Entered Email:", email);
-console.log("Allowed Emails:", allowedEmails);
+    // Send via Resend (works on Render free tier)
+    const { Resend } = require('resend')
+    const resend     = new Resend(process.env.RESEND_API_KEY)
 
-    // Send email
-    const transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 587,
-        secure: false,
-        auth: {
-          user: process.env.SMTP_EMAIL,
-          pass: process.env.SMTP_PASSWORD,
-        },
-        tls: {
-          rejectUnauthorized: false
-        }
-      })
-      console.log("SMTP_EMAIL:", process.env.SMTP_EMAIL);
-        console.log(
-          "SMTP_PASSWORD:",
-          process.env.SMTP_PASSWORD ? "Found" : "Missing"
-        );
-
-        await transporter.verify();
-        console.log("SMTP Connected Successfully");
-    await transporter.sendMail({
-      from:    `"Al-Ameen Tailors" <${process.env.SMTP_EMAIL}>`,
+    await resend.emails.send({
+      from:    'Al-Ameen Tailors <onboarding@resend.dev>',
       to:      email,
       subject: 'Admin Password Reset Code — Al-Ameen Tailors',
       html: `
@@ -260,7 +242,6 @@ console.log("Allowed Emails:", allowedEmails);
     res.status(500).json({ success:false, message:'Failed to send email: ' + e.message })
   }
 })
-
 // ── Verify reset code and set new password ───────────────────
 router.post('/admin/reset-password', async (req, res) => {
   try {
