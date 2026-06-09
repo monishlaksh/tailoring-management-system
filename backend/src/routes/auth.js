@@ -38,8 +38,10 @@ router.post('/admin/login', async (req, res) => {
     }
 
     // Fall back to env password
-    if (!passwordValid) {
-      passwordValid = (username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD)
+    if (!passwordValid && !global.adminNewPassword) {
+      passwordValid =
+        (username === process.env.ADMIN_USERNAME &&
+        password === process.env.ADMIN_PASSWORD)
     } else {
       // When using new password, username can be email or admin
       if (username !== process.env.ADMIN_USERNAME && username !== global.adminNewPassword?.email) {
