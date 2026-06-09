@@ -214,15 +214,18 @@ router.post('/admin/forgot-password', async (req, res) => {
     global.adminResetCodes[email.toLowerCase()] = { code: resetCode, expiry: resetExpiry }
 
     // Send email
-    const nodemailer = require('nodemailer')
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.SMTP_EMAIL,
-        pass: process.env.SMTP_PASSWORD,
-      },
-    })
-
+        host: "smtp.gmail.com",
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_EMAIL,
+          pass: process.env.SMTP_PASSWORD,
+        },
+        tls: {
+          rejectUnauthorized: false
+        }
+      })
     await transporter.sendMail({
       from:    `"Al-Ameen Tailors" <${process.env.SMTP_EMAIL}>`,
       to:      email,
