@@ -227,6 +227,14 @@ router.post('/admin/forgot-password', async (req, res) => {
           rejectUnauthorized: false
         }
       })
+      console.log("SMTP_EMAIL:", process.env.SMTP_EMAIL);
+        console.log(
+          "SMTP_PASSWORD:",
+          process.env.SMTP_PASSWORD ? "Found" : "Missing"
+        );
+
+        await transporter.verify();
+        console.log("SMTP Connected Successfully");
     await transporter.sendMail({
       from:    `"Al-Ameen Tailors" <${process.env.SMTP_EMAIL}>`,
       to:      email,
