@@ -167,6 +167,37 @@ router.post('/employee/login', async (req, res) => {
   }
 })
 
+router.post('/customer/login', async (req, res) => {
+  try {
+    const { customerID, phone } = req.body
+    if (!customerID || !phone)
+      return res.status(400).json({ success:false, message:'Provide Customer ID and Phone' })
+
+    const customer = await Customer.findOne({
+      customerID: customerID.trim().toUpperCase(),
+      phone:      phone.trim(),
+      isActive:   true,
+    })
+    if (!customer)
+      return res.status(401).json({ success:false, message:'Invalid Customer ID or Phone number' })
+
+    const token = jwt.sign(
+      { customerID:customer.customerID, customerId:customer._id, role:'customer' },
+      process.env.JWT_SECRET,
+      { expiresIn:'7d' }
+    )
+    res.json({
+      success:  true,
+      token,
+      customer: { customerID:customer.customerID, name:customer.name, phone:customer.phone },
+    })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
+
+
+
 
 // ── Customer: get fresh profile ──────────────────────────────
 router.get('/customer/me', async (req, res) => {
