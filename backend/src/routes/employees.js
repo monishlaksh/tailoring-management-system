@@ -4,7 +4,6 @@ const Employee = require('../models/Employee')
 const { protect } = require('../middleware/auth')
 const router = express.Router()
 
-// ── Generate next Employee ID ────────────────────────────────
 const getNextEmployeeID = async () => {
   const last = await Employee.findOne()
     .sort({ employeeID: -1 })
@@ -24,7 +23,7 @@ const getNextEmployeeID = async () => {
   return newID
 }
 
-// GET all employees — admin only
+// GET all employees
 router.get('/', protect, async (req, res) => {
   try {
     const employees = await Employee.find()
@@ -36,19 +35,41 @@ router.get('/', protect, async (req, res) => {
   }
 })
 
-// POST create employee — admin only
+// GET employees by role
+router.get('/by-role/:role', protect, async (req, res) => {
+  try {
+    const { role } = req.params
+    const validRoles = ['cutting', 'stitching', 'finishing', 'all']
+    if (!validRoles.includes(role))
+      return res.status(400).json({ success: false, message: 'Invalid role' })
+
+    // Return employees who have this specific role OR have 'all' role
+    const employees = await Employee.find({
+      isActive: true,
+      $or: [{ role }, { role: 'all' }],
+    }).select('-password')
+
+    res.json({ success: true, employees })
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message })
+  }
+})
+
+// POST create employee
 router.post('/', protect, async (req, res) => {
   try {
-    const { name, username, password } = req.body
+    const { name, username, password, role } = req.body
 
     if (!name || !username || !password)
       return res.status(400).json({ success: false, message: 'Name, username and password required' })
+
+    const validRoles = ['cutting', 'stitching', 'finishing', 'all']
+    const empRole    = validRoles.includes(role) ? role : 'all'
 
     const existing = await Employee.findOne({ username: username.trim() })
     if (existing)
       return res.status(400).json({ success: false, message: 'Username already exists' })
 
-    // Hash password in route
     const hashedPassword = await bcrypt.hash(password, 10)
     const employeeID     = await getNextEmployeeID()
 
@@ -57,6 +78,7 @@ router.post('/', protect, async (req, res) => {
       name:     name.trim(),
       username: username.trim(),
       password: hashedPassword,
+      role:     empRole,
     })
 
     res.status(201).json({
@@ -66,6 +88,7 @@ router.post('/', protect, async (req, res) => {
         employeeID: employee.employeeID,
         name:       employee.name,
         username:   employee.username,
+        role:       employee.role,
         isActive:   employee.isActive,
       },
     })
@@ -74,10 +97,10 @@ router.post('/', protect, async (req, res) => {
   }
 })
 
-// PUT update employee — admin only
+// PUT update employee
 router.put('/:employeeID', protect, async (req, res) => {
   try {
-    const { name, username, password, isActive } = req.body
+    const { name, username, password, isActive, role } = req.body
 
     const employee = await Employee.findOne({ employeeID: req.params.employeeID })
     if (!employee)
@@ -87,7 +110,9 @@ router.put('/:employeeID', protect, async (req, res) => {
     if (username) employee.username = username.trim()
     if (typeof isActive === 'boolean') employee.isActive = isActive
 
-    // Hash new password if provided
+    const validRoles = ['cutting', 'stitching', 'finishing', 'all']
+    if (role && validRoles.includes(role)) employee.role = role
+
     if (password && password.trim() !== '') {
       employee.password = await bcrypt.hash(password, 10)
     }
@@ -101,6 +126,7 @@ router.put('/:employeeID', protect, async (req, res) => {
         employeeID: employee.employeeID,
         name:       employee.name,
         username:   employee.username,
+        role:       employee.role,
         isActive:   employee.isActive,
       },
     })
@@ -109,7 +135,7 @@ router.put('/:employeeID', protect, async (req, res) => {
   }
 })
 
-// DELETE employee — soft delete (admin only)
+// DELETE employee (soft)
 router.delete('/:employeeID', protect, async (req, res) => {
   try {
     const employee = await Employee.findOneAndUpdate(

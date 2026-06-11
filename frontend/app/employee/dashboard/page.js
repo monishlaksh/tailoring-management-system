@@ -129,32 +129,6 @@ export default function EmployeeDashboard() {
 
         <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
           <button
-            onClick={() => router.push('/employee/customers/new')}
-            style={{
-              display:'flex', alignItems:'center', gap:5,
-              background:'rgba(245,158,11,0.1)',
-              border:'1.5px solid rgba(245,158,11,0.3)',
-              borderRadius:8, padding:'8px 14px',
-              color:'#D97706', fontSize:'0.8rem', fontWeight:600,
-              cursor:'pointer', fontFamily:'Poppins,sans-serif',
-            }}>
-            <Plus size={14} /> Add Customer
-          </button>
-
-          <button
-            onClick={() => router.push('/employee/orders/new')}
-            style={{
-              display:'flex', alignItems:'center', gap:5,
-              background:'linear-gradient(135deg,#F59E0B,#D97706)',
-              border:'none', borderRadius:8, padding:'8px 16px',
-              color:'white', fontSize:'0.8rem', fontWeight:600,
-              cursor:'pointer', fontFamily:'Poppins,sans-serif',
-              boxShadow:'0 4px 12px rgba(245,158,11,0.3)',
-            }}>
-            <Plus size={14} /> New Order
-          </button>
-
-          <button
             onClick={handleLogout}
             style={{
               display:'flex', alignItems:'center', gap:5,
@@ -169,19 +143,25 @@ export default function EmployeeDashboard() {
         </div>
       </div>
 
-      {/* Info Banner */}
-      <div style={{
-        background:'rgba(245,158,11,0.06)',
-        border:'1.5px solid rgba(245,158,11,0.2)',
-        borderRadius:12, padding:'12px 18px', marginBottom:20,
-        display:'flex', alignItems:'center', gap:10,
-      }}>
-        <span style={{ fontSize:'1rem' }}>ℹ️</span>
-        <p style={{ fontSize:'0.82rem', color:'#92400E' }}>
-          You can see and update status of only the orders <strong>you have created</strong>.
-          Order details cannot be edited after creation.
-        </p>
-      </div>
+      
+      {/* Role Banner */}
+          <div style={{ background:'rgba(245,158,11,0.06)', border:'1.5px solid rgba(245,158,11,0.2)', borderRadius:12, padding:'12px 18px', marginBottom:20, display:'flex', alignItems:'center', gap:10 }}>
+            <span style={{ fontSize:'1rem' }}>
+              {employee.employeeRole === 'cutting'   && '✂️'}
+              {employee.employeeRole === 'stitching' && '🧵'}
+              {employee.employeeRole === 'finishing' && '🚩'}
+              {employee.employeeRole === 'all'       && '⭐'}
+              {!employee.employeeRole                && 'ℹ️'}
+            </span>
+            <div>
+              <p style={{ fontSize:'0.82rem', color:'#92400E', fontWeight:600 }}>
+                Your Role: {employee.employeeRole === 'all' ? 'All Stages' : employee.employeeRole?.charAt(0).toUpperCase() + employee.employeeRole?.slice(1) || 'All Stages'}
+              </p>
+              <p style={{ fontSize:'0.75rem', color:'#92400E' }}>
+                You can only view and update status for orders assigned to your stage by admin.
+              </p>
+            </div>
+          </div>
 
       {/* Stats */}
       <div style={{
