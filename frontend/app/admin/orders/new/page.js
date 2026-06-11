@@ -1,11 +1,99 @@
 'use client'
-import { useEffect, useState } from 'react'
+
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Search, UserPlus, X, Check } from 'lucide-react'
 import { adminAPI as API } from '../../../../lib/api'
 import NumInput from '../../../../components/NumInput'
 
 const MEASUREMENT_FIELDS = ['shoulder','chest','waist','hip','sleeve','length','neck','custom']
+function AlterationSection({ alterationOptions, alteration, onChange }) {
+  const toggle = (optName) => {
+    const current = alteration.selectedOptions || []
+    const updated = current.includes(optName)
+      ? current.filter(o => o !== optName)
+      : [...current, optName]
+
+    // Recalculate extra cost
+    const totalExtra = alterationOptions
+      .filter(o => updated.includes(o.name))
+      .reduce((sum, o) => sum + (o.extraCost||0), 0)
+
+    onChange({
+      ...alteration,
+      required:        updated.length > 0,
+      selectedOptions: updated,
+      extraCost:       totalExtra,
+    })
+  }
+
+  return (
+    <div className="glass" style={{ padding:24 }}>
+      <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:6, fontSize:'0.95rem' }}>⑥ Alteration</h2>
+      <p style={{ fontSize:'0.8rem', color:'#6B7280', marginBottom:16 }}>
+        Select all applicable alterations. Extra costs are added automatically.
+      </p>
+
+      {/* Options grid */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:10, marginBottom:16 }}>
+        {alterationOptions.map(opt => {
+          const isSelected = (alteration.selectedOptions||[]).includes(opt.name)
+          return (
+            <div key={opt._id}
+              onClick={() => toggle(opt.name)}
+              style={{
+                padding:'12px 14px', borderRadius:10, cursor:'pointer',
+                border:    isSelected?'2px solid #4F46E5':'1.5px solid rgba(79,70,229,0.15)',
+                background: isSelected?'rgba(79,70,229,0.08)':'rgba(255,255,255,0.7)',
+                transition:'all 0.2s',
+              }}
+              onMouseEnter={e => { if(!isSelected) e.currentTarget.style.background='rgba(79,70,229,0.04)' }}
+              onMouseLeave={e => { if(!isSelected) e.currentTarget.style.background='rgba(255,255,255,0.7)' }}
+            >
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4 }}>
+                <span style={{ fontWeight:600, fontSize:'0.85rem', color:isSelected?'#4F46E5':'#1E1B4B' }}>
+                  {isSelected && '✓ '}{opt.name}
+                </span>
+                {(opt.extraCost||0) > 0 && (
+                  <span style={{ fontSize:'0.72rem', fontWeight:700, color:'#059669' }}>
+                    +₹{opt.extraCost}
+                  </span>
+                )}
+              </div>
+              {opt.description && (
+                <p style={{ fontSize:'0.72rem', color:'#9CA3AF', lineHeight:1.4 }}>{opt.description}</p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Extra cost total */}
+      {(alteration.selectedOptions||[]).length > 0 && (
+        <div style={{ background:'rgba(79,70,229,0.05)', borderRadius:10, padding:'12px 16px', marginBottom:14 }}>
+          <p style={{ fontSize:'0.82rem', color:'#4F46E5', fontWeight:600, marginBottom:4 }}>
+            Selected: {(alteration.selectedOptions||[]).join(', ')}
+          </p>
+          <p style={{ fontSize:'0.82rem', color:'#059669', fontWeight:700 }}>
+            Total alteration extra cost: ₹{(alteration.extraCost||0).toLocaleString('en-IN')}
+          </p>
+        </div>
+      )}
+
+      {/* Free notes */}
+      <div>
+        <label className="input-label">ADDITIONAL NOTES (OPTIONAL)</label>
+        <textarea
+          value={alteration.notes||''}
+          onChange={e => onChange({...alteration, notes:e.target.value})}
+          placeholder="Any additional details about the alterations..."
+          rows={2}
+          style={{ width:'100%', padding:'12px 16px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none', resize:'vertical' }}
+        />
+      </div>
+    </div>
+  )
+}
 
 export default function NewOrder() {
   const router = useRouter()
@@ -16,6 +104,7 @@ export default function NewOrder() {
   const [deliveryInfo, setDeliveryInfo] = useState(null)
   const [saving, setSaving]             = useState(false)
   const [error, setError]               = useState('')
+  const [alterationOptions, setAlterationOptions] = useState([])
 
   // Cloth type + subtype selection
   const [selectedClothType, setSelectedClothType]   = useState(null)
@@ -41,13 +130,16 @@ export default function NewOrder() {
   }, [])
 
   const fetchData = async () => {
-    const [custRes, clothRes] = await Promise.all([
+    const [custRes, clothRes, altRes] = await Promise.all([
       API.get('/api/customers'),
       API.get('/api/cloth-types'),
+      API.get('/api/alteration-options'),
     ])
     setCustomers(custRes.data.customers)
     setClothTypes(clothRes.data.clothTypes)
+    setAlterationOptions(altRes.data.options)
   }
+  
 
   const checkDelivery = async (date) => {
     if (!date) return
@@ -357,25 +449,11 @@ export default function NewOrder() {
         </div>
 
         {/* ⑥ Alteration */}
-        <div className="glass" style={{ padding:24 }}>
-          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>⑥ Alteration</h2>
-          <div style={{ display:'flex', gap:12, marginBottom:14 }}>
-            {[true,false].map(v => (
-              <button key={String(v)} onClick={() => setForm({...form,alteration:{...form.alteration,required:v}})}
-                style={{ padding:'10px 24px', borderRadius:10, fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.85rem', cursor:'pointer',
-                  border:form.alteration.required===v?'2px solid #4F46E5':'1.5px solid rgba(79,70,229,0.2)',
-                  background:form.alteration.required===v?'rgba(79,70,229,0.1)':'rgba(255,255,255,0.7)',
-                  color:form.alteration.required===v?'#4F46E5':'#6B7280', transition:'all 0.2s' }}>
-                {v?'✅ Yes':'❌ No'}
-              </button>
-            ))}
-          </div>
-          {form.alteration.required && (
-            <textarea value={form.alteration.notes} onChange={e => setForm({...form,alteration:{...form.alteration,notes:e.target.value}})}
-              placeholder="e.g. Tight near waist, reduce sleeve by 1 inch" rows={3}
-              style={{ width:'100%', padding:'12px 16px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none', resize:'vertical' }} />
-          )}
-        </div>
+        <AlterationSection
+          alterationOptions={alterationOptions}
+          alteration={form.alteration}
+          onChange={val => setForm({...form, alteration:val})}
+        />
 
       </div>
     </main>
