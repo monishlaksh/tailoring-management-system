@@ -2,15 +2,16 @@ const express        = require('express')
 const cors           = require('cors')
 const dotenv         = require('dotenv')
 const connectDB      = require('./config/db')
+const seedClothTypes  = require('./config/seedClothTypes')
 const authRoutes      = require('./routes/auth')
 const customerRoutes  = require('./routes/customers')
 const orderRoutes     = require('./routes/orders')
 const deliveryRoutes  = require('./routes/delivery')
 const employeeRoutes  = require('./routes/employees')
+const clothTypeRoutes = require('./routes/clothTypes')
 
 dotenv.config()
 const app = express()
-connectDB()
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -36,15 +37,22 @@ app.use(function (req, res, next) {
 
 app.use(express.json({ limit:'10mb' }))
 
-app.use('/api/auth',      authRoutes)
-app.use('/api/customers', customerRoutes)
-app.use('/api/orders',    orderRoutes)
-app.use('/api/delivery',  deliveryRoutes)
-app.use('/api/employees', employeeRoutes)
+app.use('/api/auth',        authRoutes)
+app.use('/api/customers',   customerRoutes)
+app.use('/api/orders',      orderRoutes)
+app.use('/api/delivery',    deliveryRoutes)
+app.use('/api/employees',   employeeRoutes)
+app.use('/api/cloth-types', clothTypeRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status:'ok', message:'✂️ Tailoring API running' })
 })
 
-const PORT = process.env.PORT || 5000
-app.listen(PORT, () => console.log(`🚀 Server → http://localhost:${PORT}`))
+const startServer = async () => {
+  await connectDB()
+  await seedClothTypes()
+  const PORT = process.env.PORT || 5000
+  app.listen(PORT, () => console.log(`🚀 Server → http://localhost:${PORT}`))
+}
+
+startServer()

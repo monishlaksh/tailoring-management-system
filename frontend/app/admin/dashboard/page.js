@@ -189,6 +189,10 @@ export default function AdminDashboard() {
             style={{ padding:'8px 16px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}>
             <Plus size={14} /> New Order
           </button>
+          <button onClick={() => router.push('/admin/cloth-types')} className="btn-ghost"
+            style={{ padding:'8px 14px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}>
+            ✂️ Cloth Types
+          </button>
           <button onClick={handleLogout}
             style={{ display:'flex', alignItems:'center', gap:5, background:'rgba(239,68,68,0.08)', border:'1.5px solid rgba(239,68,68,0.2)', borderRadius:8, padding:'8px 14px', color:'#DC2626', fontSize:'0.8rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif' }}>
             <LogOut size={14} /> Logout

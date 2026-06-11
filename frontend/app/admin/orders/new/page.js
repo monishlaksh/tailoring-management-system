@@ -5,27 +5,30 @@ import { ArrowLeft, Save, Search, UserPlus, X, Check } from 'lucide-react'
 import { adminAPI as API } from '../../../../lib/api'
 import NumInput from '../../../../components/NumInput'
 
-const CLOTH_TYPES        = ['Blouse','Chudi','Saree Blouse','Shirt','Pant','Lehenga','Kids Dress','Custom Dress']
 const MEASUREMENT_FIELDS = ['shoulder','chest','waist','hip','sleeve','length','neck','custom']
 
 export default function NewOrder() {
   const router = useRouter()
   const [customers, setCustomers]       = useState([])
+  const [clothTypes, setClothTypes]     = useState([])
   const [custSearch, setCustSearch]     = useState('')
   const [selected, setSelected]         = useState(null)
   const [deliveryInfo, setDeliveryInfo] = useState(null)
   const [saving, setSaving]             = useState(false)
   const [error, setError]               = useState('')
 
-  // New customer inline state
+  // Cloth type + subtype selection
+  const [selectedClothType, setSelectedClothType]   = useState(null)
+  const [selectedSubtype, setSelectedSubtype]       = useState(null)
+
+  // New customer inline
   const [showNewCustomer, setShowNewCustomer] = useState(false)
   const [newCustForm, setNewCustForm]         = useState({ name:'', phone:'', address:'', notes:'' })
   const [newCustSaving, setNewCustSaving]     = useState(false)
   const [newCustError, setNewCustError]       = useState('')
 
   const [form, setForm] = useState({
-    clothType:'Blouse', quantity:1,
-    unitCost:0, amountSettled:0,
+    quantity:1, unitCost:0, amountSettled:0,
     fabricNotes:'', specialInstructions:'',
     deliveryDate:'', referenceImage:'',
     measurements:{ shoulder:'',chest:'',waist:'',hip:'',sleeve:'',length:'',neck:'',custom:'' },
@@ -34,14 +37,16 @@ export default function NewOrder() {
 
   useEffect(() => {
     if (!localStorage.getItem('adminToken')) { router.push('/admin/login'); return }
-    fetchCustomers()
+    fetchData()
   }, [])
 
-  const fetchCustomers = async () => {
-    try {
-      const res = await API.get('/api/customers')
-      setCustomers(res.data.customers)
-    } catch (e) { console.error(e) }
+  const fetchData = async () => {
+    const [custRes, clothRes] = await Promise.all([
+      API.get('/api/customers'),
+      API.get('/api/cloth-types'),
+    ])
+    setCustomers(custRes.data.customers)
+    setClothTypes(clothRes.data.clothTypes)
   }
 
   const checkDelivery = async (date) => {
@@ -52,36 +57,43 @@ export default function NewOrder() {
     } catch (e) { console.error(e) }
   }
 
+  // When subtype selected, auto-fill unit cost
+  const handleSubtypeSelect = (subtype) => {
+    setSelectedSubtype(subtype)
+    setForm(f => ({ ...f, unitCost: subtype.cost || 0 }))
+  }
+
   const handleSubmit = async () => {
     if (!selected)          { setError('Please select a customer'); return }
+    if (!selectedClothType) { setError('Please select a cloth type'); return }
+    if (!selectedSubtype)   { setError('Please select a subtype'); return }
     if (!form.deliveryDate) { setError('Please set a delivery date'); return }
+
     setSaving(true); setError('')
     try {
-      await API.post('/api/orders', { ...form, customerID: selected.customerID })
+      await API.post('/api/orders', {
+        ...form,
+        customerID: selected.customerID,
+        clothType:  `${selectedClothType.name} - ${selectedSubtype.name}`,
+        unitCost:   form.unitCost,
+      })
       router.push('/admin/dashboard')
     } catch (e) {
       setError(e.response?.data?.message || 'Failed to create order')
     } finally { setSaving(false) }
   }
 
-  // Create new customer inline and auto-select them
   const handleCreateNewCustomer = async () => {
-    if (!newCustForm.name || !newCustForm.phone) {
-      setNewCustError('Name and phone are required')
-      return
-    }
+    if (!newCustForm.name || !newCustForm.phone) { setNewCustError('Name and phone required'); return }
     setNewCustSaving(true); setNewCustError('')
     try {
       const res = await API.post('/api/customers', newCustForm)
-      const newCustomer = res.data.customer
-      // Add to list and auto-select
-      setCustomers(prev => [newCustomer, ...prev])
-      setSelected(newCustomer)
+      setCustomers(prev => [res.data.customer, ...prev])
+      setSelected(res.data.customer)
       setShowNewCustomer(false)
       setNewCustForm({ name:'', phone:'', address:'', notes:'' })
-    } catch (e) {
-      setNewCustError(e.response?.data?.message || 'Failed to create customer')
-    } finally { setNewCustSaving(false) }
+    } catch (e) { setNewCustError(e.response?.data?.message || 'Failed') }
+    finally { setNewCustSaving(false) }
   }
 
   const filteredCust = customers.filter(c =>
@@ -115,10 +127,9 @@ export default function NewOrder() {
 
       <div style={{ display:'grid', gap:20 }}>
 
-        {/* ── Customer Selection ── */}
+        {/* ① Customer */}
         <div className="glass" style={{ padding:24 }}>
           <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>① Select Customer</h2>
-
           {selected ? (
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'rgba(79,70,229,0.06)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, padding:'14px 18px' }}>
               <div>
@@ -129,30 +140,15 @@ export default function NewOrder() {
             </div>
           ) : (
             <>
-              {/* Search existing */}
               <div style={{ position:'relative', marginBottom:12 }}>
                 <Search size={15} style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'#9CA3AF' }} />
-                <input type="text" placeholder="Search existing customers by name, ID or phone..."
+                <input type="text" placeholder="Search by name, ID or phone..."
                   value={custSearch} onChange={e => setCustSearch(e.target.value)}
                   style={{ padding:'10px 14px 10px 34px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.875rem', outline:'none', width:'100%', color:'#1E1B4B' }} />
               </div>
-
-              {/* Customer list */}
               <div style={{ maxHeight:200, overflowY:'auto', display:'grid', gap:6, marginBottom:12 }}>
-
-                {/* ── Add New Customer option at top ── */}
-                <div
-                  onClick={() => setShowNewCustomer(!showNewCustomer)}
-                  style={{
-                    padding:'11px 16px',
-                    background: showNewCustomer ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.6)',
-                    border: showNewCustomer ? '1.5px solid rgba(16,185,129,0.3)' : '1.5px dashed rgba(16,185,129,0.4)',
-                    borderRadius:8, cursor:'pointer', transition:'all 0.2s',
-                    display:'flex', alignItems:'center', gap:10,
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background='rgba(16,185,129,0.06)'}
-                  onMouseLeave={e => e.currentTarget.style.background=showNewCustomer?'rgba(16,185,129,0.08)':'rgba(255,255,255,0.6)'}
-                >
+                <div onClick={() => setShowNewCustomer(!showNewCustomer)}
+                  style={{ padding:'11px 16px', background:showNewCustomer?'rgba(16,185,129,0.08)':'rgba(255,255,255,0.6)', border:'1.5px dashed rgba(16,185,129,0.4)', borderRadius:8, cursor:'pointer', display:'flex', alignItems:'center', gap:10 }}>
                   <div style={{ width:32, height:32, borderRadius:'50%', background:'linear-gradient(135deg,#10B981,#059669)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                     <UserPlus size={16} color="white" />
                   </div>
@@ -160,85 +156,43 @@ export default function NewOrder() {
                     <p style={{ fontWeight:700, fontSize:'0.88rem', color:'#059669' }}>+ Add New Customer</p>
                     <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>Create and select in one step</p>
                   </div>
-                  {showNewCustomer && <span style={{ marginLeft:'auto', color:'#059669', fontSize:'0.75rem', fontWeight:600 }}>▲ Close</span>}
                 </div>
-
                 {filteredCust.map(c => (
-                  <div key={c._id}
-                    onClick={() => { setSelected(c); setCustSearch(''); setShowNewCustomer(false) }}
+                  <div key={c._id} onClick={() => { setSelected(c); setCustSearch(''); setShowNewCustomer(false) }}
                     style={{ padding:'11px 16px', background:'rgba(255,255,255,0.6)', border:'1px solid rgba(79,70,229,0.1)', borderRadius:8, cursor:'pointer', transition:'all 0.2s' }}
                     onMouseEnter={e => e.currentTarget.style.background='rgba(79,70,229,0.06)'}
-                    onMouseLeave={e => e.currentTarget.style.background='rgba(255,255,255,0.6)'}
-                  >
+                    onMouseLeave={e => e.currentTarget.style.background='rgba(255,255,255,0.6)'}>
                     <p style={{ fontWeight:600, fontSize:'0.88rem', color:'#1E1B4B' }}>{c.name}</p>
                     <p style={{ fontSize:'0.75rem', color:'#6B7280' }}>{c.customerID} · {c.phone}</p>
                   </div>
                 ))}
-
-                {filteredCust.length === 0 && custSearch && (
-                  <p style={{ textAlign:'center', color:'#9CA3AF', fontSize:'0.85rem', padding:'12px 0' }}>
-                    No customers found. Use "+ Add New Customer" above.
-                  </p>
-                )}
               </div>
-
-              {/* Inline New Customer Form */}
               {showNewCustomer && (
-                <div style={{ border:'1.5px solid rgba(16,185,129,0.25)', borderRadius:12, padding:'20px', background:'rgba(16,185,129,0.03)', marginTop:4 }}>
+                <div style={{ border:'1.5px solid rgba(16,185,129,0.25)', borderRadius:12, padding:'20px', background:'rgba(16,185,129,0.03)' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-                    <p style={{ fontWeight:700, color:'#059669', fontSize:'0.9rem' }}>👤 New Customer Details</p>
-                    <button onClick={() => { setShowNewCustomer(false); setNewCustError('') }}
-                      style={{ background:'none', border:'none', cursor:'pointer', color:'#9CA3AF', display:'flex' }}>
-                      <X size={16} />
-                    </button>
+                    <p style={{ fontWeight:700, color:'#059669', fontSize:'0.9rem' }}>👤 New Customer</p>
+                    <button onClick={() => setShowNewCustomer(false)} style={{ background:'none', border:'none', cursor:'pointer', color:'#9CA3AF' }}><X size={16} /></button>
                   </div>
-
-                  {newCustError && (
-                    <p style={{ color:'#DC2626', fontSize:'0.82rem', marginBottom:12, background:'rgba(239,68,68,0.06)', padding:'8px 12px', borderRadius:8 }}>
-                      {newCustError}
-                    </p>
-                  )}
-
+                  {newCustError && <p style={{ color:'#DC2626', fontSize:'0.82rem', marginBottom:12 }}>{newCustError}</p>}
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
-                    <div>
-                      <label className="input-label">NAME *</label>
-                      <input type="text" value={newCustForm.name}
-                        onChange={e => { setNewCustForm({...newCustForm,name:e.target.value}); setNewCustError('') }}
-                        placeholder="Full name" className="input-field"
-                        style={{ border:'1.5px solid rgba(16,185,129,0.25)' }}
-                      />
-                    </div>
-                    <div>
-                      <label className="input-label">PHONE *</label>
-                      <input type="text" value={newCustForm.phone}
-                        onChange={e => { setNewCustForm({...newCustForm,phone:e.target.value}); setNewCustError('') }}
-                        placeholder="10-digit number" className="input-field"
-                        style={{ border:'1.5px solid rgba(16,185,129,0.25)' }}
-                      />
-                    </div>
-                    <div>
-                      <label className="input-label">ADDRESS</label>
-                      <input type="text" value={newCustForm.address}
-                        onChange={e => setNewCustForm({...newCustForm,address:e.target.value})}
-                        placeholder="Address (optional)" className="input-field"
-                        style={{ border:'1.5px solid rgba(16,185,129,0.25)' }}
-                      />
-                    </div>
-                    <div>
-                      <label className="input-label">NOTES</label>
-                      <input type="text" value={newCustForm.notes}
-                        onChange={e => setNewCustForm({...newCustForm,notes:e.target.value})}
-                        placeholder="Notes (optional)" className="input-field"
-                        style={{ border:'1.5px solid rgba(16,185,129,0.25)' }}
-                      />
-                    </div>
+                    {[
+                      { key:'name',    label:'NAME *',    placeholder:'Full name'    },
+                      { key:'phone',   label:'PHONE *',   placeholder:'Phone number' },
+                      { key:'address', label:'ADDRESS',   placeholder:'Address'      },
+                      { key:'notes',   label:'NOTES',     placeholder:'Notes'        },
+                    ].map(f => (
+                      <div key={f.key}>
+                        <label className="input-label">{f.label}</label>
+                        <input type="text" value={newCustForm[f.key]}
+                          onChange={e => { setNewCustForm({...newCustForm,[f.key]:e.target.value}); setNewCustError('') }}
+                          placeholder={f.placeholder} className="input-field"
+                          style={{ border:'1.5px solid rgba(16,185,129,0.25)' }} />
+                      </div>
+                    ))}
                   </div>
-
                   <button onClick={handleCreateNewCustomer} disabled={newCustSaving}
-                    style={{ display:'flex', alignItems:'center', gap:6, padding:'10px 20px', background:'linear-gradient(135deg,#10B981,#059669)', color:'white', border:'none', borderRadius:10, fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.85rem', cursor:newCustSaving?'not-allowed':'pointer', opacity:newCustSaving?0.7:1 }}>
-                    {newCustSaving
-                      ? <><div className="spinner" />Creating...</>
-                      : <><Check size={15} />Create & Select Customer</>}
+                    style={{ display:'flex', alignItems:'center', gap:6, padding:'10px 20px', background:'linear-gradient(135deg,#10B981,#059669)', color:'white', border:'none', borderRadius:10, fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.85rem', cursor:'pointer' }}>
+                    {newCustSaving ? <><div className="spinner" />Creating...</> : <><Check size={15} />Create & Select</>}
                   </button>
                 </div>
               )}
@@ -246,13 +200,90 @@ export default function NewOrder() {
           )}
         </div>
 
-        {/* ── Order Payment ── */}
+        {/* ② Cloth Type + Subtype */}
+        <div className="glass" style={{ padding:24 }}>
+          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>② Cloth Type & Subtype</h2>
+
+          {/* Cloth Type selection */}
+          <div style={{ marginBottom:16 }}>
+            <label className="input-label">SELECT CLOTH TYPE</label>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+              {clothTypes.map(ct => (
+                <button key={ct._id}
+                  onClick={() => { setSelectedClothType(ct); setSelectedSubtype(null) }}
+                  style={{
+                    padding:'8px 16px', borderRadius:999, cursor:'pointer',
+                    fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.82rem',
+                    border:   selectedClothType?._id===ct._id ? '2px solid #4F46E5' : '1.5px solid rgba(79,70,229,0.2)',
+                    background: selectedClothType?._id===ct._id ? 'rgba(79,70,229,0.1)' : 'rgba(255,255,255,0.7)',
+                    color:    selectedClothType?._id===ct._id ? '#4F46E5' : '#6B7280',
+                    transition:'all 0.2s',
+                  }}>
+                  {ct.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Subtype selection */}
+          {selectedClothType && (
+            <div>
+              <label className="input-label">
+                SELECT SUBTYPE — {selectedClothType.name}
+              </label>
+              {selectedClothType.subtypes.filter(s => s.isActive).length === 0 ? (
+                <p style={{ color:'#9CA3AF', fontSize:'0.85rem' }}>
+                  No subtypes available. Add subtypes in Cloth Type Management.
+                </p>
+              ) : (
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:10 }}>
+                  {selectedClothType.subtypes.filter(s => s.isActive).map(sub => (
+                    <div key={sub._id}
+                      onClick={() => handleSubtypeSelect(sub)}
+                      style={{
+                        padding:'14px 16px', borderRadius:12, cursor:'pointer',
+                        border:   selectedSubtype?._id===sub._id ? '2px solid #10B981' : '1.5px solid rgba(79,70,229,0.15)',
+                        background: selectedSubtype?._id===sub._id ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.7)',
+                        transition:'all 0.2s',
+                      }}
+                      onMouseEnter={e => { if(selectedSubtype?._id!==sub._id) e.currentTarget.style.background='rgba(79,70,229,0.05)' }}
+                      onMouseLeave={e => { if(selectedSubtype?._id!==sub._id) e.currentTarget.style.background='rgba(255,255,255,0.7)' }}
+                    >
+                      <p style={{ fontWeight:700, color: selectedSubtype?._id===sub._id?'#059669':'#1E1B4B', fontSize:'0.9rem' }}>
+                        {sub.name}
+                      </p>
+                      <p style={{ fontSize:'0.8rem', fontWeight:700, color:'#059669', marginTop:4 }}>
+                        ₹{(sub.cost||0).toLocaleString('en-IN')}
+                      </p>
+                      {selectedSubtype?._id===sub._id && (
+                        <p style={{ fontSize:'0.7rem', color:'#059669', marginTop:2 }}>✓ Selected</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Summary */}
+          {selectedClothType && selectedSubtype && (
+            <div style={{ marginTop:14, padding:'12px 16px', background:'rgba(79,70,229,0.06)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10 }}>
+              <p style={{ fontSize:'0.82rem', color:'#4F46E5', fontWeight:600 }}>
+                Selected: <strong>{selectedClothType.name}</strong> — <strong>{selectedSubtype.name}</strong>
+                <span style={{ marginLeft:8, color:'#059669' }}>₹{selectedSubtype.cost?.toLocaleString('en-IN')}</span>
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* ③ Payment */}
         <div className="glass" style={{ padding:24, background:'rgba(16,185,129,0.02)', border:'1.5px solid rgba(16,185,129,0.15)' }}>
-          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>② Payment</h2>
+          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>③ Payment</h2>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:14 }}>
             <div>
               <label className="input-label">ORDER COST (₹)</label>
               <NumInput prefix="₹" value={form.unitCost} onChange={val => setForm({...form,unitCost:val})} placeholder="0" style={{ border:'1.5px solid rgba(16,185,129,0.25)' }} />
+              <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:4 }}>Auto-filled from subtype cost</p>
             </div>
             <div>
               <label className="input-label">AMOUNT SETTLED (₹)</label>
@@ -270,17 +301,10 @@ export default function NewOrder() {
           </div>
         </div>
 
-        {/* ── Order Details ── */}
+        {/* ④ Order Details */}
         <div className="glass" style={{ padding:24 }}>
-          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>③ Order Details</h2>
+          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>④ Order Details</h2>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:14 }}>
-            <div>
-              <label className="input-label">CLOTH TYPE</label>
-              <select value={form.clothType} onChange={e => setForm({...form,clothType:e.target.value})}
-                style={{ width:'100%', padding:'13px 16px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none' }}>
-                {CLOTH_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
             <div>
               <label className="input-label">QUANTITY</label>
               <NumInput value={form.quantity} onChange={val => setForm({...form,quantity:Math.max(1,Math.round(val))})} placeholder="1" min={1} />
@@ -293,16 +317,15 @@ export default function NewOrder() {
             </div>
           </div>
 
-          {/* Delivery capacity */}
           {deliveryInfo && (
             <div style={{ marginTop:14, padding:'12px 16px', background:deliveryInfo.isOverloaded?'rgba(239,68,68,0.06)':'rgba(16,185,129,0.06)', border:`1.5px solid ${deliveryInfo.isOverloaded?'rgba(239,68,68,0.2)':'rgba(16,185,129,0.2)'}`, borderRadius:10 }}>
-              <p style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:8, color:deliveryInfo.isOverloaded?'#DC2626':'#059669' }}>
-                {deliveryInfo.isOverloaded ? '⚠️ High delivery load. Consider another date.' : '✅ Date available'}
+              <p style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:6, color:deliveryInfo.isOverloaded?'#DC2626':'#059669' }}>
+                {deliveryInfo.isOverloaded ? '⚠️ High delivery load.' : '✅ Date available'}
               </p>
               <div style={{ background:'rgba(255,255,255,0.5)', borderRadius:6, height:8, overflow:'hidden' }}>
                 <div style={{ height:'100%', width:`${Math.min(deliveryInfo.percentUsed,100)}%`, background:deliveryInfo.isOverloaded?'#EF4444':'#10B981', borderRadius:6 }} />
               </div>
-              <p style={{ fontSize:'0.75rem', color:'#6B7280', marginTop:6 }}>{deliveryInfo.totalPieces} / {deliveryInfo.capacity} pieces booked</p>
+              <p style={{ fontSize:'0.75rem', color:'#6B7280', marginTop:6 }}>{deliveryInfo.totalPieces}/{deliveryInfo.capacity} pieces</p>
             </div>
           )}
 
@@ -319,9 +342,9 @@ export default function NewOrder() {
           </div>
         </div>
 
-        {/* ── Measurements ── */}
+        {/* ⑤ Measurements */}
         <div className="glass" style={{ padding:24 }}>
-          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>④ Measurements <span style={{ fontSize:'0.75rem', color:'#9CA3AF', fontWeight:400 }}>(inches)</span></h2>
+          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>⑤ Measurements <span style={{ fontSize:'0.75rem', color:'#9CA3AF', fontWeight:400 }}>(inches)</span></h2>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:14 }}>
             {MEASUREMENT_FIELDS.map(field => (
               <div key={field}>
@@ -333,9 +356,9 @@ export default function NewOrder() {
           </div>
         </div>
 
-        {/* ── Alteration ── */}
+        {/* ⑥ Alteration */}
         <div className="glass" style={{ padding:24 }}>
-          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>⑤ Alteration</h2>
+          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>⑥ Alteration</h2>
           <div style={{ display:'flex', gap:12, marginBottom:14 }}>
             {[true,false].map(v => (
               <button key={String(v)} onClick={() => setForm({...form,alteration:{...form.alteration,required:v}})}
