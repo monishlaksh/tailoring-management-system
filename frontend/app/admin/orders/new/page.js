@@ -156,24 +156,25 @@ export default function NewOrder() {
   }
 
   const handleSubmit = async () => {
-    if (!selected)          { setError('Please select a customer'); return }
-    if (!selectedClothType) { setError('Please select a cloth type'); return }
-    if (!selectedSubtype)   { setError('Please select a subtype'); return }
-    if (!form.deliveryDate) { setError('Please set a delivery date'); return }
+  if (!selected)          { setError('Please select a customer'); return }
+  if (!selectedClothType) { setError('Please select a cloth type'); return }
+  if (!selectedSubtype)   { setError('Please select a subtype'); return }
+  if (!form.deliveryDate) { setError('Please set a delivery date'); return }
 
-    setSaving(true); setError('')
-    try {
-      await API.post('/api/orders', {
-        ...form,
-        customerID: selected.customerID,
-        clothType:  `${selectedClothType.name} - ${selectedSubtype.name}`,
-        unitCost:   form.unitCost,
-      })
-      router.push('/admin/dashboard')
-    } catch (e) {
-      setError(e.response?.data?.message || 'Failed to create order')
-    } finally { setSaving(false) }
-  }
+  setSaving(true); setError('')
+  try {
+    const res = await API.post('/api/orders', {
+      ...form,
+      customerID: selected.customerID,
+      clothType:  `${selectedClothType.name} - ${selectedSubtype.name}`,
+      unitCost:   form.unitCost,
+    })
+    // Redirect to allotment page after saving
+    router.push(`/admin/allotment/${res.data.order.orderID}`)
+  } catch (e) {
+    setError(e.response?.data?.message || 'Failed to create order')
+  } finally { setSaving(false) }
+}
 
   const handleCreateNewCustomer = async () => {
     if (!newCustForm.name || !newCustForm.phone) { setNewCustError('Name and phone required'); return }

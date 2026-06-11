@@ -385,7 +385,7 @@ export default function AdminDashboard() {
             <table style={{ width:'100%', borderCollapse:'separate', borderSpacing:'0 6px' }}>
               <thead>
                 <tr>
-                  {['Order ID','Customer','Cloth','Qty','Status','Delivery Date','Days Left','Created By','Action'].map(h => (
+                  {['Order ID','Customer','Cloth','Qty','Status','Delivery Date','Days Left','Created By','Action','Allotment'].map(h => (
                     <th key={h} style={{ textAlign:'left', fontSize:'0.66rem', fontWeight:600, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.5px', padding:'4px 12px', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -419,6 +419,11 @@ export default function AdminDashboard() {
                           style={{ display:'flex', alignItems:'center', gap:3, background:'rgba(79,70,229,0.08)', border:'1px solid rgba(79,70,229,0.2)', borderRadius:6, padding:'6px 10px', color:'#4F46E5', fontSize:'0.76rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif', whiteSpace:'nowrap' }}>
                           View <ChevronRight size={12} />
                         </button>,
+                        <button
+                          onClick={e => { e.stopPropagation(); router.push(`/admin/allotment/${order.orderID}`) }}
+                          style={{ display:'flex', alignItems:'center', gap:3, background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.2)', borderRadius:6, padding:'6px 10px', color:'#D97706', fontSize:'0.76rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif', whiteSpace:'nowrap' }}>
+                          ✂️ Allot
+                        </button>
                       ].map((cell,ci) => (
                         <td key={ci} style={{ padding:'11px 12px', background:isOverdue?'rgba(239,68,68,0.04)':isDueToday?'rgba(245,158,11,0.04)':'rgba(255,255,255,0.6)', borderRadius:ci===0?'10px 0 0 10px':ci===8?'0 10px 10px 0':0 }}>
                           {cell}

@@ -11,6 +11,7 @@ const deliveryRoutes         = require('./routes/delivery')
 const employeeRoutes         = require('./routes/employees')
 const clothTypeRoutes        = require('./routes/clothTypes')
 const alterationRoutes       = require('./routes/alterationOptions')
+const allotmentRoutes        = require('./routes/allotment')
 
 dotenv.config()
 const app = express()
@@ -37,7 +38,7 @@ app.use(function (req, res, next) {
   next()
 })
 
-app.use(express.json({ limit:'10mb' }))
+app.use(express.json({ limit: '10mb' }))
 
 app.use('/api/auth',               authRoutes)
 app.use('/api/customers',          customerRoutes)
@@ -46,9 +47,10 @@ app.use('/api/delivery',           deliveryRoutes)
 app.use('/api/employees',          employeeRoutes)
 app.use('/api/cloth-types',        clothTypeRoutes)
 app.use('/api/alteration-options', alterationRoutes)
+app.use('/api/allotment',          allotmentRoutes)
 
 app.get('/api/health', (req, res) => {
-  res.json({ status:'ok', message:'✂️ Tailoring API running' })
+  res.json({ status: 'ok', message: '✂️ Tailoring API running' })
 })
 
 const startServer = async () => {

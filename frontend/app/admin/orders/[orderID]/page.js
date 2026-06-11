@@ -116,6 +116,11 @@ export default function OrderDetail() {
           <button onClick={handleDelete} disabled={deleting} className="btn-danger" style={{ padding:'9px 16px', fontSize:'0.82rem', display:'flex', alignItems:'center', gap:5 }}>
             <Trash2 size={14} />{deleting?'Deleting...':'Delete'}
           </button>
+          <button
+            onClick={() => router.push(`/admin/allotment/${orderID}`)}
+            style={{ display:'flex', alignItems:'center', gap:5, background:'rgba(79,70,229,0.08)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:8, padding:'9px 16px', color:'#4F46E5', fontSize:'0.82rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif' }}>
+            ✂️ Allotment
+          </button>
           <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ padding:'9px 18px', fontSize:'0.82rem', display:'flex', alignItems:'center', gap:5 }}>
             {saving?<><div className="spinner"/>Saving...</>:<><Save size={14}/>Save Changes</>}
           </button>
