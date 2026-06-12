@@ -273,5 +273,58 @@ router.get('/', protect, async (req, res) => {
     res.status(500).json({ success: false, message: e.message })
   }
 })
+// ── GET allotment by QR scan ─────────────────────────────────
+// No auth required — works for both employee and admin scans
+router.get('/scan/:orderID', async (req, res) => {
+  try {
+    const { orderID } = req.params
+    const { stage }   = req.query
+
+    const order = await Order.findOne({ orderID }).lean()
+    if (!order)
+      return res.status(404).json({ success:false, message:'Order not found' })
+
+    const allotment = await Allotment.findOne({ orderID }).lean()
+
+    // Employee sees: measurements + stage info + alterations for stitching
+    // Customer info is intentionally excluded
+    const response = {
+      success:      true,
+      orderID:      order.orderID,
+      clothType:    order.clothType,
+      quantity:     order.quantity,
+      measurements: order.measurements,
+      stage:        stage || 'general',
+      fabricNotes:  order.fabricNotes,
+    }
+
+    // Only stitching sees alteration details
+    if (stage === 'stitching') {
+      response.alteration = order.alteration
+    }
+
+    // Stage assignment info
+    if (allotment && stage && allotment[stage]) {
+      response.stageInfo = {
+        status:     allotment[stage].status,
+        employeeID: allotment[stage].employeeID,
+        notes:      allotment[stage].notes,
+      }
+    }
+
+    // All stages summary for general scan
+    if (allotment) {
+      response.allStages = {
+        cutting:   { status: allotment.cutting?.status   || 'not_assigned' },
+        stitching: { status: allotment.stitching?.status || 'not_assigned' },
+        finishing: { status: allotment.finishing?.status || 'not_assigned' },
+      }
+    }
+
+    res.json(response)
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
 
 module.exports = router

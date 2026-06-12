@@ -47,6 +47,18 @@ export default function EmployeeDashboard() {
             </p>
           </div>
         </div>
+        <button
+          onClick={() => router.push('/employee/scan')}
+          style={{
+            display:'flex', alignItems:'center', gap:5,
+            background:`linear-gradient(135deg,${role.color},${role.color}aa)`,
+            border:'none', borderRadius:8, padding:'8px 16px',
+            color:'white', fontSize:'0.8rem', fontWeight:600,
+            cursor:'pointer', fontFamily:'Poppins,sans-serif',
+            boxShadow:`0 4px 12px ${role.color}33`,
+          }}>
+          📱 Scan QR
+        </button>
         <button onClick={handleLogout}
           style={{ display:'flex', alignItems:'center', gap:5, background:'rgba(239,68,68,0.08)', border:'1.5px solid rgba(239,68,68,0.2)', borderRadius:8, padding:'8px 14px', color:'#DC2626', fontSize:'0.8rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif' }}>
           <LogOut size={14} /> Logout
