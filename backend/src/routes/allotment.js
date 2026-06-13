@@ -33,54 +33,89 @@ router.get('/', protect, async (req, res) => {
 
 // ── GET by QR scan — MUST be before /:orderID ───────────────
 // No auth — public route for employee phone scan
+// ── GET by QR scan — public route ───────────────────────────
 router.get('/scan/:orderID', async (req, res) => {
   try {
     const { orderID } = req.params
     const { stage }   = req.query
 
-    const order = await Order.findOne({ orderID }).lean()
-    if (!order)
-      return res.status(404).json({ success:false, message:'Order not found' })
+    // Clean orderID — remove any trailing slashes or spaces
+    const cleanOrderID = orderID.trim().toUpperCase()
 
-    const allotment = await Allotment.findOne({ orderID }).lean()
+    console.log(`QR Scan: orderID=${cleanOrderID}, stage=${stage}`)
 
-    const response = {
-      success:      true,
-      orderID:      order.orderID,
-      clothType:    order.clothType,
-      quantity:     order.quantity,
-      measurements: order.measurements,
-      stage:        stage || 'general',
-      fabricNotes:  order.fabricNotes,
+    const order = await Order.findOne({ orderID: cleanOrderID }).lean()
+    if (!order) {
+      console.log(`Order not found: ${cleanOrderID}`)
+      // Try case-insensitive search as fallback
+      const orderFallback = await Order.findOne({
+        orderID: { $regex: new RegExp(`^${cleanOrderID}$`, 'i') }
+      }).lean()
+      if (!orderFallback)
+        return res.status(404).json({
+          success: false,
+          message: `Order ${cleanOrderID} not found`,
+        })
+      return handleScanResponse(res, orderFallback, stage)
     }
 
-    // Only stitching sees alteration
-    if (stage === 'stitching') {
-      response.alteration = order.alteration
-    }
-
-    if (allotment && stage && allotment[stage]) {
-      response.stageInfo = {
-        status:     allotment[stage].status,
-        employeeID: allotment[stage].employeeID,
-        notes:      allotment[stage].notes,
-      }
-    }
-
-    if (allotment) {
-      response.allStages = {
-        cutting:   { status: allotment.cutting?.status   || 'not_assigned' },
-        stitching: { status: allotment.stitching?.status || 'not_assigned' },
-        finishing: { status: allotment.finishing?.status || 'not_assigned' },
-      }
-    }
-
-    res.json(response)
+    return handleScanResponse(res, order, stage)
   } catch (e) {
+    console.error('Scan error:', e.message)
     res.status(500).json({ success:false, message:e.message })
   }
 })
 
+// Helper function for scan response
+async function handleScanResponse(res, order, stage) {
+  const allotment = await Allotment.findOne({
+    orderID: order.orderID
+  }).lean()
+
+  const response = {
+    success:      true,
+    orderID:      order.orderID,
+    clothType:    order.clothType,
+    quantity:     order.quantity,
+    measurements: order.measurements || {},
+    stage:        stage || 'general',
+    fabricNotes:  order.fabricNotes  || '',
+  }
+
+  if (stage === 'stitching') {
+    response.alteration = order.alteration
+  }
+
+  if (allotment && stage && allotment[stage]) {
+    response.stageInfo = {
+      status:     allotment[stage].status     || 'not_assigned',
+      employeeID: allotment[stage].employeeID || '',
+      notes:      allotment[stage].notes      || '',
+    }
+  } else {
+    response.stageInfo = {
+      status:     'not_assigned',
+      employeeID: '',
+      notes:      '',
+    }
+  }
+
+  if (allotment) {
+    response.allStages = {
+      cutting:   { status: allotment.cutting?.status   || 'not_assigned' },
+      stitching: { status: allotment.stitching?.status || 'not_assigned' },
+      finishing: { status: allotment.finishing?.status || 'not_assigned' },
+    }
+  } else {
+    response.allStages = {
+      cutting:   { status: 'not_assigned' },
+      stitching: { status: 'not_assigned' },
+      finishing: { status: 'not_assigned' },
+    }
+  }
+
+  return res.json(response)
+}
 // ── GET allotment for an order ───────────────────────────────
 router.get('/:orderID', protect, async (req, res) => {
   try {

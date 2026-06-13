@@ -1,6 +1,6 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { usePathname, useSearchParams, } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { Scissors } from 'lucide-react'
 
 const STAGE_INFO = {
@@ -16,62 +16,72 @@ const STATUS_COLOR = {
   completed:    '#059669',
 }
 
-export default function ScanPage() {
+function ScanContent() {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
-  const orderID      = pathname?.split('/').pop()
-  const stage        = searchParams?.get('stage') || 'general'
+
+  // Robust orderID extraction
+  const pathParts = (pathname || '').split('/').filter(Boolean)
+  const orderID   = pathParts[pathParts.length - 1]?.toUpperCase() || ''
+  const stage     = searchParams?.get('stage') || 'general'
 
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
+  const [debugInfo, setDebugInfo] = useState('')
 
   const BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
     'https://tailoring-management-apwh.onrender.com'
 
   useEffect(() => {
-    if (!orderID || orderID === 'undefined') {
-      setError('Invalid QR code')
+    if (!orderID) {
+      setError('Invalid QR code — no order ID found')
+      setLoading(false)
+      return
+    }
+    if (!orderID.startsWith('ORD')) {
+      setError(`Invalid order ID format: ${orderID}`)
       setLoading(false)
       return
     }
     fetchData()
   }, [orderID, stage])
-  
-const fetchData = async () => {
-  try {
-    // Try env variable first, then fallback
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL ||
-      'https://tailoring-management-apwh.onrender.com'
 
-    const url = `${baseUrl}/api/allotment/scan/${orderID}?stage=${stage}`
-    console.log('Fetching:', url) // debug
+  const fetchData = async () => {
+    const url = `${BASE_URL}/api/allotment/scan/${orderID}?stage=${stage}`
+    setDebugInfo(`Loading: ${orderID}`)
 
-    const res = await fetch(url, {
-      method:  'GET',
-      headers: { 'Content-Type':'application/json' },
-    })
+    try {
+      const res = await fetch(url, {
+        method:  'GET',
+        headers: { 'Content-Type':'application/json' },
+      })
 
-    if (!res.ok) {
       const text = await res.text()
-      console.error('Response error:', res.status, text)
-      setError(`Server error: ${res.status}`)
-      return
-    }
 
-    const json = await res.json()
-    if (json.success) {
-      setData(json)
-    } else {
-      setError(json.message || 'Order not found')
+      let json
+      try {
+        json = JSON.parse(text)
+      } catch {
+        setError(`Server returned invalid response`)
+        setDebugInfo(`Raw: ${text.substring(0, 100)}`)
+        return
+      }
+
+      if (json.success) {
+        setData(json)
+        setDebugInfo('')
+      } else {
+        setError(json.message || 'Order not found')
+        setDebugInfo(`OrderID tried: ${orderID}`)
+      }
+    } catch (e) {
+      setError('Failed to connect to server. Check your internet connection.')
+      setDebugInfo(`URL: ${url}`)
+    } finally {
+      setLoading(false)
     }
-  } catch (e) {
-    console.error('Fetch error:', e)
-    setError('Failed to load order data. Check your connection.')
-  } finally {
-    setLoading(false)
   }
-}
 
   if (loading) return (
     <main style={{ minHeight:'100vh', display:'flex', alignItems:'center',
@@ -82,6 +92,11 @@ const fetchData = async () => {
           borderRadius:'50%', animation:'spin 0.8s linear infinite',
           margin:'0 auto 16px' }} />
         <p style={{ color:'#6B7280' }}>Loading order details...</p>
+        {debugInfo && (
+          <p style={{ color:'#9CA3AF', fontSize:'0.75rem', marginTop:8 }}>
+            {debugInfo}
+          </p>
+        )}
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>
@@ -95,10 +110,29 @@ const fetchData = async () => {
         <h2 style={{ color:'#DC2626', fontWeight:700, marginBottom:8 }}>
           Order Not Found
         </h2>
-        <p style={{ color:'#6B7280', fontSize:'0.9rem' }}>{error}</p>
+        <p style={{ color:'#6B7280', fontSize:'0.9rem', marginBottom:12 }}>
+          {error}
+        </p>
+        {debugInfo && (
+          <p style={{ color:'#9CA3AF', fontSize:'0.75rem',
+            background:'rgba(0,0,0,0.04)', padding:'8px 12px',
+            borderRadius:8, fontFamily:'monospace' }}>
+            {debugInfo}
+          </p>
+        )}
+        <button
+          onClick={() => { setError(''); setLoading(true); fetchData() }}
+          style={{ marginTop:16, padding:'10px 24px',
+            background:'#4F46E5', color:'white', border:'none',
+            borderRadius:10, fontFamily:'Poppins,sans-serif',
+            fontWeight:600, cursor:'pointer', fontSize:'0.88rem' }}>
+          Try Again
+        </button>
       </div>
     </main>
   )
+
+  if (!data) return null
 
   const stageInfo       = STAGE_INFO[stage] || STAGE_INFO.general
   const measurements    = data.measurements || {}
@@ -115,8 +149,8 @@ const fetchData = async () => {
           display:'flex', alignItems:'center', gap:14 }}>
           <div style={{ width:48, height:48, borderRadius:14,
             background:`linear-gradient(135deg,${stageInfo.color},${stageInfo.color}cc)`,
-            display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize:'1.5rem', flexShrink:0 }}>
+            display:'flex', alignItems:'center',
+            justifyContent:'center', fontSize:'1.5rem', flexShrink:0 }}>
             {stageInfo.icon}
           </div>
           <div>
@@ -140,8 +174,8 @@ const fetchData = async () => {
             <div style={{ display:'flex', justifyContent:'space-between',
               alignItems:'center' }}>
               <div>
-                <p style={{ fontSize:'0.75rem', color:'#9CA3AF', fontWeight:600,
-                  marginBottom:4 }}>STAGE STATUS</p>
+                <p style={{ fontSize:'0.75rem', color:'#9CA3AF',
+                  fontWeight:600, marginBottom:4 }}>STAGE STATUS</p>
                 <p style={{ fontSize:'1rem', fontWeight:700,
                   color:STATUS_COLOR[data.stageInfo.status] || '#1E1B4B' }}>
                   {data.stageInfo.status === 'not_assigned' && '⏳ Not Assigned Yet'}
@@ -171,10 +205,11 @@ const fetchData = async () => {
 
         {/* Fabric notes */}
         {data.fabricNotes && (
-          <div style={{ background:'white', borderRadius:16, padding:'16px 20px',
-            marginBottom:16, boxShadow:'0 4px 20px rgba(79,70,229,0.08)' }}>
-            <p style={{ fontSize:'0.75rem', color:'#9CA3AF', fontWeight:600,
-              marginBottom:6 }}>FABRIC NOTES</p>
+          <div style={{ background:'white', borderRadius:16,
+            padding:'16px 20px', marginBottom:16,
+            boxShadow:'0 4px 20px rgba(79,70,229,0.08)' }}>
+            <p style={{ fontSize:'0.75rem', color:'#9CA3AF',
+              fontWeight:600, marginBottom:6 }}>FABRIC NOTES</p>
             <p style={{ fontSize:'0.88rem', color:'#4B5563' }}>
               {data.fabricNotes}
             </p>
@@ -186,19 +221,20 @@ const fetchData = async () => {
           <div style={{ background:'white', borderRadius:16, padding:'20px',
             marginBottom:16, boxShadow:'0 4px 20px rgba(79,70,229,0.1)' }}>
             <p style={{ fontSize:'0.75rem', color:'#9CA3AF', fontWeight:600,
-              textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:14 }}>
+              textTransform:'uppercase', letterSpacing:'0.5px',
+              marginBottom:14 }}>
               📏 Measurements (inches)
             </p>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)',
-              gap:10 }}>
+            <div style={{ display:'grid',
+              gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
               {Object.entries(measurements).filter(([,v]) => v).map(([k,v]) => (
-                <div key={k} style={{ background:'#EEF2FF', borderRadius:10,
-                  padding:'12px 14px' }}>
-                  <p style={{ fontSize:'0.65rem', color:'#6B7280', fontWeight:600,
-                    textTransform:'uppercase', marginBottom:4 }}>{k}</p>
-                  <p style={{ fontSize:'1.3rem', fontWeight:800, color:'#4F46E5' }}>
-                    {v}"
-                  </p>
+                <div key={k} style={{ background:'#EEF2FF',
+                  borderRadius:10, padding:'12px 14px' }}>
+                  <p style={{ fontSize:'0.65rem', color:'#6B7280',
+                    fontWeight:600, textTransform:'uppercase',
+                    marginBottom:4 }}>{k}</p>
+                  <p style={{ fontSize:'1.3rem', fontWeight:800,
+                    color:'#4F46E5' }}>{v}"</p>
                 </div>
               ))}
             </div>
@@ -211,20 +247,23 @@ const fetchData = async () => {
             marginBottom:16, boxShadow:'0 4px 20px rgba(245,158,11,0.15)',
             border:'2px solid rgba(245,158,11,0.2)' }}>
             <p style={{ fontSize:'0.75rem', color:'#D97706', fontWeight:600,
-              textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:14 }}>
+              textTransform:'uppercase', letterSpacing:'0.5px',
+              marginBottom:14 }}>
               ⚠️ Alterations Required
             </p>
             {(data.alteration.selectedOptions || []).length > 0 && (
               <div style={{ marginBottom:12 }}>
-                <p style={{ fontSize:'0.72rem', color:'#9CA3AF', fontWeight:600,
-                  marginBottom:8 }}>SELECTED ALTERATIONS</p>
+                <p style={{ fontSize:'0.72rem', color:'#9CA3AF',
+                  fontWeight:600, marginBottom:8 }}>
+                  SELECTED ALTERATIONS
+                </p>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                   {data.alteration.selectedOptions.map((opt, i) => (
                     <span key={i} style={{ padding:'6px 14px',
                       background:'rgba(245,158,11,0.1)',
                       border:'1.5px solid rgba(245,158,11,0.3)',
-                      borderRadius:999, fontSize:'0.82rem', fontWeight:600,
-                      color:'#D97706' }}>
+                      borderRadius:999, fontSize:'0.82rem',
+                      fontWeight:600, color:'#D97706' }}>
                       {opt}
                     </span>
                   ))}
@@ -232,11 +271,14 @@ const fetchData = async () => {
               </div>
             )}
             {data.alteration.notes && (
-              <div style={{ background:'rgba(245,158,11,0.06)', borderRadius:10,
-                padding:'12px 14px' }}>
-                <p style={{ fontSize:'0.72rem', color:'#D97706', fontWeight:600,
-                  marginBottom:4 }}>ADDITIONAL NOTES</p>
-                <p style={{ fontSize:'0.88rem', color:'#4B5563', lineHeight:1.6 }}>
+              <div style={{ background:'rgba(245,158,11,0.06)',
+                borderRadius:10, padding:'12px 14px' }}>
+                <p style={{ fontSize:'0.72rem', color:'#D97706',
+                  fontWeight:600, marginBottom:4 }}>
+                  ADDITIONAL NOTES
+                </p>
+                <p style={{ fontSize:'0.88rem', color:'#4B5563',
+                  lineHeight:1.6 }}>
                   {data.alteration.notes}
                 </p>
               </div>
@@ -249,7 +291,8 @@ const fetchData = async () => {
           <div style={{ background:'white', borderRadius:16, padding:'20px',
             marginBottom:16, boxShadow:'0 4px 20px rgba(79,70,229,0.08)' }}>
             <p style={{ fontSize:'0.75rem', color:'#9CA3AF', fontWeight:600,
-              textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:14 }}>
+              textTransform:'uppercase', letterSpacing:'0.5px',
+              marginBottom:14 }}>
               ORDER PROGRESS
             </p>
             <div style={{ display:'grid', gap:8 }}>
@@ -259,14 +302,17 @@ const fetchData = async () => {
                 { key:'finishing', icon:'🚩', label:'Finishing' },
               ].map(s => {
                 const st  = data.allStages[s.key]?.status || 'not_assigned'
-                const pct = st === 'completed' ? 100 : st === 'pending' ? 50 : 0
+                const pct = st === 'completed' ? 100
+                          : st === 'pending'   ? 50 : 0
                 return (
-                  <div key={s.key} style={{ display:'flex', alignItems:'center',
-                    gap:12 }}>
-                    <span style={{ fontSize:'1rem', width:24 }}>{s.icon}</span>
+                  <div key={s.key} style={{ display:'flex',
+                    alignItems:'center', gap:12 }}>
+                    <span style={{ fontSize:'1rem', width:24 }}>
+                      {s.icon}
+                    </span>
                     <div style={{ flex:1 }}>
-                      <div style={{ display:'flex', justifyContent:'space-between',
-                        marginBottom:4 }}>
+                      <div style={{ display:'flex',
+                        justifyContent:'space-between', marginBottom:4 }}>
                         <span style={{ fontSize:'0.78rem', fontWeight:600,
                           color:'#1E1B4B' }}>{s.label}</span>
                         <span style={{ fontSize:'0.72rem', fontWeight:600,
@@ -300,11 +346,35 @@ const fetchData = async () => {
             </p>
           </div>
           <p style={{ fontSize:'0.68rem', color:'#C4C9D4', marginTop:4 }}>
-            Customer information is confidential and not shown here
+            Customer information is confidential
           </p>
         </div>
 
       </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>
+  )
+}
+
+// Wrap in Suspense for useSearchParams
+export default function ScanPage() {
+  return (
+    <Suspense fallback={
+      <main style={{ minHeight:'100vh', display:'flex',
+        alignItems:'center', justifyContent:'center',
+        fontFamily:'Poppins,sans-serif' }}>
+        <div style={{ textAlign:'center' }}>
+          <div style={{ width:48, height:48,
+            border:'3px solid rgba(79,70,229,0.2)',
+            borderTopColor:'#4F46E5', borderRadius:'50%',
+            animation:'spin 0.8s linear infinite',
+            margin:'0 auto 16px' }} />
+          <p style={{ color:'#6B7280' }}>Loading...</p>
+        </div>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </main>
+    }>
+      <ScanContent />
+    </Suspense>
   )
 }
