@@ -37,21 +37,41 @@ export default function ScanPage() {
     }
     fetchData()
   }, [orderID, stage])
+  
+const fetchData = async () => {
+  try {
+    // Try env variable first, then fallback
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL ||
+      'https://tailoring-management-apwh.onrender.com'
 
-  const fetchData = async () => {
-    try {
-      const res  = await fetch(
-        `${BASE_URL}/api/allotment/scan/${orderID}?stage=${stage}`
-      )
-      const json = await res.json()
-      if (json.success) setData(json)
-      else setError(json.message || 'Order not found')
-    } catch (e) {
-      setError('Failed to load order data. Check your connection.')
-    } finally {
-      setLoading(false)
+    const url = `${baseUrl}/api/allotment/scan/${orderID}?stage=${stage}`
+    console.log('Fetching:', url) // debug
+
+    const res = await fetch(url, {
+      method:  'GET',
+      headers: { 'Content-Type':'application/json' },
+    })
+
+    if (!res.ok) {
+      const text = await res.text()
+      console.error('Response error:', res.status, text)
+      setError(`Server error: ${res.status}`)
+      return
     }
+
+    const json = await res.json()
+    if (json.success) {
+      setData(json)
+    } else {
+      setError(json.message || 'Order not found')
+    }
+  } catch (e) {
+    console.error('Fetch error:', e)
+    setError('Failed to load order data. Check your connection.')
+  } finally {
+    setLoading(false)
   }
+}
 
   if (loading) return (
     <main style={{ minHeight:'100vh', display:'flex', alignItems:'center',
