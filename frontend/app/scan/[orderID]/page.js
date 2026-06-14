@@ -48,13 +48,24 @@ function ScanContent() {
   }, [orderID, stage])
 
   const fetchData = async () => {
-  const cleanID = orderID.trim().toUpperCase()
+  const cleanID = (orderID || '').trim().toUpperCase()
+
+  if (!cleanID || !cleanID.startsWith('ORD')) {
+    setError(`Invalid order ID: "${cleanID}"`)
+    setLoading(false)
+    return
+  }
+
+  const BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
+    'https://tailoring-management-apwh.onrender.com'
+
+  // Use dedicated /api/scan/ route — no auth, no conflicts
   const url = `${BASE_URL}/api/scan/${cleanID}?stage=${stage}`
 
   try {
     const res = await fetch(url, {
       method:  'GET',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type':'application/json' },
     })
 
     const text = await res.text()
@@ -62,7 +73,8 @@ function ScanContent() {
     try {
       json = JSON.parse(text)
     } catch {
-      setError(`Invalid response from server`)
+      setError('Server returned invalid data')
+      setLoading(false)
       return
     }
 
