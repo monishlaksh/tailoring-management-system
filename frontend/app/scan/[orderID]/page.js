@@ -49,7 +49,7 @@ function ScanContent() {
 
   const fetchData = async () => {
   const cleanID = orderID.trim().toUpperCase()
-  const url = `${BASE_URL}/api/allotment/scan/${cleanID}?stage=${stage}`
+  const url = `${BASE_URL}/api/scan/${cleanID}?stage=${stage}`
 
   try {
     const res = await fetch(url, {

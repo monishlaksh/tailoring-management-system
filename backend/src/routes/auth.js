@@ -156,31 +156,34 @@ router.post('/employee/login', async (req, res) => {
 
     const token = jwt.sign(
       {
-        employeeId:   employee._id.toString(),
-        employeeID:   employee.employeeID,
-        name:         employee.name,
-        role:         'employee',
-        employeeRole: employee.role, // cutting/stitching/finishing/all
+        employeeId:    employee._id.toString(),
+        employeeID:    employee.employeeID,
+        name:          employee.name,
+        role:          'employee',
+        employeeRole:  employee.role,
+        hasFullAccess: employee.hasFullAccess || false,
       },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn:'7d' }
     )
 
     res.json({
       success:  true,
       token,
       employee: {
-        employeeID:   employee.employeeID,
-        name:         employee.name,
-        username:     employee.username,
-        role:         'employee',
-        employeeRole: employee.role, // ← THIS is what gets saved to localStorage
+        employeeID:    employee.employeeID,
+        name:          employee.name,
+        username:      employee.username,
+        role:          'employee',
+        employeeRole:  employee.role,
+        hasFullAccess: employee.hasFullAccess || false,
       },
     })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
 })
+
 router.post('/customer/login', async (req, res) => {
   try {
     const { customerID, phone } = req.body

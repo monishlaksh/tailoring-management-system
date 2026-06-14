@@ -38,6 +38,67 @@ app.use(function (req, res, next) {
   next()
 })
 
+// Mount allotment routes
+app.use('/api/allotment', allotmentRoutes)
+
+// Mount scan as a SEPARATE top-level route to avoid /:orderID conflict
+app.get('/api/scan/:orderID', async (req, res) => {
+  try {
+    const Order     = require('./models/Order')
+    const Allotment = require('./models/Allotment')
+
+    const { orderID } = req.params
+    const { stage }   = req.query
+    const cleanID     = orderID.trim().toUpperCase()
+
+    const order = await Order.findOne({ orderID: cleanID }).lean()
+    if (!order)
+      return res.status(404).json({
+        success: false,
+        message: `Order ${cleanID} not found`,
+      })
+
+    const allotment = await Allotment.findOne({ orderID: cleanID }).lean()
+
+    const response = {
+      success:      true,
+      orderID:      order.orderID,
+      clothType:    order.clothType,
+      quantity:     order.quantity,
+      measurements: order.measurements || {},
+      fabricNotes:  order.fabricNotes  || '',
+      stage:        stage || 'general',
+      stageInfo: allotment && stage && allotment[stage]
+        ? {
+            status:     allotment[stage].status     || 'not_assigned',
+            employeeID: allotment[stage].employeeID || '',
+            notes:      allotment[stage].notes      || '',
+          }
+        : { status:'not_assigned', employeeID:'', notes:'' },
+      allStages: allotment
+        ? {
+            cutting:   { status: allotment.cutting?.status   || 'not_assigned' },
+            stitching: { status: allotment.stitching?.status || 'not_assigned' },
+            finishing: { status: allotment.finishing?.status || 'not_assigned' },
+          }
+        : {
+            cutting:   { status:'not_assigned' },
+            stitching: { status:'not_assigned' },
+            finishing: { status:'not_assigned' },
+          },
+    }
+
+    if (stage === 'stitching') {
+      response.alteration = order.alteration
+    }
+
+    res.json(response)
+  } catch (e) {
+    console.error('Scan error:', e.message)
+    res.status(500).json({ success:false, message:e.message })
+  }
+})            
+
 app.use(express.json({ limit: '10mb' }))
 
 app.use('/api/auth',               authRoutes)

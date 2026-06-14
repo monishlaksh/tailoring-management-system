@@ -12,7 +12,16 @@ export default function EmployeeLogin() {
   const [error, setError]       = useState('')
 
   useEffect(() => {
-    if (localStorage.getItem('employeeToken')) router.push('/employee/dashboard')
+    localStorage.setItem('employeeToken', res.data.token)
+    localStorage.setItem('employeeUser', JSON.stringify({
+      employeeID:    res.data.employee.employeeID,
+      name:          res.data.employee.name,
+      username:      res.data.employee.username,
+      role:          res.data.employee.role,
+      employeeRole:  res.data.employee.employeeRole,
+      hasFullAccess: res.data.employee.hasFullAccess || false,
+    }))
+    router.push('/employee/dashboard')
   }, [])
 
   const handleSubmit = async (e) => {

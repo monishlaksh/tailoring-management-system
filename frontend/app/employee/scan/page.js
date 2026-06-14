@@ -67,24 +67,35 @@ export default function EmployeeScanPage() {
     }
   }
 
-  const handleScannedURL = (scannedText) => {
-    console.log('Scanned text:', scannedText)
-    setLastScanned(scannedText)
+const handleScannedURL = (scannedText) => {
+  console.log('Raw scanned:', scannedText)
 
-    const orderID = extractOrderID(scannedText)
-    console.log('Extracted orderID:', orderID)
+  // Extract orderID from any URL format or plain text
+  let orderID = ''
 
-    if (!orderID || !orderID.startsWith('ORD')) {
-      setError(`Invalid QR code. Scanned: ${scannedText}`)
-      return
-    }
-
-    const role  = employee?.employeeRole || employee?.role || 'all'
-    const stage = getStageFromRole(role)
-
-    console.log(`Redirecting to /scan/${orderID}?stage=${stage}`)
-    router.push(`/scan/${orderID}?stage=${stage}`)
+  if (scannedText.includes('/')) {
+    // It's a URL — get last path segment
+    const withoutQuery = scannedText.split('?')[0]
+    const parts        = withoutQuery.split('/')
+    orderID = parts[parts.length - 1].trim().toUpperCase()
+  } else {
+    orderID = scannedText.trim().toUpperCase()
   }
+
+  console.log('Extracted orderID:', orderID)
+
+  if (!orderID || !orderID.startsWith('ORD')) {
+    setError(`Could not read order ID from QR. Got: "${scannedText}"`)
+    setLastScanned(scannedText)
+    return
+  }
+
+  const empRole = employee?.employeeRole || 'all'
+  const stage   = empRole === 'all' ? 'general' : empRole
+
+  console.log(`Going to /scan/${orderID}?stage=${stage}`)
+  router.push(`/scan/${orderID}?stage=${stage}`)
+}
 
   const startScanner = async () => {
     setError('')
