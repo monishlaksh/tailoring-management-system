@@ -228,6 +228,7 @@ router.post('/:orderID/assign', protect, async (req, res) => {
 })
 
 // ── POST approve stage ───────────────────────────────────────
+// ── POST approve stage ───────────────────────────────────────
 router.post('/:orderID/approve', protect, async (req, res) => {
   try {
     const { orderID }      = req.params
@@ -255,43 +256,12 @@ router.post('/:orderID/approve', protect, async (req, res) => {
 
     await allotment.save()
 
+    // Finishing approved → order Ready For Delivery
     if (stage === 'finishing') {
-      const order = await Order.findOneAndUpdate(
+      await Order.findOneAndUpdate(
         { orderID },
-        { $set:{ status:'Ready For Delivery' } },
-        { new:true }
-      ).populate('customerRef', 'name phone customerID')
-
-      if (order && order.customerRef) {
-        try {
-          const { sendOrderCompleteSMS } = require('../services/smsService')
-          const SmsLog = require('../models/SmsLog')
-          const message =
-            `Dear ${order.customerRef.name}, your order ${orderID} ` +
-            `(${order.clothType}) is ready for delivery! ` +
-            `Please visit Al-Ameen Tailors to collect it. Thank you!`
-          const smsResult = await sendOrderCompleteSMS(
-            order.customerRef.name,
-            order.customerRef.phone,
-            orderID,
-            order.clothType
-          )
-          await SmsLog.create({
-            type:      'order_complete',
-            title:     `Order ${orderID} Ready`,
-            message,
-            sentTo:    [{
-              phone:      order.customerRef.phone,
-              customerID: order.customerRef.customerID,
-              name:       order.customerRef.name,
-            }],
-            sentCount: 1,
-            status:    smsResult.success ? 'sent' : 'failed',
-          })
-        } catch (smsErr) {
-          console.error('SMS error:', smsErr.message)
-        }
-      }
+        { $set:{ status:'Ready For Delivery' } }
+      )
     }
 
     res.json({ success:true, message:`${stage} approved`, allotment })

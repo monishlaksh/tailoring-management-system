@@ -13,8 +13,7 @@ const employeeRoutes    = require('./routes/employees')
 const clothTypeRoutes   = require('./routes/clothTypes')
 const alterationRoutes  = require('./routes/alterationOptions')
 const allotmentRoutes   = require('./routes/allotment')
-const smsRoutes         = require('./routes/sms')
-const scanRoutes        = require('./routes/scan')   // ← NEW
+const scanRoutes        = require('./routes/scan')
 
 dotenv.config()
 const app = express()
@@ -51,8 +50,7 @@ app.use('/api/employees',          employeeRoutes)
 app.use('/api/cloth-types',        clothTypeRoutes)
 app.use('/api/alteration-options', alterationRoutes)
 app.use('/api/allotment',          allotmentRoutes)
-app.use('/api/sms',                smsRoutes)
-app.use('/api/scan',               scanRoutes)  // ← public scan, no auth
+app.use('/api/scan',               scanRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status:'ok', message:'✂️ Tailoring API running' })
