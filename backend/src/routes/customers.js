@@ -1,7 +1,7 @@
 const express  = require('express')
 const Customer = require('../models/Customer')
 const Order    = require('../models/Order')
-const { protect } = require('../middleware/auth')
+const { protect, protectAdminOrEmployee, protectAdminOrFullAccess, protectCustomer } = require('../middleware/auth')
 const router   = express.Router()
 
 const getNextCustomerID = async () => {
