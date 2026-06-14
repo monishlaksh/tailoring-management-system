@@ -48,40 +48,35 @@ function ScanContent() {
   }, [orderID, stage])
 
   const fetchData = async () => {
-    const url = `${BASE_URL}/api/allotment/scan/${orderID}?stage=${stage}`
-    setDebugInfo(`Loading: ${orderID}`)
+  const cleanID = orderID.trim().toUpperCase()
+  const url = `${BASE_URL}/api/allotment/scan/${cleanID}?stage=${stage}`
 
+  try {
+    const res = await fetch(url, {
+      method:  'GET',
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const text = await res.text()
+    let json
     try {
-      const res = await fetch(url, {
-        method:  'GET',
-        headers: { 'Content-Type':'application/json' },
-      })
-
-      const text = await res.text()
-
-      let json
-      try {
-        json = JSON.parse(text)
-      } catch {
-        setError(`Server returned invalid response`)
-        setDebugInfo(`Raw: ${text.substring(0, 100)}`)
-        return
-      }
-
-      if (json.success) {
-        setData(json)
-        setDebugInfo('')
-      } else {
-        setError(json.message || 'Order not found')
-        setDebugInfo(`OrderID tried: ${orderID}`)
-      }
-    } catch (e) {
-      setError('Failed to connect to server. Check your internet connection.')
-      setDebugInfo(`URL: ${url}`)
-    } finally {
-      setLoading(false)
+      json = JSON.parse(text)
+    } catch {
+      setError(`Invalid response from server`)
+      return
     }
+
+    if (res.ok && json.success) {
+      setData(json)
+    } else {
+      setError(json.message || `Order not found (${res.status})`)
+    }
+  } catch (e) {
+    setError('Cannot connect to server. Check your internet.')
+  } finally {
+    setLoading(false)
   }
+}
 
   if (loading) return (
     <main style={{ minHeight:'100vh', display:'flex', alignItems:'center',
