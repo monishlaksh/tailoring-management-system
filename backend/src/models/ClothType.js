@@ -6,9 +6,15 @@ const subtypeSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
 }, { _id: true })
 
+const typeSchema = new mongoose.Schema({
+  name:     { type: String, required: true, trim: true },
+  subtypes: [subtypeSchema],
+  isActive: { type: Boolean, default: true },
+}, { _id: true })
+
 const clothTypeSchema = new mongoose.Schema({
   name:     { type: String, required: true, unique: true, trim: true },
-  subtypes: [subtypeSchema],
+  types:    [typeSchema], // e.g. Half Sleeve, Backless, Full Sleeve
   isActive: { type: Boolean, default: true },
 }, { timestamps: true })
 

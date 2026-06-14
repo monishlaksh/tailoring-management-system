@@ -2,7 +2,7 @@ const express          = require('express')
 const Order            = require('../models/Order')
 const Customer         = require('../models/Customer')
 const DeliveryCalendar = require('../models/DeliveryCalendar')
-const { protect, protectAdminOrEmployee, protectCustomer } = require('../middleware/auth')
+const { protect, protectAdminOrEmployee, protectAdminOrFullAccess, protectCustomer } = require('../middleware/auth')
 const router = express.Router()
 
 const getNextOrderID = async () => {
@@ -90,7 +90,7 @@ router.get('/:orderID', protect, async (req, res) => {
 })
 
 // Create order — ADMIN ONLY
-router.post('/', protect, async (req, res) => {
+router.post('/', protectAdminOrFullAccess, async (req, res) => {
   try {
     const {
       customerID, clothType, quantity,
@@ -127,7 +127,11 @@ router.post('/', protect, async (req, res) => {
       alteration:          alteration  || { required:false, notes:'' },
       deliveryDate,
       referenceImage:      referenceImage || '',
-      createdBy:           { role:'admin', employeeID:'', name:'Admin' },
+      createdBy: {
+        role:       req.role === 'employee_admin' ? 'employee' : 'admin',
+        employeeID: req.employee?.employeeID || '',
+        name:       req.employee?.name || 'Admin',
+      },
     })
 
     const dateStr = new Date(deliveryDate).toISOString().split('T')[0]
@@ -144,7 +148,7 @@ router.post('/', protect, async (req, res) => {
 })
 
 // Update full order — ADMIN ONLY
-router.put('/:orderID', protect, async (req, res) => {
+router.put('/:orderID', protectAdminOrFullAccess, async (req, res) => {
   try {
     const order = await Order.findOneAndUpdate(
       { orderID: req.params.orderID },
@@ -181,7 +185,7 @@ router.patch('/:orderID/status', protect, async (req, res) => {
 })
 
 // Delete order — ADMIN ONLY
-router.delete('/:orderID', protect, async (req, res) => {
+router.delete('/:orderID', protectAdminOrFullAccess, async (req, res) => {
   try {
     const order = await Order.findOneAndDelete({ orderID: req.params.orderID })
     if (!order)

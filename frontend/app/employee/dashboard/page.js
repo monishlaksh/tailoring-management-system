@@ -8,11 +8,18 @@ export default function EmployeeDashboard() {
   const router = useRouter()
   const [employee, setEmployee] = useState(null)
 
-  useEffect(() => {
+ useEffect(() => {
     const token = localStorage.getItem('employeeToken')
     const user  = localStorage.getItem('employeeUser')
     if (!token) { router.push('/employee/login'); return }
-    if (user) setEmployee(JSON.parse(user))
+    if (user) {
+      const parsed = JSON.parse(user)
+      setEmployee(parsed)
+      // If employee has full access, redirect to a special page
+      if (parsed.hasFullAccess) {
+        router.push('/employee/admin')
+      }
+    }
   }, [])
 
   const handleLogout = () => {

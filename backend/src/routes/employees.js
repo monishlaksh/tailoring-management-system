@@ -135,6 +135,34 @@ router.put('/:employeeID', protect, async (req, res) => {
   }
 })
 
+// PATCH grant or revoke full access — admin only
+router.patch('/:employeeID/access', protect, async (req, res) => {
+  try {
+    const { hasFullAccess } = req.body
+    if (typeof hasFullAccess !== 'boolean')
+      return res.status(400).json({ success:false, message:'hasFullAccess must be boolean' })
+
+    const employee = await Employee.findOneAndUpdate(
+      { employeeID:req.params.employeeID },
+      { hasFullAccess },
+      { new:true }
+    ).select('-password')
+
+    if (!employee)
+      return res.status(404).json({ success:false, message:'Employee not found' })
+
+    res.json({
+      success: true,
+      message: hasFullAccess
+        ? `Full access granted to ${employee.name}`
+        : `Full access revoked from ${employee.name}`,
+      employee,
+    })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
+
 // DELETE employee (soft)
 router.delete('/:employeeID', protect, async (req, res) => {
   try {

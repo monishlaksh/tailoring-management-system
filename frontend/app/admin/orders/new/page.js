@@ -104,6 +104,7 @@ export default function NewOrder() {
   const [deliveryInfo, setDeliveryInfo] = useState(null)
   const [saving, setSaving]             = useState(false)
   const [error, setError]               = useState('')
+  const [selectedType, setSelectedType] = useState(null)
   const [alterationOptions, setAlterationOptions] = useState([])
 
   // Cloth type + subtype selection
@@ -160,13 +161,14 @@ export default function NewOrder() {
   if (!selectedClothType) { setError('Please select a cloth type'); return }
   if (!selectedSubtype)   { setError('Please select a subtype'); return }
   if (!form.deliveryDate) { setError('Please set a delivery date'); return }
+  if (!selectedType)    { setError('Please select a type'); return }
 
   setSaving(true); setError('')
   try {
     const res = await API.post('/api/orders', {
       ...form,
       customerID: selected.customerID,
-      clothType:  `${selectedClothType.name} - ${selectedSubtype.name}`,
+      clothType: `${selectedClothType.name} - ${selectedType.name} - ${selectedSubtype.name}`,
       unitCost:   form.unitCost,
     })
     // Redirect to allotment page after saving
@@ -293,81 +295,116 @@ export default function NewOrder() {
           )}
         </div>
 
-        {/* ② Cloth Type + Subtype */}
+        {/* ② Cloth Type → Type → Subtype */}
         <div className="glass" style={{ padding:24 }}>
-          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>② Cloth Type & Subtype</h2>
+          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>② Cloth Type</h2>
 
-          {/* Cloth Type selection */}
+          {/* Step 1 — Cloth Type */}
           <div style={{ marginBottom:16 }}>
-            <label className="input-label">SELECT CLOTH TYPE</label>
+            <label className="input-label">STEP 1 — SELECT CLOTH TYPE</label>
             <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
               {clothTypes.map(ct => (
                 <button key={ct._id}
-                  onClick={() => { setSelectedClothType(ct); setSelectedSubtype(null) }}
-                  style={{
-                    padding:'8px 16px', borderRadius:999, cursor:'pointer',
+                  onClick={() => {
+                    setSelectedClothType(ct)
+                    setSelectedType(null)
+                    setSelectedSubtype(null)
+                  }}
+                  style={{ padding:'8px 16px', borderRadius:999, cursor:'pointer',
                     fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.82rem',
-                    border:   selectedClothType?._id===ct._id ? '2px solid #4F46E5' : '1.5px solid rgba(79,70,229,0.2)',
-                    background: selectedClothType?._id===ct._id ? 'rgba(79,70,229,0.1)' : 'rgba(255,255,255,0.7)',
-                    color:    selectedClothType?._id===ct._id ? '#4F46E5' : '#6B7280',
-                    transition:'all 0.2s',
-                  }}>
+                    border:   selectedClothType?._id===ct._id?'2px solid #4F46E5':'1.5px solid rgba(79,70,229,0.2)',
+                    background: selectedClothType?._id===ct._id?'rgba(79,70,229,0.1)':'rgba(255,255,255,0.7)',
+                    color:    selectedClothType?._id===ct._id?'#4F46E5':'#6B7280',
+                    transition:'all 0.2s' }}>
                   {ct.name}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Subtype selection */}
+          {/* Step 2 — Type (Half Sleeve, Backless, etc) */}
           {selectedClothType && (
-            <div>
+            <div style={{ marginBottom:16 }}>
               <label className="input-label">
-                SELECT SUBTYPE — {selectedClothType.name}
+                STEP 2 — SELECT TYPE ({selectedClothType.name})
               </label>
-              {selectedClothType.subtypes.filter(s => s.isActive).length === 0 ? (
+              {(selectedClothType.types||[]).filter(t=>t.isActive).length === 0 ? (
                 <p style={{ color:'#9CA3AF', fontSize:'0.85rem' }}>
-                  No subtypes available. Add subtypes in Cloth Type Management.
+                  No types added yet. Go to Cloth Type Management to add types.
                 </p>
               ) : (
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:10 }}>
-                  {selectedClothType.subtypes.filter(s => s.isActive).map(sub => (
-                    <div key={sub._id}
-                      onClick={() => handleSubtypeSelect(sub)}
-                      style={{
-                        padding:'14px 16px', borderRadius:12, cursor:'pointer',
-                        border:   selectedSubtype?._id===sub._id ? '2px solid #10B981' : '1.5px solid rgba(79,70,229,0.15)',
-                        background: selectedSubtype?._id===sub._id ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.7)',
-                        transition:'all 0.2s',
+                <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                  {(selectedClothType.types||[]).filter(t=>t.isActive).map(type => (
+                    <button key={type._id}
+                      onClick={() => {
+                        setSelectedType(type)
+                        setSelectedSubtype(null)
                       }}
-                      onMouseEnter={e => { if(selectedSubtype?._id!==sub._id) e.currentTarget.style.background='rgba(79,70,229,0.05)' }}
-                      onMouseLeave={e => { if(selectedSubtype?._id!==sub._id) e.currentTarget.style.background='rgba(255,255,255,0.7)' }}
-                    >
-                      <p style={{ fontWeight:700, color: selectedSubtype?._id===sub._id?'#059669':'#1E1B4B', fontSize:'0.9rem' }}>
-                        {sub.name}
-                      </p>
-                      <p style={{ fontSize:'0.8rem', fontWeight:700, color:'#059669', marginTop:4 }}>
-                        ₹{(sub.cost||0).toLocaleString('en-IN')}
-                      </p>
-                      {selectedSubtype?._id===sub._id && (
-                        <p style={{ fontSize:'0.7rem', color:'#059669', marginTop:2 }}>✓ Selected</p>
-                      )}
-                    </div>
+                      style={{ padding:'8px 16px', borderRadius:999, cursor:'pointer',
+                        fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.82rem',
+                        border:   selectedType?._id===type._id?'2px solid #D97706':'1.5px solid rgba(245,158,11,0.25)',
+                        background: selectedType?._id===type._id?'rgba(245,158,11,0.1)':'rgba(255,255,255,0.7)',
+                        color:    selectedType?._id===type._id?'#D97706':'#6B7280',
+                        transition:'all 0.2s' }}>
+                      {type.name}
+                    </button>
                   ))}
                 </div>
               )}
             </div>
           )}
 
-          {/* Summary */}
-          {selectedClothType && selectedSubtype && (
-            <div style={{ marginTop:14, padding:'12px 16px', background:'rgba(79,70,229,0.06)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10 }}>
-              <p style={{ fontSize:'0.82rem', color:'#4F46E5', fontWeight:600 }}>
-                Selected: <strong>{selectedClothType.name}</strong> — <strong>{selectedSubtype.name}</strong>
-                <span style={{ marginLeft:8, color:'#059669' }}>₹{selectedSubtype.cost?.toLocaleString('en-IN')}</span>
+  {/* Step 3 — Subtype (Normal, Lining, etc) */}
+  {selectedClothType && selectedType && (
+    <div style={{ marginBottom:16 }}>
+      <label className="input-label">
+        STEP 3 — SELECT SUBTYPE ({selectedType.name})
+      </label>
+      {(selectedType.subtypes||[]).filter(s=>s.isActive).length === 0 ? (
+        <p style={{ color:'#9CA3AF', fontSize:'0.85rem' }}>
+          No subtypes added yet.
+        </p>
+      ) : (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))', gap:10 }}>
+          {(selectedType.subtypes||[]).filter(s=>s.isActive).map(sub => (
+            <div key={sub._id}
+              onClick={() => {
+                setSelectedSubtype(sub)
+                setForm(f => ({ ...f, unitCost: sub.cost || 0 }))
+              }}
+              style={{ padding:'14px 16px', borderRadius:12, cursor:'pointer',
+                border:   selectedSubtype?._id===sub._id?'2px solid #10B981':'1.5px solid rgba(79,70,229,0.15)',
+                background: selectedSubtype?._id===sub._id?'rgba(16,185,129,0.08)':'rgba(255,255,255,0.7)',
+                transition:'all 0.2s' }}>
+              <p style={{ fontWeight:700, fontSize:'0.9rem',
+                color:selectedSubtype?._id===sub._id?'#059669':'#1E1B4B' }}>
+                {sub.name}
               </p>
+              <p style={{ fontWeight:700, fontSize:'0.88rem', color:'#059669', marginTop:4 }}>
+                ₹{(sub.cost||0).toLocaleString('en-IN')}
+              </p>
+              {selectedSubtype?._id===sub._id && (
+                <p style={{ fontSize:'0.7rem', color:'#059669', marginTop:2 }}>✓ Selected</p>
+              )}
             </div>
-          )}
+          ))}
         </div>
+      )}
+    </div>
+  )}
+
+  {/* Summary */}
+  {selectedClothType && selectedType && selectedSubtype && (
+    <div style={{ padding:'12px 16px', background:'rgba(79,70,229,0.06)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10 }}>
+      <p style={{ fontSize:'0.82rem', color:'#4F46E5', fontWeight:600 }}>
+        ✓ {selectedClothType.name} → {selectedType.name} → {selectedSubtype.name}
+        <span style={{ marginLeft:8, color:'#059669' }}>
+          ₹{(selectedSubtype.cost||0).toLocaleString('en-IN')}
+        </span>
+      </p>
+    </div>
+  )}
+</div>
 
         {/* ③ Payment */}
         <div className="glass" style={{ padding:24, background:'rgba(16,185,129,0.02)', border:'1.5px solid rgba(16,185,129,0.15)' }}>

@@ -76,7 +76,7 @@ router.get('/:customerID', protect, async (req, res) => {
 })
 
 // POST create — ADMIN ONLY
-router.post('/', protect, async (req, res) => {
+router.post('/',protectAdminOrFullAccess, async (req, res) => {
   try {
     const { name, phone, address, notes } = req.body
     if (!name || !phone)
@@ -93,7 +93,7 @@ router.post('/', protect, async (req, res) => {
 })
 
 // PUT update — admin only
-router.put('/:customerID', protect, async (req, res) => {
+router.put('/:customerID',   protectAdminOrFullAccess, async (req, res) => {
   try {
     const { name, phone, address, notes } = req.body
     const customer = await Customer.findOneAndUpdate(
@@ -151,7 +151,7 @@ router.get('/:customerID/payment', protect, async (req, res) => {
 })
 
 // DELETE — admin only
-router.delete('/:customerID', protect, async (req, res) => {
+router.delete('/:customerID', protectAdminOrFullAccess, async (req, res) => {
   try {
     const customer = await Customer.findOneAndUpdate(
       { customerID:req.params.customerID },

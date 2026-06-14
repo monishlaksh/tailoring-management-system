@@ -116,6 +116,32 @@ export default function EmployeesPage() {
         </p>
       </div>
 
+      // Add this inside the employee card actions area
+        <button
+          onClick={async (e) => {
+            e.stopPropagation()
+            try {
+              const res = await API.patch(
+                `/api/employees/${emp.employeeID}/access`,
+                { hasFullAccess: !emp.hasFullAccess }
+              )
+              fetchEmployees()
+            } catch (e) { alert('Failed') }
+          }}
+          style={{
+            display:'flex', alignItems:'center', gap:5,
+            background: emp.hasFullAccess
+              ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)',
+            border: `1px solid ${emp.hasFullAccess
+              ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}`,
+            borderRadius:8, padding:'7px 14px',
+            color: emp.hasFullAccess ? '#DC2626' : '#059669',
+            fontSize:'0.8rem', fontWeight:600,
+            cursor:'pointer', fontFamily:'Poppins,sans-serif',
+          }}>
+          {emp.hasFullAccess ? '🔒 Revoke Access' : '🔓 Grant Access'}
+        </button>
+
       <div className="glass" style={{ padding:24 }}>
         {loading ? (
           <p style={{ textAlign:'center', color:'#9CA3AF', padding:'40px 0' }}>Loading...</p>
@@ -145,6 +171,12 @@ export default function EmployeesPage() {
                     </div>
                     <p style={{ fontSize:'0.78rem', color:'#4F46E5', fontWeight:600 }}>{emp.employeeID}</p>
                     <p style={{ fontSize:'0.75rem', color:'#6B7280' }}>@{emp.username}</p>
+                    {emp.hasFullAccess && (
+                      <span style={{ fontSize:'0.68rem', padding:'2px 8px', borderRadius:999,
+                        background:'rgba(245,158,11,0.1)', color:'#D97706', fontWeight:600 }}>
+                        ⭐ Full Access
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div style={{ display:'flex', gap:8 }} onClick={e => e.stopPropagation()}>
