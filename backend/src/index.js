@@ -38,8 +38,17 @@ app.use(function (req, res, next) {
   next()
 })
 
-// Mount allotment routes
-app.use('/api/allotment', allotmentRoutes)
+
+app.use(express.json({ limit: '10mb' }))
+
+app.use('/api/auth',               authRoutes)
+app.use('/api/customers',          customerRoutes)
+app.use('/api/orders',             orderRoutes)
+app.use('/api/delivery',           deliveryRoutes)
+app.use('/api/employees',          employeeRoutes)
+app.use('/api/cloth-types',        clothTypeRoutes)
+app.use('/api/alteration-options', alterationRoutes)
+app.use('/api/allotment',          allotmentRoutes)
 
 // Mount scan as a SEPARATE top-level route to avoid /:orderID conflict
 app.get('/api/scan/:orderID', async (req, res) => {
@@ -99,16 +108,6 @@ app.get('/api/scan/:orderID', async (req, res) => {
   }
 })            
 
-app.use(express.json({ limit: '10mb' }))
-
-app.use('/api/auth',               authRoutes)
-app.use('/api/customers',          customerRoutes)
-app.use('/api/orders',             orderRoutes)
-app.use('/api/delivery',           deliveryRoutes)
-app.use('/api/employees',          employeeRoutes)
-app.use('/api/cloth-types',        clothTypeRoutes)
-app.use('/api/alteration-options', alterationRoutes)
-app.use('/api/allotment',          allotmentRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: '✂️ Tailoring API running' })
