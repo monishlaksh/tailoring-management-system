@@ -60,7 +60,7 @@ function ScanContent() {
     'https://tailoring-management-apwh.onrender.com'
 
   // Use dedicated /api/scan/ route — no auth, no conflicts
-  const url = `${BASE_URL}/api/scan/${cleanID}?stage=${stage}`
+   const url = `${BASE_URL}/api/scan/${cleanID}?stage=${stage}`
 
   try {
     const res = await fetch(url, {

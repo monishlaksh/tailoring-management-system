@@ -68,13 +68,8 @@ export default function EmployeeScanPage() {
   }
 
 const handleScannedURL = (scannedText) => {
-  console.log('Raw scanned:', scannedText)
-
-  // Extract orderID from any URL format or plain text
   let orderID = ''
-
   if (scannedText.includes('/')) {
-    // It's a URL — get last path segment
     const withoutQuery = scannedText.split('?')[0]
     const parts        = withoutQuery.split('/')
     orderID = parts[parts.length - 1].trim().toUpperCase()
@@ -82,18 +77,13 @@ const handleScannedURL = (scannedText) => {
     orderID = scannedText.trim().toUpperCase()
   }
 
-  console.log('Extracted orderID:', orderID)
-
   if (!orderID || !orderID.startsWith('ORD')) {
-    setError(`Could not read order ID from QR. Got: "${scannedText}"`)
-    setLastScanned(scannedText)
+    setError(`Could not read order ID. Got: "${scannedText}"`)
     return
   }
 
   const empRole = employee?.employeeRole || 'all'
   const stage   = empRole === 'all' ? 'general' : empRole
-
-  console.log(`Going to /scan/${orderID}?stage=${stage}`)
   router.push(`/scan/${orderID}?stage=${stage}`)
 }
 

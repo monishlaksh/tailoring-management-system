@@ -3,8 +3,6 @@ const Order     = require('../models/Order')
 const Allotment = require('../models/Allotment')
 const router    = express.Router()
 
-// Public route — no auth needed
-// Called by employee scan page
 router.get('/:orderID', async (req, res) => {
   try {
     const cleanID = req.params.orderID.trim().toUpperCase()
@@ -12,10 +10,18 @@ router.get('/:orderID', async (req, res) => {
 
     console.log(`[SCAN] orderID=${cleanID} stage=${stage}`)
 
-    const order = await Order.findOne({ orderID: cleanID }).lean()
+    // Try exact match first
+    let order = await Order.findOne({ orderID: cleanID }).lean()
+
+    // Try case-insensitive if exact fails
+    if (!order) {
+      order = await Order.findOne({
+        orderID: { $regex: new RegExp(`^${cleanID}$`, 'i') }
+      }).lean()
+    }
 
     if (!order) {
-      console.log(`[SCAN] Not found: ${cleanID}`)
+      console.log(`[SCAN] Not found: "${cleanID}"`)
       return res.status(404).json({
         success: false,
         message: `Order "${cleanID}" not found`,
@@ -24,7 +30,9 @@ router.get('/:orderID', async (req, res) => {
 
     console.log(`[SCAN] Found: ${order.orderID}`)
 
-    const allotment = await Allotment.findOne({ orderID: cleanID }).lean()
+    const allotment = await Allotment.findOne({
+      orderID: order.orderID
+    }).lean()
 
     const response = {
       success:      true,
@@ -40,7 +48,7 @@ router.get('/:orderID', async (req, res) => {
             employeeID: allotment[stage].employeeID || '',
             notes:      allotment[stage].notes      || '',
           }
-        : { status:'not_assigned', employeeID:'', notes:'' },
+        : { status: 'not_assigned', employeeID: '', notes: '' },
       allStages: allotment
         ? {
             cutting:   { status: allotment.cutting?.status   || 'not_assigned' },
@@ -48,21 +56,20 @@ router.get('/:orderID', async (req, res) => {
             finishing: { status: allotment.finishing?.status || 'not_assigned' },
           }
         : {
-            cutting:   { status:'not_assigned' },
-            stitching: { status:'not_assigned' },
-            finishing: { status:'not_assigned' },
+            cutting:   { status: 'not_assigned' },
+            stitching: { status: 'not_assigned' },
+            finishing: { status: 'not_assigned' },
           },
     }
 
-    // Stitching sees alteration details
     if (stage === 'stitching') {
-      response.alteration = order.alteration || { required:false }
+      response.alteration = order.alteration || { required: false }
     }
 
     res.json(response)
   } catch (e) {
     console.error('[SCAN] Error:', e.message)
-    res.status(500).json({ success:false, message:e.message })
+    res.status(500).json({ success: false, message: e.message })
   }
 })
 
