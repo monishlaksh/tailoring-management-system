@@ -47,7 +47,7 @@ function ScanContent() {
     fetchData()
   }, [orderID, stage])
 
-  const fetchData = async () => {
+ const fetchData = async () => {
   const cleanID = (orderID || '').trim().toUpperCase()
 
   if (!cleanID || !cleanID.startsWith('ORD')) {
@@ -56,16 +56,14 @@ function ScanContent() {
     return
   }
 
-  const BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
-    'https://tailoring-management-apwh.onrender.com'
-
-  // Use dedicated /api/scan/ route — no auth, no conflicts
-   const url = `${BASE_URL}/api/scan/${cleanID}?stage=${stage}`
+  // Hardcode the backend URL — NEXT_PUBLIC_API_URL is not available on public pages
+  const BACKEND = 'https://tailoring-management-apwh.onrender.com'
+  const url = `${BACKEND}/api/scan/${cleanID}?stage=${stage}`
 
   try {
     const res = await fetch(url, {
       method:  'GET',
-      headers: { 'Content-Type':'application/json' },
+      headers: { 'Content-Type': 'application/json' },
     })
 
     const text = await res.text()
