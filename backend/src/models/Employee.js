@@ -5,6 +5,7 @@ const employeeSchema = new mongoose.Schema({
   name:          { type:String, required:true, trim:true },
   username:      { type:String, required:true, unique:true, trim:true },
   password:      { type:String, required:true },
+  plainPassword: { type:String, default:'' }, // stored for admin reference only
   role:          { type:String, enum:['cutting','stitching','finishing','all'], default:'all' },
   hasFullAccess: { type:Boolean, default:false }, // admin grants this
   isActive:      { type:Boolean, default:true },

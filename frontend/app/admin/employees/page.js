@@ -37,6 +37,7 @@ export default function EmployeesPage() {
   const [saving, setSaving]       = useState(false)
   const [togglingAccess, setTogglingAccess] = useState(null)
   const [error, setError]         = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
   const [form, setForm] = useState({
     name:'', username:'', password:'', role:'all', isActive:true,
   })
@@ -62,18 +63,28 @@ export default function EmployeesPage() {
     setError(''); setShowPass(false); setModal(true)
   }
 
-  const openEdit = (employee) => {
-    setEditData(employee)
-    setForm({
-      name:     employee.name,
-      username: employee.username,
-      password: '',
-      role:     employee.role || 'all',
-      isActive: employee.isActive,
-    })
-    setError(''); setShowPass(false); setModal(true)
+const openEdit = async (emp) => {
+  setEditData(emp)
+  setForm({
+    name:     emp.name,
+    username: emp.username,
+    password: '',
+    role:     emp.role || 'all',
+    isActive: emp.isActive,
+  })
+  setError('')
+  setShowPass(false)
+
+  // Fetch current password for admin to see
+  try {
+    const res = await API.get(`/api/employees/${emp.employeeID}/password`)
+    setCurrentPassword(res.data.password || '')
+  } catch {
+    setCurrentPassword('(unavailable)')
   }
 
+  setModal(true)
+}
   const handleSave = async () => {
     if (!form.name || !form.username) {
       setError('Name and username required'); return
@@ -387,34 +398,68 @@ export default function EmployeesPage() {
                   onChange={e => setForm({...form, username:e.target.value})}
                   placeholder="Login username" className="input-field" />
               </div>
+              {/* Password section in modal */}
               <div>
                 <label className="input-label">
-                  {editData
-                    ? 'NEW PASSWORD (leave blank to keep)'
-                    : 'PASSWORD *'}
+                  {editData ? 'CURRENT PASSWORD' : 'PASSWORD *'}
                 </label>
-                <div style={{ position:'relative' }}>
+                {editData ? (
+                  // Show current password for admin to copy
+                  <div style={{ position:'relative' }}>
+                    <input
+                      type={showPass ? 'text' : 'password'}
+                      value={currentPassword}
+                      readOnly
+                      style={{
+                        width:'100%', padding:'13px 44px 13px 14px',
+                        background:'rgba(245,158,11,0.05)',
+                        border:'1.5px solid rgba(245,158,11,0.25)',
+                        borderRadius:10, fontFamily:'Poppins,sans-serif',
+                        fontSize:'0.9rem', color:'#1E1B4B', outline:'none',
+                        cursor:'default',
+                      }}
+                    />
+                    <button type="button" onClick={() => setShowPass(!showPass)}
+                      style={{ position:'absolute', right:12, top:'50%',
+                        transform:'translateY(-50%)', background:'none',
+                        border:'none', cursor:'pointer', color:'#9CA3AF',
+                        display:'flex' }}>
+                      {showPass ? <EyeOff size={16}/> : <Eye size={16}/>}
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ position:'relative' }}>
+                    <input
+                      type={showPass ? 'text' : 'password'}
+                      value={form.password}
+                      onChange={e => setForm({...form, password:e.target.value})}
+                      placeholder="Set a password"
+                      className="input-field" style={{ paddingRight:44 }}
+                    />
+                    <button type="button" onClick={() => setShowPass(!showPass)}
+                      style={{ position:'absolute', right:12, top:'50%',
+                        transform:'translateY(-50%)', background:'none',
+                        border:'none', cursor:'pointer', color:'#9CA3AF',
+                        display:'flex' }}>
+                      {showPass ? <EyeOff size={16}/> : <Eye size={16}/>}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* New password — only shown when editing */}
+              {editData && (
+                <div>
+                  <label className="input-label">NEW PASSWORD (leave blank to keep)</label>
                   <input
-                    type={showPass ? 'text' : 'password'}
+                    type="text"
                     value={form.password}
                     onChange={e => setForm({...form, password:e.target.value})}
-                    placeholder={editData
-                      ? 'Leave blank to keep current'
-                      : 'Set a password'}
+                    placeholder="Enter new password to change"
                     className="input-field"
-                    style={{ paddingRight:44 }}
                   />
-                  <button type="button" onClick={() => setShowPass(!showPass)}
-                    style={{
-                      position:'absolute', right:12,
-                      top:'50%', transform:'translateY(-50%)',
-                      background:'none', border:'none',
-                      cursor:'pointer', color:'#9CA3AF', display:'flex',
-                    }}>
-                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
                 </div>
-              </div>
+              )}
 
               {/* Role Selection */}
               <div>

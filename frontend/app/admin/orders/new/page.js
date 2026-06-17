@@ -130,6 +130,14 @@ export default function NewOrder() {
     fetchData()
   }, [])
 
+useEffect(() => {
+  if (selectedClothType) {
+    API.get(`/api/alteration-options?clothType=${selectedClothType.name}`)
+      .then(res => setAlterationOptions(res.data.options || []))
+      .catch(console.error)
+  }
+}, [selectedClothType])
+
   const fetchData = async () => {
     const [custRes, clothRes, altRes] = await Promise.all([
       API.get('/api/customers'),
@@ -212,7 +220,7 @@ export default function NewOrder() {
           style={{ padding:'9px 20px', fontSize:'0.85rem', display:'flex', alignItems:'center', gap:6 }}>
           {saving ? <><div className="spinner" />Saving...</> : <><Save size={15} />Save Order</>}
         </button>
-      </div>
+      </div> 
 
       {error && (
         <div style={{ background:'rgba(239,68,68,0.08)', border:'1.5px solid rgba(239,68,68,0.2)', borderRadius:10, padding:'12px 16px', marginBottom:20, color:'#DC2626', fontSize:'0.87rem' }}>
@@ -369,9 +377,12 @@ export default function NewOrder() {
           {(selectedType.subtypes||[]).filter(s=>s.isActive).map(sub => (
             <div key={sub._id}
               onClick={() => {
-                setSelectedSubtype(sub)
-                setForm(f => ({ ...f, unitCost: sub.cost || 0 }))
-              }}
+                  setSelectedClothType(ct)
+                  setSelectedType(null)
+                  setSelectedSubtype(null)
+                  setAlterationOptions([]) // reset until new cloth type loads
+                  setForm(f => ({...f, alteration:{ required:false, selectedOptions:[], notes:'', extraCost:0 }}))
+                }}
               style={{ padding:'14px 16px', borderRadius:12, cursor:'pointer',
                 border:   selectedSubtype?._id===sub._id?'2px solid #10B981':'1.5px solid rgba(79,70,229,0.15)',
                 background: selectedSubtype?._id===sub._id?'rgba(16,185,129,0.08)':'rgba(255,255,255,0.7)',
