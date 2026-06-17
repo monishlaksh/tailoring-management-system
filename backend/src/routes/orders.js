@@ -2,7 +2,12 @@ const express          = require('express')
 const Order            = require('../models/Order')
 const Customer         = require('../models/Customer')
 const DeliveryCalendar = require('../models/DeliveryCalendar')
-const { protect, protectAdminOrEmployee, protectAdminOrFullAccess, protectCustomer } = require('../middleware/auth')
+const {
+  protect,
+  protectAdminOrEmployee,
+  protectAdminOrFullAccess,
+  protectCustomer,
+} = require('../middleware/auth')
 const router = express.Router()
 
 const getNextOrderID = async () => {
@@ -11,17 +16,17 @@ const getNextOrderID = async () => {
   const num  = parseInt(last.orderID.replace('ORD',''), 10)
   const next = isNaN(num) ? 1 : num + 1
   let newID  = `ORD${String(next).padStart(6,'0')}`
-  let exists = await Order.findOne({ orderID: newID }).lean()
+  let exists = await Order.findOne({ orderID:newID }).lean()
   let counter = next
   while (exists) {
     counter++
     newID  = `ORD${String(counter).padStart(6,'0')}`
-    exists = await Order.findOne({ orderID: newID }).lean()
+    exists = await Order.findOne({ orderID:newID }).lean()
   }
   return newID
 }
 
-// Dashboard stats — admin only
+// Stats — admin only
 router.get('/stats/dashboard', protect, async (req, res) => {
   try {
     const today    = new Date(); today.setHours(0,0,0,0)
@@ -43,7 +48,7 @@ router.get('/stats/dashboard', protect, async (req, res) => {
   }
 })
 
-// Get all orders — ADMIN only (employees use /my-assigned)
+// GET all orders — admin only
 router.get('/', protect, async (req, res) => {
   try {
     const { search, status, customerID } = req.query
@@ -66,20 +71,21 @@ router.get('/', protect, async (req, res) => {
   }
 })
 
-// Get customer orders
+// GET customer orders
 router.get('/my-orders', protectCustomer, async (req, res) => {
   try {
-    const orders = await Order.find({ customerID: req.customer.customerID }).sort({ createdAt:-1 })
+    const orders = await Order.find({ customerID:req.customer.customerID })
+      .sort({ createdAt:-1 })
     res.json({ success:true, count:orders.length, orders })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
 })
 
-// Get single order — admin only
+// GET single order — admin only
 router.get('/:orderID', protect, async (req, res) => {
   try {
-    const order = await Order.findOne({ orderID: req.params.orderID })
+    const order = await Order.findOne({ orderID:req.params.orderID })
       .populate('customerRef','name phone customerID address')
     if (!order)
       return res.status(404).json({ success:false, message:'Order not found' })
@@ -89,15 +95,14 @@ router.get('/:orderID', protect, async (req, res) => {
   }
 })
 
-// Create order — ADMIN ONLY
+// POST create order — admin or full access employee
 router.post('/', protectAdminOrFullAccess, async (req, res) => {
   try {
     const {
       customerID, clothType, quantity,
       unitCost, amountSettled,
       fabricNotes, specialInstructions,
-      measurements, alteration,
-      deliveryDate, referenceImage,
+      measurements, alteration, deliveryDate,
     } = req.body
 
     if (!customerID)
@@ -112,8 +117,7 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
       return res.status(404).json({ success:false, message:'Customer not found' })
 
     const orderID = await getNextOrderID()
-
-    const order = await Order.create({
+    const order   = await Order.create({
       orderID,
       customerID,
       customerRef:         customer._id,
@@ -124,9 +128,8 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
       fabricNotes:         fabricNotes || '',
       specialInstructions: specialInstructions || '',
       measurements:        measurements || {},
-      alteration:          alteration  || { required:false, notes:'' },
+      alteration:          alteration  || { required:false, selectedOptions:[], notes:'', extraCost:0 },
       deliveryDate,
-      referenceImage:      referenceImage || '',
       createdBy: {
         role:       req.role === 'employee_admin' ? 'employee' : 'admin',
         employeeID: req.employee?.employeeID || '',
@@ -134,24 +137,17 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
       },
     })
 
-    const dateStr = new Date(deliveryDate).toISOString().split('T')[0]
-    await DeliveryCalendar.findOneAndUpdate(
-      { date:dateStr, clothType },
-      { $inc:{ pieceCount: quantity||1 } },
-      { upsert:true, new:true }
-    )
-
     res.status(201).json({ success:true, message:'Order created', order })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
 })
 
-// Update full order — ADMIN ONLY
+// PUT update order — admin or full access employee
 router.put('/:orderID', protectAdminOrFullAccess, async (req, res) => {
   try {
     const order = await Order.findOneAndUpdate(
-      { orderID: req.params.orderID },
+      { orderID:req.params.orderID },
       req.body,
       { new:true, runValidators:true }
     ).populate('customerRef','name phone customerID')
@@ -163,16 +159,15 @@ router.put('/:orderID', protectAdminOrFullAccess, async (req, res) => {
   }
 })
 
-// Update status — admin only (employee status updates via allotment in Phase D)
+// PATCH status — admin only
 router.patch('/:orderID/status', protect, async (req, res) => {
   try {
     const { status } = req.body
     const valid = ['Booking','Cutting','Stitching','Finishing','Ready For Delivery']
     if (!valid.includes(status))
       return res.status(400).json({ success:false, message:'Invalid status' })
-
     const order = await Order.findOneAndUpdate(
-      { orderID: req.params.orderID },
+      { orderID:req.params.orderID },
       { $set:{ status } },
       { new:true }
     ).populate('customerRef','name phone customerID')
@@ -184,10 +179,10 @@ router.patch('/:orderID/status', protect, async (req, res) => {
   }
 })
 
-// Delete order — ADMIN ONLY
+// DELETE order — admin or full access employee
 router.delete('/:orderID', protectAdminOrFullAccess, async (req, res) => {
   try {
-    const order = await Order.findOneAndDelete({ orderID: req.params.orderID })
+    const order = await Order.findOneAndDelete({ orderID:req.params.orderID })
     if (!order)
       return res.status(404).json({ success:false, message:'Order not found' })
     res.json({ success:true, message:'Order deleted' })

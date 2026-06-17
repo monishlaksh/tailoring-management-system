@@ -1,8 +1,12 @@
 const express  = require('express')
 const Customer = require('../models/Customer')
 const Order    = require('../models/Order')
-const { protect, protectAdminOrEmployee, protectAdminOrFullAccess, protectCustomer } = require('../middleware/auth')
-const router   = express.Router()
+const {
+  protect,
+  protectAdminOrEmployee,
+  protectAdminOrFullAccess,
+} = require('../middleware/auth')
+const router = express.Router()
 
 const getNextCustomerID = async () => {
   const last = await Customer.findOne().sort({ customerID:-1 }).select('customerID').lean()
@@ -10,42 +14,47 @@ const getNextCustomerID = async () => {
   const num  = parseInt(last.customerID.replace('CUST',''), 10)
   const next = isNaN(num) ? 1 : num + 1
   let newID  = `CUST${String(next).padStart(6,'0')}`
-  let exists = await Customer.findOne({ customerID: newID }).lean()
+  let exists = await Customer.findOne({ customerID:newID }).lean()
   let counter = next
   while (exists) {
     counter++
     newID  = `CUST${String(counter).padStart(6,'0')}`
-    exists = await Customer.findOne({ customerID: newID }).lean()
+    exists = await Customer.findOne({ customerID:newID }).lean()
   }
   return newID
 }
 
-// Payment summary — before /:customerID
+// Payment summary — BEFORE /:customerID
 router.get('/stats/payment-summary', protect, async (req, res) => {
   try {
     const customers = await Customer.find({ isActive:true }).lean()
-    let totalCostAll = 0, totalSettledAll = 0, totalPending = 0
+    let totalPending = 0, totalCostAll = 0, totalSettledAll = 0
     const customersWithDue = []
     for (const c of customers) {
       const orders       = await Order.find({ customerID:c.customerID }).lean()
-      const totalCost    = orders.reduce((s,o) => s+(o.unitCost      ||0), 0)
-      const totalSettled = orders.reduce((s,o) => s+(o.amountSettled ||0), 0)
+      const totalCost    = orders.reduce((s,o) => s+(o.unitCost||0), 0)
+      const totalSettled = orders.reduce((s,o) => s+(o.amountSettled||0), 0)
       const balance      = totalCost - totalSettled
       totalCostAll    += totalCost
       totalSettledAll += totalSettled
       totalPending    += Math.max(balance, 0)
       if (balance > 0) {
-        customersWithDue.push({ customerID:c.customerID, name:c.name, totalCost, settled:totalSettled, balance:Math.max(balance,0) })
+        customersWithDue.push({
+          customerID: c.customerID, name:c.name,
+          totalCost, settled:totalSettled, balance:Math.max(balance,0),
+        })
       }
     }
-    res.json({ success:true, summary:{ totalCostAll, totalSettledAll, totalBalance:totalPending, customersWithDue, customersWithDueCount:customersWithDue.length } })
+    res.json({ success:true, summary:{ totalCostAll, totalSettledAll,
+      totalBalance:totalPending, customersWithDue,
+      customersWithDueCount:customersWithDue.length } })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
 })
 
-// GET all — admin only
-router.get('/', protect, async (req, res) => {
+// GET all — admin or employee
+router.get('/', protectAdminOrEmployee, async (req, res) => {
   try {
     const { search } = req.query
     let query = { isActive:true }
@@ -63,8 +72,8 @@ router.get('/', protect, async (req, res) => {
   }
 })
 
-// GET single — admin only
-router.get('/:customerID', protect, async (req, res) => {
+// GET single — admin or employee
+router.get('/:customerID', protectAdminOrEmployee, async (req, res) => {
   try {
     const customer = await Customer.findOne({ customerID:req.params.customerID })
     if (!customer)
@@ -75,8 +84,27 @@ router.get('/:customerID', protect, async (req, res) => {
   }
 })
 
-// POST create — ADMIN ONLY
-router.post('/',protectAdminOrFullAccess, async (req, res) => {
+// GET payment detail — admin only
+router.get('/:customerID/payment', protect, async (req, res) => {
+  try {
+    const orders       = await Order.find({ customerID:req.params.customerID }).lean()
+    const totalCost    = orders.reduce((s,o) => s+(o.unitCost||0), 0)
+    const totalSettled = orders.reduce((s,o) => s+(o.amountSettled||0), 0)
+    const orderBreakdown = orders.map(o => ({
+      orderID:o.orderID, clothType:o.clothType, quantity:o.quantity,
+      unitCost:o.unitCost||0, amountSettled:o.amountSettled||0,
+      balance:(o.unitCost||0)-(o.amountSettled||0),
+    }))
+    res.json({ success:true,
+      payment:{ totalCost, amountSettled:totalSettled, balance:totalCost-totalSettled },
+      orderBreakdown })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
+
+// POST create — admin or full access employee
+router.post('/', protectAdminOrFullAccess, async (req, res) => {
   try {
     const { name, phone, address, notes } = req.body
     if (!name || !phone)
@@ -93,7 +121,7 @@ router.post('/',protectAdminOrFullAccess, async (req, res) => {
 })
 
 // PUT update — admin only
-router.put('/:customerID',   protectAdminOrFullAccess, async (req, res) => {
+router.put('/:customerID', protect, async (req, res) => {
   try {
     const { name, phone, address, notes } = req.body
     const customer = await Customer.findOneAndUpdate(
@@ -119,7 +147,7 @@ router.patch('/:customerID/payment', protect, async (req, res) => {
     const orders   = await Order.find({ customerID:req.params.customerID }).lean()
     const total    = orders.reduce((s,o) => s+(o.unitCost||0), 0)
     if (settled > total)
-      return res.status(400).json({ success:false, message:`Settled cannot exceed total ₹${total}` })
+      return res.status(400).json({ success:false, message:`Settled cannot exceed ₹${total}` })
     const customer = await Customer.findOneAndUpdate(
       { customerID:req.params.customerID },
       { amountSettled:settled },
@@ -127,31 +155,15 @@ router.patch('/:customerID/payment', protect, async (req, res) => {
     )
     if (!customer)
       return res.status(404).json({ success:false, message:'Customer not found' })
-    res.json({ success:true, message:'Payment updated', payment:{ totalCost:total, amountSettled:settled, balance:total-settled } })
-  } catch (e) {
-    res.status(500).json({ success:false, message:e.message })
-  }
-})
-
-// GET payment detail
-router.get('/:customerID/payment', protect, async (req, res) => {
-  try {
-    const orders       = await Order.find({ customerID:req.params.customerID }).lean()
-    const totalCost    = orders.reduce((s,o) => s+(o.unitCost      ||0), 0)
-    const totalSettled = orders.reduce((s,o) => s+(o.amountSettled ||0), 0)
-    const orderBreakdown = orders.map(o => ({
-      orderID:o.orderID, clothType:o.clothType, quantity:o.quantity,
-      unitCost:o.unitCost||0, amountSettled:o.amountSettled||0,
-      balance:(o.unitCost||0)-(o.amountSettled||0),
-    }))
-    res.json({ success:true, payment:{ totalCost, amountSettled:totalSettled, balance:totalCost-totalSettled }, orderBreakdown })
+    res.json({ success:true, message:'Payment updated',
+      payment:{ totalCost:total, amountSettled:settled, balance:total-settled } })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
 })
 
 // DELETE — admin only
-router.delete('/:customerID', protectAdminOrFullAccess, async (req, res) => {
+router.delete('/:customerID', protect, async (req, res) => {
   try {
     const customer = await Customer.findOneAndUpdate(
       { customerID:req.params.customerID },
