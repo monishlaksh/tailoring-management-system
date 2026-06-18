@@ -5,6 +5,7 @@ const Employee   = require('../models/Employee')
 const { protect } = require('../middleware/auth')
 const QRCode     = require('qrcode')
 const router     = express.Router()
+const { sendOrderCompleteWhatsApp } = require('../services/whatsappService')
 
 const generateQR = async (orderID) => {
   try {
@@ -258,12 +259,27 @@ router.post('/:orderID/approve', protect, async (req, res) => {
 
     // Finishing approved → order Ready For Delivery
     if (stage === 'finishing') {
-      await Order.findOneAndUpdate(
-        { orderID },
-        { $set:{ status:'Ready For Delivery' } }
-      )
-    }
+  const order = await Order.findOneAndUpdate(
+    { orderID },
+    { $set:{ status:'Ready For Delivery' } },
+    { new:true }
+  ).populate('customerRef','name phone customerID')
 
+  // Send WhatsApp to customer
+  if (order && order.customerRef) {
+    try {
+      await sendOrderCompleteWhatsApp(
+        order.customerRef.name,
+        order.customerRef.phone,
+        orderID,
+        order.clothType
+      )
+    } catch (waErr) {
+      console.error('WhatsApp error:', waErr.message)
+      // Don't fail the approval if WhatsApp fails
+    }
+  }
+}
     res.json({ success:true, message:`${stage} approved`, allotment })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
