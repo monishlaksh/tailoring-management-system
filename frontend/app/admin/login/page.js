@@ -20,9 +20,24 @@ export default function AdminLogin() {
   const [newPassword, setNewPassword] = useState('')
   const [showNewPass, setShowNewPass] = useState(false)
 
-  useEffect(() => {
-    if (localStorage.getItem('adminToken')) router.push('/admin/dashboard')
-  }, [])
+ // useEffect(() => {
+//    if (localStorage.getItem('adminToken')) router.push('/admin/dashboard')
+//    
+//  }, [])
+useEffect(() => {
+  // Clear old tokens on login page load to force fresh login
+  const token = localStorage.getItem('adminToken')
+  if (token) {
+    // Verify token is still valid
+    API.get('/api/auth/admin/verify')
+      .then(() => router.push('/admin/dashboard'))
+      .catch(() => {
+        // Token invalid — clear and show login
+        localStorage.removeItem('adminToken')
+        localStorage.removeItem('adminUser')
+      })
+  }
+}, [])
 
   const saveAndRedirect = (token, admin) => {
     localStorage.setItem('adminToken', token)
