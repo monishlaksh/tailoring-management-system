@@ -4,21 +4,13 @@ const sendWhatsApp = async (toPhone, message) => {
     const phoneID = process.env.WHATSAPP_PHONE_ID
 
     if (!token || !phoneID) {
-      console.log('⚠️ WhatsApp not configured — message skipped')
-      return { success:false, message:'WhatsApp not configured' }
+      console.log('⚠️ WhatsApp not configured — skipping')
+      return { success: false, message: 'WhatsApp not configured' }
     }
 
-    // Format phone number — must include country code, no + or spaces
-    // e.g. 919876543210 for India +91 9876543210
-    const formatted = toPhone.replace(/\D/g, '')
-    const phone     = formatted.startsWith('91') ? formatted : `91${formatted}`
-
-    const payload = {
-      messaging_product: 'whatsapp',
-      to:                phone,
-      type:              'text',
-      text:              { body: message },
-    }
+    // Format: remove all non-digits, add 91 if not present
+    const digits    = toPhone.replace(/\D/g, '')
+    const formatted = digits.startsWith('91') ? digits : `91${digits}`
 
     const res = await fetch(
       `https://graph.facebook.com/v18.0/${phoneID}/messages`,
@@ -28,34 +20,60 @@ const sendWhatsApp = async (toPhone, message) => {
           'Authorization': `Bearer ${token}`,
           'Content-Type':  'application/json',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to:                formatted,
+          type:              'text',
+          text:              { body: message },
+        }),
       }
     )
 
     const data = await res.json()
 
-    if (data.messages) {
-      console.log(`✅ WhatsApp sent to ${phone}`)
-      return { success:true, data }
+    if (data.messages && data.messages.length > 0) {
+      console.log(`✅ WhatsApp sent to ${formatted}`)
+      return { success: true, data }
     } else {
-      console.error('❌ WhatsApp failed:', data.error?.message)
-      return { success:false, message:data.error?.message }
+      console.error('❌ WhatsApp failed:', JSON.stringify(data))
+      return { success: false, message: data.error?.message || 'Unknown error' }
     }
   } catch (e) {
     console.error('❌ WhatsApp error:', e.message)
-    return { success:false, message:e.message }
+    return { success: false, message: e.message }
   }
 }
 
-const sendOrderCompleteWhatsApp = async (customerName, customerPhone, orderID, clothType) => {
-  const message =
+// Order completion message
+const sendOrderCompleteWhatsApp = async (customerName, phone, orderID, clothType) => {
+  const msg =
     `🎉 *Al-Ameen Tailors*\n\n` +
     `Dear ${customerName},\n\n` +
-    `Your order *${orderID}* (${clothType}) is *Ready for Delivery!* 🎊\n\n` +
+    `Your order *${orderID}* (${clothType}) is *Ready for Delivery!* ✅\n\n` +
     `Please visit our shop to collect your order.\n\n` +
     `Thank you for choosing Al-Ameen Tailors! ✂️`
-
-  return sendWhatsApp(customerPhone, message)
+  return sendWhatsApp(phone, msg)
 }
 
-module.exports = { sendWhatsApp, sendOrderCompleteWhatsApp }
+// Offer broadcast
+const sendOfferWhatsApp = async (phone, offerName, percentage) => {
+  const msg =
+    `🏷️ *Al-Ameen Tailors — Special Offer!*\n\n` +
+    `*${offerName}*\n` +
+    `Get *${percentage}% OFF* on your next order!\n\n` +
+    `Limited time offer. Visit us today! ✂️`
+  return sendWhatsApp(phone, msg)
+}
+
+// Custom broadcast message
+const sendBroadcastWhatsApp = async (phone, customMessage) => {
+  const msg = `✂️ *Al-Ameen Tailors*\n\n${customMessage}`
+  return sendWhatsApp(phone, msg)
+}
+
+module.exports = {
+  sendWhatsApp,
+  sendOrderCompleteWhatsApp,
+  sendOfferWhatsApp,
+  sendBroadcastWhatsApp,
+}

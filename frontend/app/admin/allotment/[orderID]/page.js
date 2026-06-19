@@ -30,6 +30,8 @@ export default function AllotmentPage() {
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState('')
   const [success, setSuccess]       = useState('')
+  const [sendingWA, setSendingWA] = useState(false)
+const [waMsg, setWaMsg]         = useState('')
 
   // Per-stage state
   const [assigning, setAssigning]   = useState(null) // stage name
@@ -393,6 +395,44 @@ export default function AllotmentPage() {
                       </div>
                     </div>
                   )}
+                  {stage === 'finishing' && stageData.status === 'completed' && (
+                    <div style={{ marginTop:10 }}>
+                        {waMsg && (
+                        <p style={{ fontSize:'0.78rem',
+                            color:waMsg.startsWith('✅')?'#059669':'#DC2626',
+                            marginBottom:8 }}>
+                            {waMsg}
+                        </p>
+                        )}
+                        <button
+                        onClick={async () => {
+                            setSendingWA(true); setWaMsg('')
+                            try {
+                            await API.post('/api/whatsapp/resend-order', {
+                                customerName:  order.customerRef?.name,
+                                customerPhone: order.customerRef?.phone,
+                                orderID:       order.orderID,
+                                clothType:     order.clothType,
+                            })
+                            setWaMsg('✅ WhatsApp sent to customer!')
+                            } catch (e) {
+                            setWaMsg('❌ ' + (e.response?.data?.message || 'Failed'))
+                            } finally { setSendingWA(false) }
+                        }}
+                        disabled={sendingWA}
+                        style={{ width:'100%', padding:'9px',
+                            background:'linear-gradient(135deg,#25D366,#128C7E)',
+                            color:'white', border:'none', borderRadius:10,
+                            fontFamily:'Poppins,sans-serif', fontWeight:600,
+                            fontSize:'0.82rem', cursor:'pointer',
+                            display:'flex', alignItems:'center',
+                            justifyContent:'center', gap:6 }}>
+                        {sendingWA
+                            ? <><div className="spinner"/>Sending...</>
+                            : '💬 Resend WhatsApp to Customer'}
+                        </button>
+                    </div>
+                    )}
 
                   {/* Locked state */}
                   {isLocked && (

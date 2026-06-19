@@ -14,6 +14,7 @@ const clothTypeRoutes   = require('./routes/clothTypes')
 const alterationRoutes  = require('./routes/alterationOptions')
 const allotmentRoutes   = require('./routes/allotment')
 const scanRoutes        = require('./routes/scan')
+const whatsappRoutes    = require('./routes/whatsapp')
 
 dotenv.config()
 const app = express()
@@ -51,6 +52,7 @@ app.use('/api/cloth-types',        clothTypeRoutes)
 app.use('/api/alteration-options', alterationRoutes)
 app.use('/api/allotment',          allotmentRoutes)
 app.use('/api/scan',               scanRoutes)
+app.use('/api/whatsapp',           whatsappRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status:'ok', message:'✂️ Tailoring API running' })
@@ -65,4 +67,3 @@ const startServer = async () => {
 }
 
 startServer()
-

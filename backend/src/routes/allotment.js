@@ -5,24 +5,21 @@ const Employee   = require('../models/Employee')
 const { protect } = require('../middleware/auth')
 const QRCode     = require('qrcode')
 const router     = express.Router()
-const { sendOrderCompleteWhatsApp } = require('../services/whatsappService')
 
 const generateQR = async (orderID) => {
   try {
     const url = `${process.env.FRONTEND_URL || 'https://tailoring-management-system.vercel.app'}/admin/allotment/${orderID}`
-    const qr  = await QRCode.toDataURL(url, {
-      width:  300,
-      margin: 2,
-      color:  { dark:'#1E1B4B', light:'#FFFFFF' },
+    return await QRCode.toDataURL(url, {
+      width: 300, margin: 2,
+      color: { dark:'#1E1B4B', light:'#FFFFFF' },
     })
-    return qr
   } catch (e) {
-    console.error('QR generation error:', e.message)
+    console.error('QR error:', e.message)
     return ''
   }
 }
 
-// ── GET all allotments ───────────────────────────────────────
+// GET all allotments
 router.get('/', protect, async (req, res) => {
   try {
     const allotments = await Allotment.find().sort({ createdAt:-1 }).lean()
@@ -32,117 +29,72 @@ router.get('/', protect, async (req, res) => {
   }
 })
 
-// ── GET by QR scan — MUST be before /:orderID ───────────────
-// No auth — public route for employee phone scan
-// ── GET by QR scan — public route ───────────────────────────
+// GET scan — MUST be before /:orderID
 router.get('/scan/:orderID', async (req, res) => {
   try {
-    const { orderID } = req.params
-    const { stage }   = req.query
+    const cleanID = req.params.orderID.trim().toUpperCase()
+    const stage   = (req.query.stage || 'general').toLowerCase()
 
-    // Clean orderID — remove any trailing slashes or spaces
-    const cleanOrderID = orderID.trim().toUpperCase()
+    const order = await Order.findOne({ orderID:cleanID }).lean()
+    if (!order)
+      return res.status(404).json({ success:false, message:`Order ${cleanID} not found` })
 
-    console.log(`QR Scan: orderID=${cleanOrderID}, stage=${stage}`)
+    const allotment = await Allotment.findOne({ orderID:cleanID }).lean()
 
-    const order = await Order.findOne({ orderID: cleanOrderID }).lean()
-    if (!order) {
-      console.log(`Order not found: ${cleanOrderID}`)
-      // Try case-insensitive search as fallback
-      const orderFallback = await Order.findOne({
-        orderID: { $regex: new RegExp(`^${cleanOrderID}$`, 'i') }
-      }).lean()
-      if (!orderFallback)
-        return res.status(404).json({
-          success: false,
-          message: `Order ${cleanOrderID} not found`,
-        })
-      return handleScanResponse(res, orderFallback, stage)
+    const response = {
+      success:      true,
+      orderID:      order.orderID,
+      clothType:    order.clothType,
+      quantity:     order.quantity,
+      measurements: order.measurements || {},
+      fabricNotes:  order.fabricNotes  || '',
+      stage,
+      stageInfo: (allotment && stage !== 'general' && allotment[stage])
+        ? { status:allotment[stage].status||'not_assigned', employeeID:allotment[stage].employeeID||'', notes:allotment[stage].notes||'' }
+        : { status:'not_assigned', employeeID:'', notes:'' },
+      allStages: allotment
+        ? {
+            cutting:   { status:allotment.cutting?.status   || 'not_assigned' },
+            stitching: { status:allotment.stitching?.status || 'not_assigned' },
+            finishing: { status:allotment.finishing?.status || 'not_assigned' },
+          }
+        : {
+            cutting:   { status:'not_assigned' },
+            stitching: { status:'not_assigned' },
+            finishing: { status:'not_assigned' },
+          },
     }
 
-    return handleScanResponse(res, order, stage)
+    if (stage === 'stitching') response.alteration = order.alteration
+
+    res.json(response)
   } catch (e) {
-    console.error('Scan error:', e.message)
     res.status(500).json({ success:false, message:e.message })
   }
 })
 
-// Helper function for scan response
-async function handleScanResponse(res, order, stage) {
-  const allotment = await Allotment.findOne({
-    orderID: order.orderID
-  }).lean()
-
-  const response = {
-    success:      true,
-    orderID:      order.orderID,
-    clothType:    order.clothType,
-    quantity:     order.quantity,
-    measurements: order.measurements || {},
-    stage:        stage || 'general',
-    fabricNotes:  order.fabricNotes  || '',
-  }
-
-  if (stage === 'stitching') {
-    response.alteration = order.alteration
-  }
-
-  if (allotment && stage && allotment[stage]) {
-    response.stageInfo = {
-      status:     allotment[stage].status     || 'not_assigned',
-      employeeID: allotment[stage].employeeID || '',
-      notes:      allotment[stage].notes      || '',
-    }
-  } else {
-    response.stageInfo = {
-      status:     'not_assigned',
-      employeeID: '',
-      notes:      '',
-    }
-  }
-
-  if (allotment) {
-    response.allStages = {
-      cutting:   { status: allotment.cutting?.status   || 'not_assigned' },
-      stitching: { status: allotment.stitching?.status || 'not_assigned' },
-      finishing: { status: allotment.finishing?.status || 'not_assigned' },
-    }
-  } else {
-    response.allStages = {
-      cutting:   { status: 'not_assigned' },
-      stitching: { status: 'not_assigned' },
-      finishing: { status: 'not_assigned' },
-    }
-  }
-
-  return res.json(response)
-}
-// ── GET allotment for an order ───────────────────────────────
+// GET allotment for order (create if not exists)
 router.get('/:orderID', protect, async (req, res) => {
   try {
     const { orderID } = req.params
-
     const order = await Order.findOne({ orderID })
-      .populate('customerRef', 'name phone customerID')
+      .populate('customerRef','name phone customerID')
     if (!order)
       return res.status(404).json({ success:false, message:'Order not found' })
 
     let allotment = await Allotment.findOne({ orderID })
-
     if (!allotment) {
       const qrCode = await generateQR(orderID)
       allotment = await Allotment.create({
-        orderID,
-        customerID: order.customerID,
-        qrCode,
+        orderID, customerID:order.customerID, qrCode,
       })
     }
 
     const enrichStage = async (stage) => {
       if (!stage.employeeID) return stage
-      const emp = await Employee.findOne({ employeeID: stage.employeeID })
+      const emp = await Employee.findOne({ employeeID:stage.employeeID })
         .select('name employeeID role').lean()
-      return { ...stage, employeeDetails: emp || null }
+      return { ...stage, employeeDetails:emp||null }
     }
 
     const cutting   = await enrichStage(allotment.cutting.toObject())
@@ -159,14 +111,13 @@ router.get('/:orderID', protect, async (req, res) => {
   }
 })
 
-// ── POST assign employee to stage ───────────────────────────
+// POST assign employee to stage
 router.post('/:orderID/assign', protect, async (req, res) => {
   try {
     const { orderID }              = req.params
     const { stage, employeeID, notes } = req.body
 
-    const validStages = ['cutting','stitching','finishing']
-    if (!validStages.includes(stage))
+    if (!['cutting','stitching','finishing'].includes(stage))
       return res.status(400).json({ success:false, message:'Invalid stage' })
 
     const employee = await Employee.findOne({ employeeID, isActive:true })
@@ -175,8 +126,8 @@ router.post('/:orderID/assign', protect, async (req, res) => {
 
     if (employee.role !== 'all' && employee.role !== stage)
       return res.status(400).json({
-        success:  false,
-        message:  `This employee is assigned to "${employee.role}" stage, not "${stage}"`,
+        success:false,
+        message:`This employee is assigned to "${employee.role}" stage, not "${stage}"`,
       })
 
     let allotment = await Allotment.findOne({ orderID })
@@ -185,22 +136,13 @@ router.post('/:orderID/assign', protect, async (req, res) => {
       if (!order)
         return res.status(404).json({ success:false, message:'Order not found' })
       const qrCode = await generateQR(orderID)
-      allotment = await Allotment.create({
-        orderID, customerID: order.customerID, qrCode,
-      })
+      allotment = await Allotment.create({ orderID, customerID:order.customerID, qrCode })
     }
 
     if (stage === 'stitching' && allotment.cutting.status !== 'completed')
-      return res.status(400).json({
-        success:  false,
-        message:  'Cutting must be completed before assigning stitching',
-      })
-
+      return res.status(400).json({ success:false, message:'Cutting must be completed first' })
     if (stage === 'finishing' && allotment.stitching.status !== 'completed')
-      return res.status(400).json({
-        success:  false,
-        message:  'Stitching must be completed before assigning finishing',
-      })
+      return res.status(400).json({ success:false, message:'Stitching must be completed first' })
 
     allotment[stage] = {
       employeeID:    employee.employeeID,
@@ -211,16 +153,10 @@ router.post('/:orderID/assign', protect, async (req, res) => {
       award:         0,
       notes:         notes || '',
     }
-
     await allotment.save()
 
-    const stageToStatus = {
-      cutting:'Cutting', stitching:'Stitching', finishing:'Finishing',
-    }
-    await Order.findOneAndUpdate(
-      { orderID },
-      { $set:{ status: stageToStatus[stage] } }
-    )
+    const stageToStatus = { cutting:'Cutting', stitching:'Stitching', finishing:'Finishing' }
+    await Order.findOneAndUpdate({ orderID }, { $set:{ status:stageToStatus[stage] } })
 
     res.json({ success:true, message:`${stage} assigned to ${employee.name}`, allotment })
   } catch (e) {
@@ -228,15 +164,13 @@ router.post('/:orderID/assign', protect, async (req, res) => {
   }
 })
 
-// ── POST approve stage ───────────────────────────────────────
-// ── POST approve stage ───────────────────────────────────────
+// POST approve stage — sends WhatsApp on finishing
 router.post('/:orderID/approve', protect, async (req, res) => {
   try {
     const { orderID }      = req.params
     const { stage, award } = req.body
 
-    const validStages = ['cutting','stitching','finishing']
-    if (!validStages.includes(stage))
+    if (!['cutting','stitching','finishing'].includes(stage))
       return res.status(400).json({ success:false, message:'Invalid stage' })
 
     const allotment = await Allotment.findOne({ orderID })
@@ -244,56 +178,52 @@ router.post('/:orderID/approve', protect, async (req, res) => {
       return res.status(404).json({ success:false, message:'Allotment not found' })
 
     if (allotment[stage].status !== 'pending')
-      return res.status(400).json({
-        success:  false,
-        message:  `${stage} is not in pending state`,
-      })
+      return res.status(400).json({ success:false, message:`${stage} is not pending` })
 
     allotment[stage].status        = 'completed'
     allotment[stage].adminApproved = true
     allotment[stage].approvedAt    = new Date()
     allotment[stage].completedAt   = new Date()
     allotment[stage].award         = parseFloat(award) || 0
-
     await allotment.save()
 
-    // Finishing approved → order Ready For Delivery
+    // Finishing → Ready For Delivery + WhatsApp
     if (stage === 'finishing') {
-  const order = await Order.findOneAndUpdate(
-    { orderID },
-    { $set:{ status:'Ready For Delivery' } },
-    { new:true }
-  ).populate('customerRef','name phone customerID')
+      const order = await Order.findOneAndUpdate(
+        { orderID },
+        { $set:{ status:'Ready For Delivery' } },
+        { new:true }
+      ).populate('customerRef','name phone customerID')
 
-  // Send WhatsApp to customer
-  if (order && order.customerRef) {
-    try {
-      await sendOrderCompleteWhatsApp(
-        order.customerRef.name,
-        order.customerRef.phone,
-        orderID,
-        order.clothType
-      )
-    } catch (waErr) {
-      console.error('WhatsApp error:', waErr.message)
-      // Don't fail the approval if WhatsApp fails
+      if (order && order.customerRef) {
+        try {
+          const { sendOrderCompleteWhatsApp } = require('../services/whatsappService')
+          const result = await sendOrderCompleteWhatsApp(
+            order.customerRef.name,
+            order.customerRef.phone,
+            orderID,
+            order.clothType
+          )
+          console.log('WhatsApp result:', JSON.stringify(result))
+        } catch (waErr) {
+          console.error('WhatsApp send error:', waErr.message)
+        }
+      }
     }
-  }
-}
+
     res.json({ success:true, message:`${stage} approved`, allotment })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
 })
 
-// ── POST unassign stage ──────────────────────────────────────
+// POST unassign stage
 router.post('/:orderID/unassign', protect, async (req, res) => {
   try {
     const { orderID } = req.params
     const { stage }   = req.body
 
-    const validStages = ['cutting','stitching','finishing']
-    if (!validStages.includes(stage))
+    if (!['cutting','stitching','finishing'].includes(stage))
       return res.status(400).json({ success:false, message:'Invalid stage' })
 
     const allotment = await Allotment.findOne({ orderID })
@@ -301,16 +231,12 @@ router.post('/:orderID/unassign', protect, async (req, res) => {
       return res.status(404).json({ success:false, message:'Allotment not found' })
 
     if (allotment[stage].adminApproved)
-      return res.status(400).json({
-        success:  false,
-        message:  'Cannot unassign an approved stage',
-      })
+      return res.status(400).json({ success:false, message:'Cannot unassign approved stage' })
 
     allotment[stage] = {
       employeeID:'', employeeName:'', status:'not_assigned',
       adminApproved:false, award:0, notes:'',
     }
-
     await allotment.save()
     res.json({ success:true, message:`${stage} unassigned`, allotment })
   } catch (e) {
