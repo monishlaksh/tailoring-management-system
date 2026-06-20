@@ -63,20 +63,78 @@ const sendWA = async (toPhone, message) => {
 
 // ── TEST route — call this to verify API works ───────────────
 // GET /api/whatsapp/test?phone=919876543210
-router.get('/test', protect, async (req, res) => {
-  const phone = req.query.phone || process.env.TEST_PHONE
-  if (!phone) {
+// ── TEST route — public, no auth needed ──────────────────────
+router.get('/test', async (req, res) => {
+  const phone = req.query.phone
+
+  // First check if env vars are set
+  const tokenSet   = !!process.env.WHATSAPP_TOKEN
+  const phoneIDSet = !!process.env.WHATSAPP_PHONE_ID
+
+  if (!tokenSet || !phoneIDSet) {
     return res.json({
-      success:   false,
-      message:   'Pass ?phone=919876543210 in query',
-      token_set:   !!process.env.WHATSAPP_TOKEN,
-      phoneid_set: !!process.env.WHATSAPP_PHONE_ID,
+      success:       false,
+      message:       'WhatsApp environment variables missing',
+      WHATSAPP_TOKEN:    tokenSet   ? '✅ SET' : '❌ NOT SET',
+      WHATSAPP_PHONE_ID: phoneIDSet ? '✅ SET' : '❌ NOT SET',
     })
   }
-  const result = await sendWA(phone, '✂️ Test message from Al-Ameen Tailors. If you received this, WhatsApp API is working!')
-  res.json({ ...result, phone_used:phone })
-})
 
+  if (!phone) {
+    return res.json({
+      success:           false,
+      message:           'Add ?phone=919876543210 to test sending',
+      WHATSAPP_TOKEN:    '✅ SET',
+      WHATSAPP_PHONE_ID: '✅ SET',
+    })
+  }
+
+  // Try sending a test message
+  const digits    = phone.replace(/\D/g, '')
+  const formatted = digits.startsWith('91') ? digits : `91${digits}`
+
+  try {
+    const res2 = await fetch(
+      `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
+      {
+        method:  'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          'Content-Type':  'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to:                formatted,
+          type:              'text',
+          text:              { body:'✂️ Test from Al-Ameen Tailors. WhatsApp API is working!' },
+        }),
+      }
+    )
+
+    const data = await res2.json()
+
+    if (data.messages?.[0]?.id) {
+      return res.json({
+        success:    true,
+        message:    `✅ WhatsApp sent to ${formatted}`,
+        messageId:  data.messages[0].id,
+      })
+    } else {
+      return res.json({
+        success:     false,
+        message:     '❌ WhatsApp API returned error',
+        error:       data.error?.message || 'Unknown',
+        error_code:  data.error?.code,
+        raw:         data,
+      })
+    }
+  } catch (e) {
+    return res.json({
+      success: false,
+      message: `❌ Fetch failed: ${e.message}`,
+    })
+  }
+})
 // ── POST send offer to all customers ─────────────────────────
 router.post('/offer', protect, async (req, res) => {
   try {
