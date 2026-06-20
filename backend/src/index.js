@@ -14,7 +14,7 @@ const clothTypeRoutes   = require('./routes/clothTypes')
 const alterationRoutes  = require('./routes/alterationOptions')
 const allotmentRoutes   = require('./routes/allotment')
 const scanRoutes        = require('./routes/scan')
-const whatsappRoutes    = require('./routes/whatsapp')
+const { router: whatsappRoutes } = require('./routes/whatsapp')
 
 dotenv.config()
 const app = express()
