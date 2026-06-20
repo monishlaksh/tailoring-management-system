@@ -134,7 +134,37 @@ router.get('/test', async (req, res) => {
       message: `❌ Fetch failed: ${e.message}`,
     })
   }
-})
+}) 
+router.get('/manual-send', async (req, res) => {
+  try {
+    const phone = req.query.phone;
+
+    const response = await fetch(
+      `https://graph.facebook.com/v23.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: phone,
+          type: 'text',
+          text: {
+            body: 'Manual test from Al-Ameen Tailors'
+          }
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 // ── POST send offer to all customers ─────────────────────────
 router.post('/offer', protect, async (req, res) => {
   try {
