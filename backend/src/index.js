@@ -14,6 +14,8 @@ const clothTypeRoutes   = require('./routes/clothTypes')
 const alterationRoutes  = require('./routes/alterationOptions')
 const allotmentRoutes   = require('./routes/allotment')
 const scanRoutes        = require('./routes/scan')
+
+// whatsapp.js exports { router, sendWA } — we need only router here
 const { router: whatsappRoutes } = require('./routes/whatsapp')
 
 dotenv.config()

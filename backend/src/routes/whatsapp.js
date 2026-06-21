@@ -3,23 +3,21 @@ const Customer = require('../models/Customer')
 const { protect } = require('../middleware/auth')
 const router   = express.Router()
 
-// ── Helper: send WhatsApp message ────────────────────────────
+// ── Core WhatsApp sender function ────────────────────────────
 const sendWA = async (toPhone, message) => {
   const token   = process.env.WHATSAPP_TOKEN
   const phoneID = process.env.WHATSAPP_PHONE_ID
 
   if (!token || !phoneID) {
-    const msg = `WHATSAPP_TOKEN=${token?'SET':'MISSING'}, WHATSAPP_PHONE_ID=${phoneID?'SET':'MISSING'}`
-    console.error('❌ WhatsApp not configured:', msg)
-    return { success:false, message:`Not configured: ${msg}` }
+    console.error('❌ WhatsApp env missing:',
+      `TOKEN=${token?'SET':'MISSING'} PHONE_ID=${phoneID?'SET':'MISSING'}`)
+    return { success:false, message:'WhatsApp not configured' }
   }
 
-  // Clean phone number — digits only, add 91 prefix if missing
   const digits    = String(toPhone).replace(/\D/g, '')
   const formatted = digits.startsWith('91') ? digits : `91${digits}`
 
   console.log(`[WA] Sending to: ${formatted}`)
-  console.log(`[WA] Message: ${message.substring(0,50)}...`)
 
   try {
     const res = await fetch(
@@ -40,20 +38,19 @@ const sendWA = async (toPhone, message) => {
     )
 
     const text = await res.text()
-    console.log(`[WA] Response status: ${res.status}`)
-    console.log(`[WA] Response body: ${text}`)
+    console.log(`[WA] Status: ${res.status} Response: ${text}`)
 
     let data
     try { data = JSON.parse(text) }
     catch { return { success:false, message:`Invalid response: ${text}` } }
 
-    if (data.messages && data.messages.length > 0) {
-      console.log(`✅ WhatsApp sent to ${formatted}, ID: ${data.messages[0].id}`)
+    if (data.messages?.[0]?.id) {
+      console.log(`✅ WhatsApp sent. ID: ${data.messages[0].id}`)
       return { success:true, messageId:data.messages[0].id }
     } else {
       const errMsg = data.error?.message || JSON.stringify(data)
-      console.error(`❌ WhatsApp API error: ${errMsg}`)
-      return { success:false, message:errMsg, rawResponse:data }
+      console.error(`❌ WhatsApp error: ${errMsg}`)
+      return { success:false, message:errMsg, error_code:data.error?.code, raw:data }
     }
   } catch (e) {
     console.error(`❌ WhatsApp fetch error: ${e.message}`)
@@ -61,25 +58,21 @@ const sendWA = async (toPhone, message) => {
   }
 }
 
-// ── TEST route — call this to verify API works ───────────────
-// GET /api/whatsapp/test?phone=919876543210
-// ── TEST route — public, no auth needed ──────────────────────
+// ── TEST route — public, no auth ─────────────────────────────
 router.get('/test', async (req, res) => {
-  const phone = req.query.phone
-
-  // First check if env vars are set
   const tokenSet   = !!process.env.WHATSAPP_TOKEN
   const phoneIDSet = !!process.env.WHATSAPP_PHONE_ID
 
   if (!tokenSet || !phoneIDSet) {
     return res.json({
-      success:       false,
-      message:       'WhatsApp environment variables missing',
+      success:           false,
+      message:           'WhatsApp environment variables missing',
       WHATSAPP_TOKEN:    tokenSet   ? '✅ SET' : '❌ NOT SET',
       WHATSAPP_PHONE_ID: phoneIDSet ? '✅ SET' : '❌ NOT SET',
     })
   }
 
+  const phone = req.query.phone
   if (!phone) {
     return res.json({
       success:           false,
@@ -89,88 +82,22 @@ router.get('/test', async (req, res) => {
     })
   }
 
-  // Try sending a test message
-  const digits    = phone.replace(/\D/g, '')
-  const formatted = digits.startsWith('91') ? digits : `91${digits}`
+  const result = await sendWA(
+    phone,
+    '✂️ Test from Al-Ameen Tailors. WhatsApp API is working!'
+  )
+  res.json({ ...result, phone_used: phone })
+})
 
-  try {
-    const res2 = await fetch(
-      `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
-      {
-        method:  'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`,
-          'Content-Type':  'application/json',
-        },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to:                formatted,
-          type:              'text',
-          text:              { body:'✂️ Test from Al-Ameen Tailors. WhatsApp API is working!' },
-        }),
-      }
-    )
-
-    const data = await res2.json()
-
-    if (data.messages?.[0]?.id) {
-      return res.json({
-        success:    true,
-        message:    `✅ WhatsApp sent to ${formatted}`,
-        messageId:  data.messages[0].id,
-      })
-    } else {
-      return res.json({
-        success:     false,
-        message:     '❌ WhatsApp API returned error',
-        error:       data.error?.message || 'Unknown',
-        error_code:  data.error?.code,
-        raw:         data,
-      })
-    }
-  } catch (e) {
-    return res.json({
-      success: false,
-      message: `❌ Fetch failed: ${e.message}`,
-    })
-  }
-}) 
-router.get('/manual-send', async (req, res) => {
-  try {
-    const phone = req.query.phone;
-
-    const response = await fetch(
-      `https://graph.facebook.com/v23.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to: phone,
-          type: 'text',
-          text: {
-            body: 'Manual test from Al-Ameen Tailors'
-          }
-        })
-      }
-    );
-
-    const data = await response.json();
-
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 // ── POST send offer to all customers ─────────────────────────
 router.post('/offer', protect, async (req, res) => {
   try {
     const { offerName, percentage } = req.body
     if (!offerName || !percentage)
-      return res.status(400).json({ success:false, message:'Offer name and percentage required' })
+      return res.status(400).json({
+        success: false,
+        message: 'Offer name and percentage required',
+      })
 
     const customers = await Customer.find({
       isActive: true,
@@ -194,8 +121,8 @@ router.post('/offer', protect, async (req, res) => {
       if (result.success) sent++
       else { failed++; errors.push(`${c.name} (${c.phone}): ${result.message}`) }
 
-      // 200ms delay between messages to avoid rate limiting
-      await new Promise(r => setTimeout(r, 200))
+      // Delay to avoid rate limiting
+      await new Promise(r => setTimeout(r, 300))
     }
 
     res.json({
@@ -208,7 +135,7 @@ router.post('/offer', protect, async (req, res) => {
   }
 })
 
-// ── POST send custom broadcast ────────────────────────────────
+// ── POST send broadcast message to all customers ─────────────
 router.post('/broadcast', protect, async (req, res) => {
   try {
     const { message } = req.body
@@ -231,7 +158,7 @@ router.post('/broadcast', protect, async (req, res) => {
       const result = await sendWA(c.phone, msg)
       if (result.success) sent++
       else { failed++; errors.push(`${c.name}: ${result.message}`) }
-      await new Promise(r => setTimeout(r, 200))
+      await new Promise(r => setTimeout(r, 300))
     }
 
     res.json({
@@ -265,5 +192,5 @@ router.post('/resend-order', protect, async (req, res) => {
   }
 })
 
-// Export sendWA for use in allotment route
+// Export both router and sendWA function
 module.exports = { router, sendWA }
