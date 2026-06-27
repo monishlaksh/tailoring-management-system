@@ -3,6 +3,19 @@ const AlterationOption = require('../models/AlterationOption')
 const { protect, protectAdminOrEmployee } = require('../middleware/auth')
 const router           = express.Router()
 
+
+// TEMP — reset and re-seed alteration options (remove after use)
+router.post('/reset-seed', protect, async (req, res) => {
+  try {
+    await AlterationOption.deleteMany({})
+    const seedAlterationOptions = require('../config/seedAlterationOptions')
+    await seedAlterationOptions()
+    const options = await AlterationOption.find()
+    res.json({ success:true, message:`Re-seeded ${options.length} options`, options })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
 // GET active options — optionally filter by cloth type
 router.get('/', protectAdminOrEmployee, async (req, res) => {
   try {
