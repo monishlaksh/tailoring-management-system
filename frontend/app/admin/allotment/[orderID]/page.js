@@ -254,199 +254,252 @@ const [waMsg, setWaMsg]         = useState('')
         <div style={{ display:'grid', gap:16, alignContent:'start' }}>
 
           {STAGES.map((stage, idx) => {
-            const info        = STAGE_INFO[stage]
-            const stageData   = allotment[stage]
-            const statusBadge = STATUS_BADGE[stageData.status]
-            const eligible    = getEligibleEmployees(stage)
-            const isLocked    = !canAssign(stage) && stageData.status === 'not_assigned'
+  const info        = STAGE_INFO[stage]
+  const stageData   = allotment[stage]
+  const statusBadge = STATUS_BADGE[stageData.status]
+  const eligible    = getEligibleEmployees(stage)
+  const isLocked    = !canAssign(stage) && stageData.status === 'not_assigned'
 
-            return (
-              <div key={stage} className="glass" style={{
-                padding:0, overflow:'hidden',
-                border: `1.5px solid ${stageData.status==='completed' ? 'rgba(16,185,129,0.3)' : info.border}`,
-                opacity: isLocked ? 0.6 : 1,
-              }}>
+  // Build WhatsApp URL for finishing completion
+  const waPhone = order?.customerRef?.phone
+    ? String(order.customerRef.phone).replace(/\D/g,'')
+    : ''
+  const waFormatted = waPhone.startsWith('91') ? waPhone : `91${waPhone}`
+  const waMessage   = encodeURIComponent(
+    `🎉 *Al-Ameen Tailors*\n\n` +
+    `Dear ${order?.customerRef?.name || 'Customer'},\n\n` +
+    `Your order *${order?.orderID}* (${order?.clothType}) is ` +
+    `*Ready for Delivery!* ✅\n\n` +
+    `Please visit our shop to collect your order.\n\n` +
+    `Thank you for choosing Al-Ameen Tailors! ✂️`
+  )
+  const waURL = `https://wa.me/${waFormatted}?text=${waMessage}`
 
-                {/* Stage header */}
-                <div style={{ padding:'14px 18px', background:info.bg, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                    <span style={{ fontSize:'1.3rem' }}>{info.icon}</span>
-                    <div>
-                      <p style={{ fontWeight:700, color:info.color, fontSize:'0.95rem' }}>
-                        {info.label}
-                      </p>
-                      {isLocked && (
-                        <p style={{ fontSize:'0.7rem', color:'#9CA3AF' }}>
-                          Complete {STAGES[idx-1]} first
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <span style={{ fontSize:'0.75rem', fontWeight:600, padding:'4px 12px', borderRadius:999, background:statusBadge.bg, color:statusBadge.color }}>
-                    {statusBadge.label}
-                  </span>
-                </div>
+  return (
+    <div key={stage} className="glass" style={{
+      padding:0, overflow:'hidden',
+      border:`1.5px solid ${stageData.status==='completed'
+        ? 'rgba(16,185,129,0.3)' : info.border}`,
+      opacity: isLocked ? 0.6 : 1,
+    }}>
 
-                <div style={{ padding:'16px 18px' }}>
+      {/* Stage header */}
+      <div style={{ padding:'14px 18px', background:info.bg,
+        display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <span style={{ fontSize:'1.3rem' }}>{info.icon}</span>
+          <div>
+            <p style={{ fontWeight:700, color:info.color, fontSize:'0.95rem' }}>
+              {info.label}
+            </p>
+            {isLocked && (
+              <p style={{ fontSize:'0.7rem', color:'#9CA3AF' }}>
+                Complete {STAGES[idx-1]} first
+              </p>
+            )}
+          </div>
+        </div>
+        <span style={{ fontSize:'0.75rem', fontWeight:600,
+          padding:'4px 12px', borderRadius:999,
+          background:statusBadge.bg, color:statusBadge.color }}>
+          {statusBadge.label}
+        </span>
+      </div>
 
-                  {/* Not assigned — show assign form */}
-                  {stageData.status === 'not_assigned' && !isLocked && (
-                    <div>
-                      <label className="input-label">ASSIGN EMPLOYEE</label>
-                      {eligible.length === 0 ? (
-                        <p style={{ fontSize:'0.82rem', color:'#EF4444', marginBottom:12 }}>
-                          No employees available for {stage}. Add employees with role "{stage}" or "all".
-                        </p>
-                      ) : (
-                        <select
-                          value={selectedEmp[stage]}
-                          onChange={e => setSelectedEmp(p => ({...p,[stage]:e.target.value}))}
-                          style={{ width:'100%', padding:'11px 14px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.88rem', color:'#1E1B4B', outline:'none', marginBottom:12 }}>
-                          <option value="">Select employee...</option>
-                          {eligible.map(e => (
-                            <option key={e._id} value={e.employeeID}>
-                              {e.name} ({e.employeeID}) — {e.role}
-                            </option>
-                          ))}
-                        </select>
-                      )}
+      <div style={{ padding:'16px 18px' }}>
 
-                      <label className="input-label">NOTES FOR EMPLOYEE</label>
-                      <textarea
-                        value={stageNotes[stage]}
-                        onChange={e => setStageNotes(p => ({...p,[stage]:e.target.value}))}
-                        placeholder="Any specific instructions..."
-                        rows={2}
-                        style={{ width:'100%', padding:'10px 14px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.85rem', color:'#1E1B4B', outline:'none', resize:'none', marginBottom:12 }}
-                      />
+        {/* Not assigned */}
+        {stageData.status === 'not_assigned' && !isLocked && (
+          <div>
+            <label className="input-label">ASSIGN EMPLOYEE</label>
+            {eligible.length === 0 ? (
+              <p style={{ fontSize:'0.82rem', color:'#EF4444', marginBottom:12 }}>
+                No employees for {stage} stage.
+              </p>
+            ) : (
+              <select
+                value={selectedEmp[stage]}
+                onChange={e => setSelectedEmp(p => ({...p,[stage]:e.target.value}))}
+                style={{ width:'100%', padding:'11px 14px',
+                  background:'rgba(255,255,255,0.8)',
+                  border:'1.5px solid rgba(79,70,229,0.2)',
+                  borderRadius:10, fontFamily:'Poppins,sans-serif',
+                  fontSize:'0.88rem', color:'#1E1B4B',
+                  outline:'none', marginBottom:12 }}>
+                <option value="">Select employee...</option>
+                {eligible.map(e => (
+                  <option key={e._id} value={e.employeeID}>
+                    {e.name} ({e.employeeID}) — {e.role}
+                  </option>
+                ))}
+              </select>
+            )}
 
-                      <button
-                        onClick={() => handleAssign(stage)}
-                        disabled={assigning===stage || !selectedEmp[stage]}
-                        style={{ width:'100%', padding:'11px', background:`linear-gradient(135deg,${info.color},${info.color}cc)`, color:'white', border:'none', borderRadius:10, fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.88rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, opacity:(!selectedEmp[stage])?0.6:1 }}>
-                        {assigning===stage ? <><div className="spinner" />Assigning...</> : <><Users size={15} />Assign {info.label}</>}
-                      </button>
-                    </div>
-                  )}
+            <label className="input-label">NOTES FOR EMPLOYEE</label>
+            <textarea
+              value={stageNotes[stage]}
+              onChange={e => setStageNotes(p => ({...p,[stage]:e.target.value}))}
+              placeholder="Any specific instructions..."
+              rows={2}
+              style={{ width:'100%', padding:'10px 14px',
+                background:'rgba(255,255,255,0.8)',
+                border:'1.5px solid rgba(79,70,229,0.2)',
+                borderRadius:10, fontFamily:'Poppins,sans-serif',
+                fontSize:'0.85rem', color:'#1E1B4B',
+                outline:'none', resize:'none', marginBottom:12 }}
+            />
 
-                  {/* Pending — show employee info + approve */}
-                  {stageData.status === 'pending' && (
-                    <div>
-                      <div style={{ background:'rgba(245,158,11,0.06)', border:'1px solid rgba(245,158,11,0.2)', borderRadius:10, padding:'12px 14px', marginBottom:14 }}>
-                        <p style={{ fontSize:'0.8rem', color:'#D97706', fontWeight:600, marginBottom:4 }}>
-                          Assigned to: {stageData.employeeName}
-                        </p>
-                        <p style={{ fontSize:'0.75rem', color:'#6B7280' }}>
-                          {stageData.employeeID} · Assigned {stageData.assignedAt ? new Date(stageData.assignedAt).toLocaleDateString('en-IN') : ''}
-                        </p>
-                        {stageData.notes && (
-                          <p style={{ fontSize:'0.75rem', color:'#4B5563', marginTop:6, fontStyle:'italic' }}>
-                            Notes: {stageData.notes}
-                          </p>
-                        )}
-                      </div>
+            <button
+              onClick={() => handleAssign(stage)}
+              disabled={assigning===stage || !selectedEmp[stage]}
+              style={{ width:'100%', padding:'11px',
+                background:`linear-gradient(135deg,${info.color},${info.color}cc)`,
+                color:'white', border:'none', borderRadius:10,
+                fontFamily:'Poppins,sans-serif', fontWeight:600,
+                fontSize:'0.88rem', cursor:'pointer',
+                display:'flex', alignItems:'center',
+                justifyContent:'center', gap:8,
+                opacity:!selectedEmp[stage]?0.6:1 }}>
+              {assigning===stage
+                ? <><div className="spinner"/>Assigning...</>
+                : <><Users size={15}/>Assign {info.label}</>}
+            </button>
+          </div>
+        )}
 
-                      {/* Award amount */}
-                      <label className="input-label">AWARD AMOUNT (₹) — ADMIN ONLY</label>
-                      <NumInput
-                        prefix="₹"
-                        value={awardAmounts[stage]}
-                        onChange={val => setAwardAmounts(p => ({...p,[stage]:val}))}
-                        placeholder="0"
-                        style={{ marginBottom:12, border:'1.5px solid rgba(16,185,129,0.25)' }}
-                      />
+        {/* Pending */}
+        {stageData.status === 'pending' && (
+          <div>
+            <div style={{ background:'rgba(245,158,11,0.06)',
+              border:'1px solid rgba(245,158,11,0.2)',
+              borderRadius:10, padding:'12px 14px', marginBottom:14 }}>
+              <p style={{ fontSize:'0.8rem', color:'#D97706',
+                fontWeight:600, marginBottom:4 }}>
+                Assigned to: {stageData.employeeName}
+              </p>
+              <p style={{ fontSize:'0.75rem', color:'#6B7280' }}>
+                {stageData.employeeID} · Assigned{' '}
+                {stageData.assignedAt
+                  ? new Date(stageData.assignedAt).toLocaleDateString('en-IN')
+                  : ''}
+              </p>
+              {stageData.notes && (
+                <p style={{ fontSize:'0.75rem', color:'#4B5563',
+                  marginTop:6, fontStyle:'italic' }}>
+                  Notes: {stageData.notes}
+                </p>
+              )}
+            </div>
 
-                      <div style={{ display:'flex', gap:8 }}>
-                        <button
-                          onClick={() => handleApprove(stage)}
-                          disabled={approving===stage}
-                          style={{ flex:1, padding:'11px', background:'linear-gradient(135deg,#10B981,#059669)', color:'white', border:'none', borderRadius:10, fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.88rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                          {approving===stage ? <><div className="spinner" />Approving...</> : <><Check size={15} />Approve & Award</>}
-                        </button>
-                        <button
-                          onClick={() => handleUnassign(stage)}
-                          style={{ padding:'11px 14px', background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)', borderRadius:10, color:'#DC2626', cursor:'pointer', fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.82rem' }}>
-                          <X size={15} />
-                        </button>
-                      </div>
-                    </div>
-                  )}
+            <label className="input-label">
+              AWARD AMOUNT (₹) — ADMIN ONLY
+            </label>
+            <NumInput
+              prefix="₹"
+              value={awardAmounts[stage]}
+              onChange={val => setAwardAmounts(p => ({...p,[stage]:val}))}
+              placeholder="0"
+              style={{ marginBottom:12,
+                border:'1.5px solid rgba(16,185,129,0.25)' }}
+            />
 
-                  {/* Completed — show summary */}
-                  {stageData.status === 'completed' && (
-                    <div style={{ background:'rgba(16,185,129,0.05)', border:'1px solid rgba(16,185,129,0.2)', borderRadius:10, padding:'14px' }}>
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
-                        <div>
-                          <p style={{ fontSize:'0.82rem', color:'#059669', fontWeight:700, marginBottom:2 }}>
-                            ✅ Completed by {stageData.employeeName}
-                          </p>
-                          <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
-                            {stageData.completedAt ? new Date(stageData.completedAt).toLocaleDateString('en-IN') : ''}
-                          </p>
-                        </div>
-                        {(stageData.award||0) > 0 && (
-                          <div style={{ textAlign:'right' }}>
-                            <p style={{ fontSize:'0.68rem', color:'#9CA3AF', fontWeight:600 }}>AWARDED</p>
-                            <p style={{ fontSize:'1rem', fontWeight:800, color:'#059669' }}>
-                              ₹{stageData.award.toLocaleString('en-IN')}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {stage === 'finishing' && stageData.status === 'completed' && (
-                    <div style={{ marginTop:10 }}>
-                        {waMsg && (
-                        <p style={{ fontSize:'0.78rem',
-                            color:waMsg.startsWith('✅')?'#059669':'#DC2626',
-                            marginBottom:8 }}>
-                            {waMsg}
-                        </p>
-                        )}
-                        <button
-                        onClick={async () => {
-                            setSendingWA(true); setWaMsg('')
-                            try {
-                            await API.post('/api/whatsapp/resend-order', {
-                                customerName:  order.customerRef?.name,
-                                customerPhone: order.customerRef?.phone,
-                                orderID:       order.orderID,
-                                clothType:     order.clothType,
-                            })
-                            setWaMsg('✅ WhatsApp sent to customer!')
-                            } catch (e) {
-                            setWaMsg('❌ ' + (e.response?.data?.message || 'Failed'))
-                            } finally { setSendingWA(false) }
-                        }}
-                        disabled={sendingWA}
-                        style={{ width:'100%', padding:'9px',
-                            background:'linear-gradient(135deg,#25D366,#128C7E)',
-                            color:'white', border:'none', borderRadius:10,
-                            fontFamily:'Poppins,sans-serif', fontWeight:600,
-                            fontSize:'0.82rem', cursor:'pointer',
-                            display:'flex', alignItems:'center',
-                            justifyContent:'center', gap:6 }}>
-                        {sendingWA
-                            ? <><div className="spinner"/>Sending...</>
-                            : '💬 Resend WhatsApp to Customer'}
-                        </button>
-                    </div>
-                    )}
+            <div style={{ display:'flex', gap:8 }}>
+              <button
+                onClick={() => handleApprove(stage)}
+                disabled={approving===stage}
+                style={{ flex:1, padding:'11px',
+                  background:'linear-gradient(135deg,#10B981,#059669)',
+                  color:'white', border:'none', borderRadius:10,
+                  fontFamily:'Poppins,sans-serif', fontWeight:600,
+                  fontSize:'0.88rem', cursor:'pointer',
+                  display:'flex', alignItems:'center',
+                  justifyContent:'center', gap:6 }}>
+                {approving===stage
+                  ? <><div className="spinner"/>Approving...</>
+                  : <><Check size={15}/>Approve & Award</>}
+              </button>
+              <button
+                onClick={() => handleUnassign(stage)}
+                style={{ padding:'11px 14px',
+                  background:'rgba(239,68,68,0.08)',
+                  border:'1px solid rgba(239,68,68,0.2)',
+                  borderRadius:10, color:'#DC2626', cursor:'pointer',
+                  fontFamily:'Poppins,sans-serif', fontWeight:600,
+                  fontSize:'0.82rem' }}>
+                <X size={15}/>
+              </button>
+            </div>
+          </div>
+        )}
 
-                  {/* Locked state */}
-                  {isLocked && (
-                    <div style={{ textAlign:'center', padding:'16px 0', color:'#9CA3AF' }}>
-                      <p style={{ fontSize:'0.82rem' }}>
-                        🔒 Complete {idx > 0 ? STAGE_INFO[STAGES[idx-1]].label : ''} first
-                      </p>
-                    </div>
-                  )}
-
-                </div>
+        {/* Completed */}
+        {stageData.status === 'completed' && (
+          <div style={{ background:'rgba(16,185,129,0.05)',
+            border:'1px solid rgba(16,185,129,0.2)',
+            borderRadius:10, padding:'14px' }}>
+            <div style={{ display:'flex', justifyContent:'space-between',
+              alignItems:'flex-start', marginBottom:8 }}>
+              <div>
+                <p style={{ fontSize:'0.82rem', color:'#059669',
+                  fontWeight:700, marginBottom:2 }}>
+                  ✅ Completed by {stageData.employeeName}
+                </p>
+                <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
+                  {stageData.completedAt
+                    ? new Date(stageData.completedAt).toLocaleDateString('en-IN')
+                    : ''}
+                </p>
               </div>
-            )
-          })}
+              {(stageData.award||0) > 0 && (
+                <div style={{ textAlign:'right' }}>
+                  <p style={{ fontSize:'0.68rem', color:'#9CA3AF',
+                    fontWeight:600 }}>AWARDED</p>
+                  <p style={{ fontSize:'1rem', fontWeight:800,
+                    color:'#059669' }}>
+                    ₹{stageData.award.toLocaleString('en-IN')}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* WhatsApp notify — ONLY on finishing stage */}
+            {stage === 'finishing' && waPhone && (
+              <a
+                href={waURL}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display:'flex', alignItems:'center',
+                  justifyContent:'center', gap:8,
+                  width:'100%', padding:'11px',
+                  background:'linear-gradient(135deg,#25D366,#128C7E)',
+                  color:'white', borderRadius:10,
+                  textDecoration:'none',
+                  fontFamily:'Poppins,sans-serif', fontWeight:600,
+                  fontSize:'0.85rem', marginTop:8,
+                  boxShadow:'0 4px 12px rgba(37,211,102,0.25)',
+                }}>
+                <span style={{ fontSize:'1.1rem' }}>💬</span>
+                Notify Customer on WhatsApp
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* Locked */}
+        {isLocked && (
+          <div style={{ textAlign:'center', padding:'16px 0',
+            color:'#9CA3AF' }}>
+            <p style={{ fontSize:'0.82rem' }}>
+              🔒 Complete {idx > 0 ? STAGE_INFO[STAGES[idx-1]].label : ''} first
+            </p>
+          </div>
+        )}
+
+      </div>
+    </div>
+  )
+})}
 
         </div>
       </div>
