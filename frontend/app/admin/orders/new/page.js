@@ -499,14 +499,15 @@ export default function NewOrder() {
           )}
         </div>
 
-        {/* ② Cloth Type → Type → Subtype */}
+        
+        {/* ② Cloth Type → Type → Subtype → Alteration (all in one card) */}
         <div className="glass" style={{ padding:24 }}>
           <h2 style={{ fontWeight:700, color:'#1E1B4B',
             marginBottom:6, fontSize:'0.95rem' }}>
-            ② Cloth Type
+            ② Cloth Type & Alteration
           </h2>
           <p style={{ fontSize:'0.78rem', color:'#6B7280', marginBottom:16 }}>
-            Select cloth type → type → subtype in order
+            Select cloth type → type → subtype → alteration in order
           </p>
 
           {/* Step 1 — Cloth Type */}
@@ -524,16 +525,29 @@ export default function NewOrder() {
                       setSelectedClothType(ct)
                       setSelectedType(null)
                       setSelectedSubtype(null)
+                      setForm(f => ({
+                        ...f,
+                        unitCost:  0,
+                        alteration: {
+                          required:        false,
+                          selectedOptions: [],
+                          notes:           '',
+                          extraCost:       0,
+                        },
+                      }))
                     }}
                     style={{ padding:'8px 16px', borderRadius:999,
                       cursor:'pointer', fontFamily:'Poppins,sans-serif',
-                      fontWeight:600, fontSize:'0.82rem', transition:'all 0.2s',
+                      fontWeight:600, fontSize:'0.82rem',
+                      transition:'all 0.2s',
                       border:   selectedClothType?._id===ct._id
-                        ? '2px solid #4F46E5':'1.5px solid rgba(79,70,229,0.2)',
+                        ? '2px solid #4F46E5'
+                        : '1.5px solid rgba(79,70,229,0.2)',
                       background: selectedClothType?._id===ct._id
-                        ? 'rgba(79,70,229,0.1)':'rgba(255,255,255,0.7)',
-                      color:    selectedClothType?._id===ct._id
-                        ? '#4F46E5':'#6B7280' }}>
+                        ? 'rgba(79,70,229,0.1)'
+                        : 'rgba(255,255,255,0.7)',
+                      color: selectedClothType?._id===ct._id
+                        ? '#4F46E5' : '#6B7280' }}>
                     {ct.name}
                   </button>
                 ))}
@@ -543,224 +557,238 @@ export default function NewOrder() {
 
           {/* Step 2 — Type */}
           {selectedClothType && (
-            <div style={{ marginBottom:16 }}>
-              <label className="input-label">
-                STEP 2 — TYPE ({selectedClothType.name})
-              </label>
-              {(selectedClothType.types||[]).filter(t=>t.isActive).length === 0 ? (
-                <p style={{ color:'#9CA3AF', fontSize:'0.85rem' }}>
-                  No types added yet. Go to Cloth Type Management.
-                </p>
-              ) : (
-                <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                  {(selectedClothType.types||[])
-                    .filter(t => t.isActive)
-                    .map(type => (
-                    <button key={type._id}
-                      onClick={() => {
-                        setSelectedType(type)
-                        setSelectedSubtype(null)
-                      }}
-                      style={{ padding:'8px 16px', borderRadius:999,
-                        cursor:'pointer', fontFamily:'Poppins,sans-serif',
-                        fontWeight:600, fontSize:'0.82rem', transition:'all 0.2s',
-                        border:   selectedType?._id===type._id
-                          ? '2px solid #D97706':'1.5px solid rgba(245,158,11,0.25)',
-                        background: selectedType?._id===type._id
-                          ? 'rgba(245,158,11,0.1)':'rgba(255,255,255,0.7)',
-                        color:    selectedType?._id===type._id
-                          ? '#D97706':'#6B7280' }}>
-                      {type.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <>
+              <div style={{ height:1, background:'rgba(79,70,229,0.08)',
+                margin:'16px 0' }} />
+              <div style={{ marginBottom:16 }}>
+                <label className="input-label">
+                  STEP 2 — TYPE ({selectedClothType.name})
+                </label>
+                {(selectedClothType.types||[]).filter(t=>t.isActive).length === 0 ? (
+                  <p style={{ color:'#9CA3AF', fontSize:'0.85rem' }}>
+                    No types added. Go to Cloth Type Management.
+                  </p>
+                ) : (
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                    {(selectedClothType.types||[])
+                      .filter(t => t.isActive)
+                      .map(type => (
+                      <button key={type._id}
+                        onClick={() => {
+                          setSelectedType(type)
+                          setSelectedSubtype(null)
+                          setForm(f => ({ ...f, unitCost:0 }))
+                        }}
+                        style={{ padding:'8px 16px', borderRadius:999,
+                          cursor:'pointer', fontFamily:'Poppins,sans-serif',
+                          fontWeight:600, fontSize:'0.82rem',
+                          transition:'all 0.2s',
+                          border:   selectedType?._id===type._id
+                            ? '2px solid #D97706'
+                            : '1.5px solid rgba(245,158,11,0.25)',
+                          background: selectedType?._id===type._id
+                            ? 'rgba(245,158,11,0.1)'
+                            : 'rgba(255,255,255,0.7)',
+                          color: selectedType?._id===type._id
+                            ? '#D97706' : '#6B7280' }}>
+                        {type.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           {/* Step 3 — Subtype */}
           {selectedClothType && selectedType && (
-            <div style={{ marginBottom:16 }}>
-              <label className="input-label">
-                STEP 3 — SUBTYPE ({selectedType.name})
-              </label>
-              {(selectedType.subtypes||[]).filter(s=>s.isActive).length === 0 ? (
-                <p style={{ color:'#9CA3AF', fontSize:'0.85rem' }}>
-                  No subtypes added yet.
-                </p>
-              ) : (
-                <div style={{ display:'grid',
-                  gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',
-                  gap:10 }}>
-                  {(selectedType.subtypes||[])
-                    .filter(s => s.isActive)
-                    .map(sub => (
-                    <div key={sub._id}
-                      onClick={() => {
-                        setSelectedSubtype(sub)
-                        setForm(f => ({ ...f, unitCost:sub.cost||0 }))
-                      }}
-                      style={{ padding:'14px 16px', borderRadius:12,
-                        cursor:'pointer', transition:'all 0.2s',
-                        border:   selectedSubtype?._id===sub._id
-                          ? '2px solid #10B981':'1.5px solid rgba(79,70,229,0.15)',
-                        background: selectedSubtype?._id===sub._id
-                          ? 'rgba(16,185,129,0.08)':'rgba(255,255,255,0.7)' }}>
-                      <p style={{ fontWeight:700, fontSize:'0.9rem',
-                        color:selectedSubtype?._id===sub._id?'#059669':'#1E1B4B' }}>
-                        {sub.name}
-                      </p>
-                      <p style={{ fontWeight:700, fontSize:'0.88rem',
-                        color:'#059669', marginTop:4 }}>
-                        ₹{(sub.cost||0).toLocaleString('en-IN')}
-                      </p>
-                      {selectedSubtype?._id===sub._id && (
-                        <p style={{ fontSize:'0.7rem', color:'#059669',
-                          marginTop:2 }}>✓ Selected</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <>
+              <div style={{ height:1, background:'rgba(79,70,229,0.08)',
+                margin:'16px 0' }} />
+              <div style={{ marginBottom:16 }}>
+                <label className="input-label">
+                  STEP 3 — SUBTYPE ({selectedType.name})
+                </label>
+                {(selectedType.subtypes||[]).filter(s=>s.isActive).length === 0 ? (
+                  <p style={{ color:'#9CA3AF', fontSize:'0.85rem' }}>
+                    No subtypes added yet.
+                  </p>
+                ) : (
+                  <div style={{ display:'grid',
+                    gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',
+                    gap:10 }}>
+                    {(selectedType.subtypes||[])
+                      .filter(s => s.isActive)
+                      .map(sub => (
+                      <div key={sub._id}
+                        onClick={() => {
+                          setSelectedSubtype(sub)
+                          setForm(f => ({ ...f, unitCost: sub.cost || 0 }))
+                        }}
+                        style={{ padding:'14px 16px', borderRadius:12,
+                          cursor:'pointer', transition:'all 0.2s',
+                          border:   selectedSubtype?._id===sub._id
+                            ? '2px solid #10B981'
+                            : '1.5px solid rgba(79,70,229,0.15)',
+                          background: selectedSubtype?._id===sub._id
+                            ? 'rgba(16,185,129,0.08)'
+                            : 'rgba(255,255,255,0.7)' }}>
+                        <p style={{ fontWeight:700, fontSize:'0.9rem',
+                          color: selectedSubtype?._id===sub._id
+                            ? '#059669' : '#1E1B4B' }}>
+                          {sub.name}
+                        </p>
+                        <p style={{ fontWeight:700, fontSize:'0.88rem',
+                          color:'#059669', marginTop:4 }}>
+                          ₹{(sub.cost||0).toLocaleString('en-IN')}
+                        </p>
+                        {selectedSubtype?._id===sub._id && (
+                          <p style={{ fontSize:'0.7rem', color:'#059669',
+                            marginTop:2 }}>✓ Selected</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
-          {/* Summary */}
+          {/* Summary bar */}
           {selectedClothType && selectedType && selectedSubtype && (
-            <div style={{ padding:'12px 16px',
+            <div style={{ padding:'10px 14px',
               background:'rgba(79,70,229,0.06)',
-              border:'1.5px solid rgba(79,70,229,0.2)',
-              borderRadius:10 }}>
+              border:'1.5px solid rgba(79,70,229,0.15)',
+              borderRadius:10, marginBottom:16 }}>
               <p style={{ fontSize:'0.82rem', color:'#4F46E5', fontWeight:600 }}>
                 ✓ {selectedClothType.name} → {selectedType.name} → {selectedSubtype.name}
-                <span style={{ marginLeft:8, color:'#059669' }}>
+                <span style={{ marginLeft:8, color:'#059669', fontWeight:700 }}>
                   ₹{(selectedSubtype.cost||0).toLocaleString('en-IN')}
                 </span>
               </p>
             </div>
           )}
-        </div>
 
-        {/* ③ Payment */}
-        <div className="glass" style={{ padding:24,
-          background:'rgba(16,185,129,0.02)',
-          border:'1.5px solid rgba(16,185,129,0.15)' }}>
-          <h2 style={{ fontWeight:700, color:'#1E1B4B',
-            marginBottom:16, fontSize:'0.95rem' }}>
-            ③ Payment
-          </h2>
-          <div style={{ display:'grid',
-            gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',
-            gap:14 }}>
-            <div>
-              <label className="input-label">ORDER COST (₹)</label>
-              <NumInput prefix="₹" value={form.unitCost}
-                onChange={val => setForm({...form,unitCost:val})}
-                placeholder="0"
-                style={{ border:'1.5px solid rgba(16,185,129,0.25)' }} />
-              <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:4 }}>
-                Auto-filled from subtype
+          {/* Step 4 — Alteration (shows only after subtype selected) */}
+          {selectedClothType && selectedType && selectedSubtype && (
+            <>
+              <div style={{ height:1, background:'rgba(79,70,229,0.08)',
+                margin:'4px 0 16px' }} />
+
+              <label className="input-label">
+                STEP 4 — ALTERATION ({selectedClothType.name})
+              </label>
+              <p style={{ fontSize:'0.75rem', color:'#6B7280', marginBottom:14 }}>
+                Select applicable alterations. Extra costs are added automatically.
               </p>
-            </div>
-            <div>
-              <label className="input-label">AMOUNT SETTLED (₹)</label>
-              <NumInput prefix="₹" value={form.amountSettled}
-                onChange={val => setForm({...form,amountSettled:val})}
-                placeholder="0"
-                style={{ border:'1.5px solid rgba(16,185,129,0.25)' }} />
-            </div>
-            <div>
-              <label className="input-label">BALANCE (AUTO)</label>
-              <div style={{ padding:'13px 16px',
-                background:balance>0
-                  ? 'rgba(239,68,68,0.06)':'rgba(16,185,129,0.08)',
-                border:`1.5px solid ${balance>0
-                  ? 'rgba(239,68,68,0.2)':'rgba(16,185,129,0.15)'}`,
-                borderRadius:10, display:'flex',
-                alignItems:'center', gap:8 }}>
-                <span style={{ color:'#9CA3AF' }}>₹</span>
-                <span style={{ fontSize:'1.1rem', fontWeight:700,
-                  color:balance>0?'#DC2626':form.unitCost>0?'#059669':'#9CA3AF' }}>
-                  {form.unitCost>0
-                    ? (balance===0?'0 ✅':balance.toLocaleString('en-IN'))
-                    : '—'}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* ④ Order Details */}
-        <div className="glass" style={{ padding:24 }}>
-          <h2 style={{ fontWeight:700, color:'#1E1B4B',
-            marginBottom:16, fontSize:'0.95rem' }}>
-            ④ Order Details
-          </h2>
-          <div style={{ display:'grid',
-            gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',
-            gap:14 }}>
-            <div>
-              <label className="input-label">QUANTITY</label>
-              <NumInput value={form.quantity}
-                onChange={val => setForm({...form,
-                  quantity:Math.max(1,Math.round(val))})}
-                placeholder="1" min={1} />
-            </div>
-            <div>
-              <label className="input-label">DELIVERY DATE</label>
-              <input type="date" value={form.deliveryDate}
-                onChange={e => {
-                  setForm({...form,deliveryDate:e.target.value})
-                  checkDelivery(e.target.value)
-                }}
-                className="input-field"
-                min={new Date().toISOString().split('T')[0]} />
-            </div>
-          </div>
+              {loadingAlterations ? (
+                <p style={{ color:'#9CA3AF', fontSize:'0.85rem' }}>
+                  Loading alterations...
+                </p>
+              ) : alterationOptions.length === 0 ? (
+                <p style={{ color:'#9CA3AF', fontSize:'0.85rem' }}>
+                  No alteration options for {selectedClothType.name}.
+                  Add them in Alteration Management.
+                </p>
+              ) : (
+                <div style={{ display:'grid',
+                  gridTemplateColumns:'repeat(auto-fill,minmax(190px,1fr))',
+                  gap:10, marginBottom:16 }}>
+                  {alterationOptions.map(opt => {
+                    const isSelected = (form.alteration.selectedOptions||[])
+                      .includes(opt.name)
+                    return (
+                      <div key={opt._id}
+                        onClick={() => {
+                          const current = form.alteration.selectedOptions || []
+                          const updated = isSelected
+                            ? current.filter(o => o !== opt.name)
+                            : [...current, opt.name]
+                          const totalExtra = alterationOptions
+                            .filter(o => updated.includes(o.name))
+                            .reduce((sum,o) => sum+(o.extraCost||0), 0)
+                          setForm(f => ({
+                            ...f,
+                            alteration: {
+                              ...f.alteration,
+                              required:        updated.length > 0,
+                              selectedOptions: updated,
+                              extraCost:       totalExtra,
+                            },
+                          }))
+                        }}
+                        style={{ padding:'12px 14px', borderRadius:10,
+                          cursor:'pointer', transition:'all 0.2s',
+                          border:    isSelected
+                            ? '2px solid #4F46E5'
+                            : '1.5px solid rgba(79,70,229,0.15)',
+                          background: isSelected
+                            ? 'rgba(79,70,229,0.08)'
+                            : 'rgba(255,255,255,0.7)' }}>
+                        <div style={{ display:'flex',
+                          justifyContent:'space-between',
+                          alignItems:'flex-start', marginBottom:4 }}>
+                          <span style={{ fontWeight:600, fontSize:'0.85rem',
+                            color:isSelected?'#4F46E5':'#1E1B4B' }}>
+                            {isSelected && '✓ '}{opt.name}
+                          </span>
+                          {(opt.extraCost||0) > 0 && (
+                            <span style={{ fontSize:'0.72rem', fontWeight:700,
+                              color:'#059669', flexShrink:0, marginLeft:4 }}>
+                              +₹{opt.extraCost}
+                            </span>
+                          )}
+                        </div>
+                        {opt.description && (
+                          <p style={{ fontSize:'0.72rem', color:'#9CA3AF',
+                            lineHeight:1.4 }}>
+                            {opt.description}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
 
-          {deliveryInfo && (
-            <div style={{ marginTop:14, padding:'12px 16px',
-              background:deliveryInfo.isOverloaded
-                ? 'rgba(239,68,68,0.06)':'rgba(16,185,129,0.06)',
-              border:`1.5px solid ${deliveryInfo.isOverloaded
-                ? 'rgba(239,68,68,0.2)':'rgba(16,185,129,0.2)'}`,
-              borderRadius:10 }}>
-              <p style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:6,
-                color:deliveryInfo.isOverloaded?'#DC2626':'#059669' }}>
-                {deliveryInfo.isOverloaded
-                  ? '⚠️ High delivery load.' : '✅ Date available'}
-              </p>
-              <div style={{ background:'rgba(255,255,255,0.5)',
-                borderRadius:6, height:8, overflow:'hidden' }}>
-                <div style={{ height:'100%',
-                  width:`${Math.min(deliveryInfo.percentUsed||0,100)}%`,
-                  background:deliveryInfo.isOverloaded?'#EF4444':'#10B981',
-                  borderRadius:6 }} />
+              {/* Selected summary */}
+              {(form.alteration.selectedOptions||[]).length > 0 && (
+                <div style={{ background:'rgba(79,70,229,0.05)',
+                  borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
+                  <p style={{ fontSize:'0.8rem', color:'#4F46E5',
+                    fontWeight:600, marginBottom:2 }}>
+                    Selected: {form.alteration.selectedOptions.join(', ')}
+                  </p>
+                  {(form.alteration.extraCost||0) > 0 && (
+                    <p style={{ fontSize:'0.8rem', color:'#059669', fontWeight:700 }}>
+                      Extra: ₹{(form.alteration.extraCost||0).toLocaleString('en-IN')}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Additional notes */}
+              <div>
+                <label className="input-label">ADDITIONAL NOTES (OPTIONAL)</label>
+                <textarea
+                  value={form.alteration.notes||''}
+                  onChange={e => setForm(f => ({
+                    ...f,
+                    alteration: { ...f.alteration, notes:e.target.value }
+                  }))}
+                  placeholder="Any additional alteration details..."
+                  rows={2}
+                  style={{ width:'100%', padding:'11px 14px',
+                    background:'rgba(255,255,255,0.8)',
+                    border:'1.5px solid rgba(79,70,229,0.2)',
+                    borderRadius:10, fontFamily:'Poppins,sans-serif',
+                    fontSize:'0.88rem', color:'#1E1B4B',
+                    outline:'none', resize:'vertical' }}
+                />
               </div>
-            </div>
+            </>
           )}
-
-          <div style={{ marginTop:14, display:'grid', gap:14 }}>
-            <div>
-              <label className="input-label">FABRIC NOTES</label>
-              <input type="text" value={form.fabricNotes}
-                onChange={e => setForm({...form,fabricNotes:e.target.value})}
-                placeholder="e.g. Pure cotton, pre-washed"
-                className="input-field" />
-            </div>
-            <div>
-              <label className="input-label">SPECIAL INSTRUCTIONS</label>
-              <textarea value={form.specialInstructions}
-                onChange={e => setForm({...form,specialInstructions:e.target.value})}
-                placeholder="Any special instructions..." rows={3}
-                style={{ width:'100%', padding:'12px 16px',
-                  background:'rgba(255,255,255,0.8)',
-                  border:'1.5px solid rgba(79,70,229,0.2)',
-                  borderRadius:10, fontFamily:'Poppins,sans-serif',
-                  fontSize:'0.9rem', color:'#1E1B4B',
-                  outline:'none', resize:'vertical' }} />
-            </div>
-          </div>
         </div>
 
         {/* ⑤ Measurements */}
