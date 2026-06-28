@@ -194,12 +194,20 @@ function ScanContent() {
         )}
 
         {/* ── Cloth Type Details ── */}
+        
         <div style={{ background:'white', borderRadius:16, padding:'20px',
           marginBottom:14, boxShadow:'0 2px 12px rgba(0,0,0,0.06)' }}>
           <p style={{ fontSize:'0.68rem', color:'#9CA3AF', fontWeight:700,
             textTransform:'uppercase', letterSpacing:'1px', marginBottom:14 }}>
             🧶 Cloth Details
           </p>
+          {/* In the cloth details card */}
+            <p style={{ fontSize:'0.78rem', color:stageInfo.color, fontWeight:600 }}>
+              {data.orderID} · {data.clothType}
+            </p>
+            {data.clothTypeTa && (
+              <p style={{ fontSize:'0.72rem', color:'#9CA3AF' }}>{data.clothTypeTa}</p>
+            )}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
             <div style={{ background:'#EEF2FF', borderRadius:12,
               padding:'12px 10px', textAlign:'center' }}>
@@ -268,26 +276,28 @@ function ScanContent() {
           ) : (
             <div style={{ display:'grid',
               gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
-              {Object.entries(measurements)
-                .filter(([, v]) => v && v.trim() !== '')
-                .map(([key, val]) => (
-                  <div key={key} style={{ background:'#EEF2FF',
-                    borderRadius:12, padding:'14px' }}>
-                    <p style={{ fontSize:'0.63rem', color:'#6B7280',
-                      fontWeight:600, textTransform:'uppercase',
-                      letterSpacing:'0.5px', marginBottom:4 }}>
-                      {MEASUREMENT_LABELS[key] || key}
+              {/* In the measurements grid, update to show Tamil */}
+              {Object.entries(measurements).filter(([,v])=>v && v.trim()!=='').map(([k,v]) => {
+                // Get Tamil label from cloth type data if available
+                const tamilLabels = {
+                  length:'நீளம்', chest:'மார்பு', waist:'இடுப்பு',
+                  hip:'இடுப்பகல்', shoulder:'தோள்', sleeve:'கை நீளம்',
+                  neck:'கழுத்து', inseam:'உள் தையல்', thigh:'தொடை', custom:'தனிப்பயன்',
+                }
+                return (
+                  <div key={k} style={{ background:'#EEF2FF', borderRadius:10, padding:'12px 14px' }}>
+                    <p style={{ fontSize:'0.63rem', color:'#6B7280', fontWeight:600, textTransform:'uppercase', marginBottom:2 }}>
+                      {MEASUREMENT_LABELS[k] || k}
                     </p>
-                    <p style={{ fontSize:'1.5rem', fontWeight:800,
-                      color:'#4F46E5', lineHeight:1 }}>
-                      {val}
-                      <span style={{ fontSize:'0.75rem',
-                        color:'#9CA3AF', marginLeft:2 }}>
-                        "
-                      </span>
+                    <p style={{ fontSize:'0.68rem', color:'#9CA3AF', marginBottom:4 }}>
+                      {tamilLabels[k] || ''}
+                    </p>
+                    <p style={{ fontSize:'1.3rem', fontWeight:800, color:'#4F46E5', lineHeight:1 }}>
+                      {v}<span style={{ fontSize:'0.75rem', color:'#9CA3AF', marginLeft:2 }}>"</span>
                     </p>
                   </div>
-                ))}
+                )
+              })}
             </div>
           )}
         </div>

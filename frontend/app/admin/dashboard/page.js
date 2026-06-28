@@ -27,6 +27,7 @@ export default function AdminDashboard() {
   const [showEmployees, setShowEmployees]     = useState(false)
   const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [sortByDate, setSortByDate]           = useState(false)
+  const [showNavMenu, setShowNavMenu] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken')
@@ -36,6 +37,11 @@ export default function AdminDashboard() {
     fetchData()
   }, [])
 
+  useEffect(() => {
+  const close = () => setShowNavMenu(false)
+  document.addEventListener('click', close)
+  return () => document.removeEventListener('click', close)
+}, [])
   const fetchData = async () => {
     try {
       const [statsRes, ordersRes, empRes] = await Promise.all([
@@ -107,15 +113,17 @@ export default function AdminDashboard() {
     }
   }
 
-  let filtered = orders.filter(o =>
-    applyFilter(o) &&
-    (!search || (
-      (o.orderID?.toLowerCase()||'').includes(search.toLowerCase()) ||
-      (o.customerID?.toLowerCase()||'').includes(search.toLowerCase()) ||
-      (o.clothType?.toLowerCase()||'').includes(search.toLowerCase()) ||
-      (o.customerRef?.name?.toLowerCase()||'').includes(search.toLowerCase())
-    ))
-  )
+  // Replace the filtered orders logic:
+let filtered = orders.filter(o =>
+  applyFilter(o) &&
+  (!search || (
+    (o.orderID?.toLowerCase()||'').includes(search.toLowerCase()) ||
+    (o.customerID?.toLowerCase()||'').includes(search.toLowerCase()) ||
+    (o.clothType?.toLowerCase()||'').includes(search.toLowerCase()) ||
+    (o.customerRef?.name?.toLowerCase()||'').includes(search.toLowerCase()) ||
+    (o.customerRef?.phone||'').includes(search) // ← ADD PHONE SEARCH
+  ))
+)
 
   if (sortByDate) {
     filtered = [...filtered].sort((a,b) => new Date(a.deliveryDate) - new Date(b.deliveryDate))
@@ -177,39 +185,45 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
-          <button onClick={() => router.push('/admin/customers')} className="btn-ghost"
-            style={{ padding:'8px 14px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}>
-            <Users size={14} /> Customers
-          </button>
-          <button onClick={() => router.push('/admin/employees')} className="btn-ghost"
-            style={{ padding:'8px 14px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}>
-            <Users size={14} /> Employees
-          </button>
+          {/* Replace multiple buttons with dropdown */}
+          <div style={{ position:'relative' }}>
+            <button
+              onClick={e => { e.stopPropagation(); setShowNavMenu(!showNavMenu) }}
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'9px 16px', background:'rgba(79,70,229,0.08)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, color:'#4F46E5', fontSize:'0.85rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif' }}>
+              ☰ Menu {showNavMenu ? '▲' : '▼'}
+            </button>
+
+            {showNavMenu && (
+              <div style={{ position:'absolute', right:0, top:'110%', background:'white', borderRadius:14, boxShadow:'0 8px 32px rgba(79,70,229,0.18)', border:'1.5px solid rgba(79,70,229,0.12)', zIndex:200, minWidth:200, overflow:'hidden' }}>
+                {[
+                  { icon:'👥', label:'Customers',         path:'/admin/customers'          },
+                  { icon:'👷', label:'Employees',          path:'/admin/employees'          },
+                  { icon:'✂️', label:'Cloth Types',        path:'/admin/cloth-types'        },
+                  { icon:'🪡', label:'Alteration Options', path:'/admin/alteration-options' },
+                  { icon:'💬', label:'Offers & Messages',  path:'/admin/offers'             },
+                  { icon:'📱', label:'Scan QR',            path:'/admin/scan'               },
+                ].map((item, i) => (
+                  <button key={i}
+                    onClick={() => { router.push(item.path); setShowNavMenu(false) }}
+                    style={{ width:'100%', padding:'12px 18px', background:'none', border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:12, fontFamily:'Poppins,sans-serif', fontSize:'0.88rem', fontWeight:600, color:'#1E1B4B', textAlign:'left', borderBottom:i<5?'1px solid rgba(79,70,229,0.07)':'none', transition:'background 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background='rgba(79,70,229,0.05)'}
+                    onMouseLeave={e => e.currentTarget.style.background='none'}>
+                    <span style={{ fontSize:'1rem' }}>{item.icon}</span>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button onClick={() => router.push('/admin/orders/new')} className="btn-primary"
             style={{ padding:'8px 16px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}>
             <Plus size={14} /> New Order
-          </button>
-          <button onClick={() => router.push('/admin/cloth-types')} className="btn-ghost"
-            style={{ padding:'8px 14px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}>
-            ✂️ Cloth Types
-          </button>
-          <button onClick={() => router.push('/admin/alteration-options')} className="btn-ghost"
-            style={{ padding:'8px 14px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}>
-            🪡 Alterations
-          </button>
-          <button onClick={() => router.push('/admin/scan')} className="btn-ghost"
-            style={{ padding:'8px 14px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}>
-            📱 Scan QR
           </button>
           <button onClick={handleLogout}
             style={{ display:'flex', alignItems:'center', gap:5, background:'rgba(239,68,68,0.08)', border:'1.5px solid rgba(239,68,68,0.2)', borderRadius:8, padding:'8px 14px', color:'#DC2626', fontSize:'0.8rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif' }}>
             <LogOut size={14} /> Logout
           </button>
-          <button onClick={() => router.push('/admin/offers')} className="btn-ghost"
-            style={{ padding:'8px 14px', fontSize:'0.8rem',
-              display:'flex', alignItems:'center', gap:5 }}>
-            💬 Offers
-          </button>
+         
         </div>
       </div>
 

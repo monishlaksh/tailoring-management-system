@@ -3,6 +3,10 @@ const Order     = require('../models/Order')
 const Allotment = require('../models/Allotment')
 const router    = express.Router()
 
+// In the scan response, add Tamil cloth type
+const clothTypeName = order.clothType?.split(' - ')[0] || ''
+const ctDoc = await require('../models/ClothType').findOne({ name:clothTypeName }).lean()
+
 router.get('/:orderID', async (req, res) => {
   try {
     const cleanID = req.params.orderID.trim().toUpperCase()
@@ -33,11 +37,11 @@ router.get('/:orderID', async (req, res) => {
     const allotment = await Allotment.findOne({
       orderID: order.orderID
     }).lean()
-
     const response = {
       success:      true,
       orderID:      order.orderID,
       clothType:    order.clothType,
+      clothTypeTa:  ctDoc?.nameTa || '',
       quantity:     order.quantity,
       measurements: order.measurements || {},
       fabricNotes:  order.fabricNotes  || '',
