@@ -498,41 +498,7 @@ export default function NewOrder() {
             </>
           )}
         </div>
-          {/* Order Details */}
-                  <div className="glass fade-up-1" style={{ padding:24 }}>
-                    <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>Order Details</h2>
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:14 }}>
-                      <div>
-                        <label className="input-label">CLOTH TYPE</label>
-                        <select value={form.clothType} onChange={e => setForm({...form,clothType:e.target.value})}
-                          style={{ width:'100%', padding:'13px 16px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none' }}>
-                          {['Blouse','Chudi','Saree Blouse','Shirt','Pant','Lehenga','Kids Dress','Custom Dress'].map(t=><option key={t}>{t}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="input-label">QUANTITY</label>
-                        <NumInput
-                          value={form.quantity}
-                          onChange={val => setForm({ ...form, quantity: Math.max(1, Math.round(val)) })}
-                          placeholder="1"
-                          min={1}
-                        />
-                      </div>
-                      <div>
-                        <label className="input-label">DELIVERY DATE</label>
-                        <input type="date" value={form.deliveryDate} onChange={e => setForm({...form,deliveryDate:e.target.value})} className="input-field" />
-                      </div>
-                      <div>
-                        <label className="input-label">FABRIC NOTES</label>
-                        <input type="text" value={form.fabricNotes} onChange={e => setForm({...form,fabricNotes:e.target.value})} placeholder="Fabric notes" className="input-field" />
-                      </div>
-                    </div>
-                    <div style={{ marginTop:14 }}>
-                      <label className="input-label">SPECIAL INSTRUCTIONS</label>
-                      <textarea value={form.specialInstructions} onChange={e => setForm({...form,specialInstructions:e.target.value})} rows={3}
-                        style={{ width:'100%', padding:'12px 16px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none', resize:'vertical' }} />
-                    </div>
-                  </div>
+          
         
         {/* ② Cloth Type → Type → Subtype → Alteration (all in one card) */}
         <div className="glass" style={{ padding:24 }}>
