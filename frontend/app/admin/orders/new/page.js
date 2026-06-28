@@ -786,6 +786,63 @@ export default function NewOrder() {
                     fontSize:'0.88rem', color:'#1E1B4B',
                     outline:'none', resize:'vertical' }}
                 />
+                {/* Step 5 — Delivery Date (always visible after cloth type selected) */}
+                {selectedClothType && selectedType && selectedSubtype && (
+                  <>
+                    <div style={{ height:1, background:'rgba(79,70,229,0.08)', margin:'16px 0' }} />
+                    <div>
+                      <label className="input-label">STEP 5 — DELIVERY DATE *</label>
+                      <input
+                        type="date"
+                        value={form.deliveryDate}
+                        onChange={e => {
+                          setForm({...form, deliveryDate:e.target.value})
+                          checkDelivery(e.target.value)
+                        }}
+                        min={new Date().toISOString().split('T')[0]}
+                        style={{
+                          width:'100%', padding:'13px 16px',
+                          background:'rgba(255,255,255,0.8)',
+                          border: form.deliveryDate
+                            ? '1.5px solid rgba(16,185,129,0.4)'
+                            : '1.5px solid rgba(239,68,68,0.3)',
+                          borderRadius:10, fontFamily:'Poppins,sans-serif',
+                          fontSize:'0.9rem', color:'#1E1B4B', outline:'none',
+                        }}
+                      />
+                      {!form.deliveryDate && (
+                        <p style={{ fontSize:'0.72rem', color:'#DC2626',
+                          marginTop:4, fontWeight:500 }}>
+                          ⚠️ Delivery date is required to save the order
+                        </p>
+                      )}
+                      {form.deliveryDate && (
+                        <p style={{ fontSize:'0.72rem', color:'#059669',
+                          marginTop:4, fontWeight:500 }}>
+                          ✅ {new Date(form.deliveryDate).toLocaleDateString('en-IN', {
+                            weekday:'long', day:'numeric', month:'long', year:'numeric'
+                          })}
+                        </p>
+                      )}
+                    </div>
+
+                    {deliveryInfo && (
+                      <div style={{ marginTop:10, padding:'10px 14px',
+                        background:deliveryInfo.isOverloaded
+                          ? 'rgba(239,68,68,0.06)' : 'rgba(16,185,129,0.06)',
+                        border:`1px solid ${deliveryInfo.isOverloaded
+                          ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}`,
+                        borderRadius:10 }}>
+                        <p style={{ fontSize:'0.82rem', fontWeight:600,
+                          color:deliveryInfo.isOverloaded?'#DC2626':'#059669' }}>
+                          {deliveryInfo.isOverloaded
+                            ? '⚠️ High delivery load on this date'
+                            : '✅ Date available'}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </>
           )}
