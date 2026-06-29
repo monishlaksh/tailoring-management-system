@@ -53,6 +53,8 @@ export default function ClothTypesPage() {
   const [editingSub, setEditingSub] = useState(null)
   const [editSub, setEditSub]       = useState({ name:'', nameTa:'', cost:0 })
 
+  const [copied, setCopied] = useState(null)
+
   useEffect(() => {
     if (!localStorage.getItem('adminToken')) { router.push('/admin/login'); return }
     fetchData()
@@ -78,6 +80,16 @@ export default function ClothTypesPage() {
       return [...prev, { key, label, labelTa, required:false }]
     })
   }
+
+  {/* Add this BEFORE the measurement toggles */}
+const MEASUREMENT_PRESETS = {
+  'Blouse / Saree Blouse': ['length','chest','shoulder','sleeve','neck'],
+  'Chudi / Kurti':         ['length','chest','waist','hip','shoulder','sleeve'],
+  'Pant / Trouser':        ['length','waist','hip','inseam','thigh'],
+  'Shirt':                 ['length','chest','shoulder','sleeve','neck'],
+  'Lehenga / Skirt':       ['length','waist','hip'],
+  'Kids Dress':            ['length','chest','waist'],
+}
 
   const toggleRequired = (key) => {
     setNewMeasurements(prev =>
@@ -229,6 +241,40 @@ export default function ClothTypesPage() {
             </div>
           </div>
 
+          {/* Measurement Presets — copy from existing cloth types */}
+          <div style={{ marginBottom:12 }}>
+            <p style={{ fontSize:'0.75rem', color:'#6B7280',
+              fontWeight:600, marginBottom:8 }}>
+              📋 QUICK COPY FROM PRESET
+            </p>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+              {Object.entries(MEASUREMENT_PRESETS).map(([label, keys]) => (
+                <button key={label} type="button"
+                  onClick={() => {
+                    const fields = keys.map(k => {
+                      const m = COMMON_MEASUREMENTS.find(x => x.key === k)
+                      return m ? { key:m.key, label:m.label, labelTa:m.labelTa, required:false } : null
+                    }).filter(Boolean)
+                    setNewMeasurements(fields)
+                    setCopied(label)
+                    setTimeout(() => setCopied(null), 2000)
+                  }}
+                  style={{ padding:'6px 14px', borderRadius:999, cursor:'pointer',
+                    fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.78rem',
+                    border:'1.5px solid rgba(79,70,229,0.2)',
+                    background: copied===label
+                      ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.8)',
+                    color: copied===label ? '#059669' : '#4F46E5',
+                    transition:'all 0.2s' }}>
+                  {copied===label ? '✅ Copied!' : `📋 ${label}`}
+                </button>
+              ))}
+            </div>
+            <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:6 }}>
+              Click a preset to auto-fill measurement fields, then customize as needed
+            </p>
+          </div>
+
           {/* Measurement fields selector */}
           <div style={{ marginBottom:16 }}>
             <label className="input-label">SELECT MEASUREMENT FIELDS FOR THIS CLOTH TYPE</label>
@@ -236,6 +282,7 @@ export default function ClothTypesPage() {
               {COMMON_MEASUREMENTS.map(m => {
                 const selected = newMeasurements.find(x => x.key === m.key)
                 return (
+                  
                   <button key={m.key} type="button"
                     onClick={() => toggleMeasurement(m.key, m.label, m.labelTa)}
                     style={{ padding:'6px 14px', borderRadius:999, cursor:'pointer',
@@ -368,37 +415,44 @@ export default function ClothTypesPage() {
                     </div>
                     {/* Edit measurements inline */}
                     <details>
-                      <summary style={{ fontSize:'0.78rem', color:'#4F46E5', cursor:'pointer', fontWeight:600 }}>
+                      <summary style={{ fontSize:'0.78rem', color:'#4F46E5',
+                        cursor:'pointer', fontWeight:600 }}>
                         Edit measurement fields
                       </summary>
                       <div style={{ marginTop:10 }}>
-                        <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:8 }}>
-                          {COMMON_MEASUREMENTS.map(m => {
-                            const selected = (ct.measurements||[]).find(x=>x.key===m.key)
-                            return (
-                              <button key={m.key} type="button"
-                                onClick={async () => {
-                                  let updated
-                                  if (selected) {
-                                    updated = (ct.measurements||[]).filter(x=>x.key!==m.key)
-                                  } else {
-                                    updated = [...(ct.measurements||[]), { key:m.key, label:m.label, labelTa:m.labelTa, required:false }]
-                                  }
-                                  try {
-                                    await API.put(`/api/cloth-types/${ct._id}`, { measurements:updated })
-                                    fetchData()
-                                  } catch(e) { showMsg('Failed',true) }
-                                }}
-                                style={{ padding:'5px 12px', borderRadius:999, cursor:'pointer',
-                                  fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.75rem',
-                                  border:   selected?'2px solid #4F46E5':'1.5px solid rgba(79,70,229,0.2)',
-                                  background:selected?'rgba(79,70,229,0.1)':'rgba(255,255,255,0.7)',
-                                  color:    selected?'#4F46E5':'#6B7280' }}>
-                                {selected?'✓ ':''}{m.label} / {m.labelTa}
-                              </button>
-                            )
-                          })}
+
+                        {/* Copy from preset */}
+                        <p style={{ fontSize:'0.72rem', color:'#6B7280',
+                          fontWeight:600, marginBottom:8 }}>
+                          📋 Copy from preset:
+                        </p>
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
+                          {Object.entries(MEASUREMENT_PRESETS).map(([label, keys]) => (
+                            <button key={label} type="button"
+                              onClick={async () => {
+                                const fields = keys.map(k => {
+                                  const m = COMMON_MEASUREMENTS.find(x => x.key === k)
+                                  return m ? { key:m.key, label:m.label, labelTa:m.labelTa, required:false } : null
+                                }).filter(Boolean)
+                                try {
+                                  await API.put(`/api/cloth-types/${ct._id}`, { measurements:fields })
+                                  fetchData()
+                                  showMsg(`Copied ${label} measurements!`)
+                                } catch(e) { showMsg('Failed', true) }
+                              }}
+                              style={{ padding:'5px 12px', borderRadius:999, cursor:'pointer',
+                                fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.75rem',
+                                border:'1.5px solid rgba(79,70,229,0.2)',
+                                background:'rgba(255,255,255,0.8)', color:'#4F46E5' }}>
+                              📋 {label}
+                            </button>
+                          ))}
                         </div>
+                        <p style={{ fontSize:'0.68rem', color:'#9CA3AF', marginBottom:10 }}>
+                          Or manually toggle individual fields:
+                        </p>
+
+                        
                         {/* Toggle required */}
                         {(ct.measurements||[]).length > 0 && (
                           <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>

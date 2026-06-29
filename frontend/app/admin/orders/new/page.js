@@ -177,24 +177,23 @@ export default function NewOrder() {
   }, [])
 
   const fetchInitialData = async () => {
-    try {
-      const [custRes, clothRes] = await Promise.all([
-        API.get('/api/customers'),
-        API.get('/api/cloth-types'),
-      ])
-      setCustomers(custRes.data.customers || [])
-      setClothTypes(clothRes.data.clothTypes || [])
-    } catch (e) {
-      console.error('Failed to load initial data:', e)
-      if (e.response?.status === 401) {
-        localStorage.removeItem('adminToken')
-        localStorage.removeItem('adminUser')
-        router.push('/admin/login')
-      }
-    } finally {
-      setLoadingPage(false)
+  try {
+    const [custRes, clothRes] = await Promise.all([
+      API.get('/api/customers'),
+      API.get('/api/cloth-types'), // already returns measurements
+    ])
+    setCustomers(custRes.data.customers || [])
+    setClothTypes(clothRes.data.clothTypes || [])
+  } catch (e) {
+    console.error('Failed to load:', e)
+    if (e.response?.status === 401) {
+      localStorage.removeItem('adminToken')
+      router.push('/admin/login')
     }
+  } finally {
+    setLoadingPage(false)
   }
+}
 
   // ── Load alteration options when cloth type changes ─────────
   useEffect(() => {
@@ -521,19 +520,18 @@ export default function NewOrder() {
               <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                 {clothTypes.filter(ct => ct.isActive).map(ct => (
                   <button key={ct._id}
+                    // In the cloth type click handler:
                     onClick={() => {
                       setSelectedClothType(ct)
                       setSelectedType(null)
                       setSelectedSubtype(null)
+                      // Reset measurements to empty object
+                      // New fields will show based on cloth type's measurement config
                       setForm(f => ({
                         ...f,
-                        unitCost:  0,
-                        alteration: {
-                          required:        false,
-                          selectedOptions: [],
-                          notes:           '',
-                          extraCost:       0,
-                        },
+                        unitCost:     0,
+                        measurements: {}, // clear previous measurements
+                        alteration:   { required:false, selectedOptions:[], notes:'', extraCost:0 },
                       }))
                     }}
                     style={{ padding:'8px 16px', borderRadius:999,
@@ -848,31 +846,75 @@ export default function NewOrder() {
           )}
         </div>
 
-        {/* ⑤ Measurements */}
+        {/* ⑤ Measurements — cloth-type specific */}
         <div className="glass" style={{ padding:24 }}>
           <h2 style={{ fontWeight:700, color:'#1E1B4B',
-            marginBottom:16, fontSize:'0.95rem' }}>
-            ⑤ Measurements
+            marginBottom:6, fontSize:'0.95rem' }}>
+            ③ Measurements
             <span style={{ fontSize:'0.75rem', color:'#9CA3AF',
               fontWeight:400, marginLeft:6 }}>(inches)</span>
           </h2>
-          <div style={{ display:'grid',
-            gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',
-            gap:14 }}>
-            {MEASUREMENT_FIELDS.map(field => (
-              <div key={field}>
-                <label className="input-label">
-                  {MEASUREMENT_LABELS[field]}
-                </label>
-                <input type="text"
-                  value={form.measurements[field]}
-                  onChange={e => setForm({...form,
-                    measurements:{...form.measurements,[field]:e.target.value}})}
-                  placeholder={field==='custom'?'Any other':'e.g. 36'}
-                  className="input-field" />
+
+          {!selectedClothType ? (
+            <div style={{ padding:'20px', background:'rgba(79,70,229,0.04)',
+              borderRadius:10, textAlign:'center' }}>
+              <p style={{ color:'#9CA3AF', fontSize:'0.85rem' }}>
+                Select a cloth type first to see measurement fields
+              </p>
+            </div>
+          ) : !selectedClothType.measurements || selectedClothType.measurements.length === 0 ? (
+            <div style={{ padding:'20px', background:'rgba(245,158,11,0.05)',
+              borderRadius:10, border:'1.5px dashed rgba(245,158,11,0.3)' }}>
+              <p style={{ color:'#D97706', fontSize:'0.85rem', fontWeight:500 }}>
+                ⚠️ No measurement fields set for {selectedClothType.name}.
+                Go to <strong>Cloth Types</strong> → Manage → Edit measurement fields.
+              </p>
+            </div>
+          ) : (
+            <>
+              <p style={{ fontSize:'0.78rem', color:'#6B7280', marginBottom:16 }}>
+                Measurements for <strong>{selectedClothType.name}</strong>
+                {selectedClothType.nameTa && (
+                  <span style={{ marginLeft:6, color:'#9CA3AF' }}>
+                    ({selectedClothType.nameTa})
+                  </span>
+                )}
+              </p>
+              <div style={{ display:'grid',
+                gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',
+                gap:14 }}>
+                {selectedClothType.measurements.map(field => (
+                  <div key={field.key}>
+                    <label className="input-label">
+                      {field.label.toUpperCase()}
+                      {field.required && (
+                        <span style={{ color:'#DC2626', marginLeft:2 }}>*</span>
+                      )}
+                    </label>
+                    {field.labelTa && (
+                      <p style={{ fontSize:'0.68rem', color:'#9CA3AF',
+                        marginBottom:4, marginTop:-2 }}>
+                        {field.labelTa}
+                      </p>
+                    )}
+                    <input
+                      type="text"
+                      value={form.measurements[field.key] || ''}
+                      onChange={e => setForm({
+                        ...form,
+                        measurements: {
+                          ...form.measurements,
+                          [field.key]: e.target.value,
+                        },
+                      })}
+                      placeholder="e.g. 36"
+                      className="input-field"
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </div>
 
         {/* ⑥ Alteration */}
