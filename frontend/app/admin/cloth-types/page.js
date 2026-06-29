@@ -56,6 +56,8 @@ export default function ClothTypesPage() {
   const [copied, setCopied] = useState(null)
 
   const [customMeasurement, setCustomMeasurement] = useState({ key:'', label:'', labelTa:'' })
+  // Add this state at the top of the component
+const [editingMeasurements, setEditingMeasurements] = useState(null) // stores ct._id
   const [customMeasurementEdit, setCustomMeasurementEdit] = useState({ key:'', label:'', labelTa:'' })
 
   useEffect(() => {
@@ -398,50 +400,79 @@ const MEASUREMENT_PRESETS = {
               {expanded === ct._id && (
                 <div style={{ borderTop:'1px solid rgba(79,70,229,0.1)', padding:'20px', background:'rgba(79,70,229,0.01)' }}>
 
-                  {/* Measurements */}
+                  {/* ── Measurements ── */}
                   <div style={{ marginBottom:20 }}>
-                    <p style={{ fontSize:'0.8rem', fontWeight:700, color:'#4F46E5', marginBottom:10 }}>
-                      📏 Measurement Fields
-                    </p>
+                    <div style={{ display:'flex', alignItems:'center',
+                      justifyContent:'space-between', marginBottom:10 }}>
+                      <p style={{ fontSize:'0.82rem', fontWeight:700,
+                        color:'#4F46E5' }}>
+                        📏 Measurement Fields
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setEditingMeasurements(
+                          editingMeasurements === ct._id ? null : ct._id
+                        )}
+                        style={{ padding:'5px 12px',
+                          background: editingMeasurements===ct._id
+                            ? 'rgba(79,70,229,0.15)' : 'rgba(79,70,229,0.08)',
+                          border:'1px solid rgba(79,70,229,0.2)',
+                          borderRadius:8, color:'#4F46E5',
+                          fontSize:'0.75rem', fontWeight:600,
+                          cursor:'pointer', fontFamily:'Poppins,sans-serif' }}>
+                        {editingMeasurements===ct._id ? '✓ Done Editing' : '✏️ Edit Fields'}
+                      </button>
+                    </div>
+
+                    {/* Show current fields */}
                     <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:10 }}>
-                      {(ct.measurements||[]).map(m => (
-                        <span key={m.key} style={{ padding:'4px 10px', borderRadius:999, fontSize:'0.75rem', fontWeight:600,
-                          background:m.required?'rgba(239,68,68,0.08)':'rgba(79,70,229,0.08)',
-                          color:m.required?'#DC2626':'#4F46E5',
-                          border:`1px solid ${m.required?'rgba(239,68,68,0.2)':'rgba(79,70,229,0.15)'}` }}>
-                          {m.label} / {m.labelTa} {m.required?'*':''}
+                      {(ct.measurements||[]).length === 0 ? (
+                        <span style={{ fontSize:'0.78rem', color:'#9CA3AF' }}>
+                          No measurement fields set. Click "Edit Fields" to add.
                         </span>
-                      ))}
-                      {(!ct.measurements||ct.measurements.length===0) && (
-                        <span style={{ fontSize:'0.78rem', color:'#9CA3AF' }}>No measurement fields set.</span>
+                      ) : (
+                        (ct.measurements||[]).map(m => (
+                          <span key={m.key} style={{
+                            padding:'4px 10px', borderRadius:999,
+                            fontSize:'0.75rem', fontWeight:600,
+                            background: m.required
+                              ? 'rgba(239,68,68,0.08)' : 'rgba(79,70,229,0.08)',
+                            color:      m.required ? '#DC2626' : '#4F46E5',
+                            border:     `1px solid ${m.required
+                              ? 'rgba(239,68,68,0.2)' : 'rgba(79,70,229,0.15)'}`,
+                          }}>
+                            {m.label} / {m.labelTa} {m.required ? '*' : ''}
+                          </span>
+                        ))
                       )}
                     </div>
-                    {/* Edit measurements inline */}
-                    <details>
-                      <summary style={{ fontSize:'0.78rem', color:'#4F46E5',
-                        cursor:'pointer', fontWeight:600 }}>
-                        Edit measurement fields
-                      </summary>
-                      <div style={{ marginTop:10 }}>
+
+                    {/* Edit panel — shown when editing */}
+                    {editingMeasurements === ct._id && (
+                      <div style={{ background:'rgba(79,70,229,0.03)',
+                        border:'1.5px solid rgba(79,70,229,0.12)',
+                        borderRadius:12, padding:'16px' }}>
 
                         {/* Copy from preset */}
                         <p style={{ fontSize:'0.72rem', color:'#6B7280',
-                          fontWeight:600, marginBottom:8 }}>
-                          📋 Copy from preset:
+                          fontWeight:700, marginBottom:8 }}>
+                          📋 COPY FROM PRESET
                         </p>
-                        <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:14 }}>
                           {Object.entries(MEASUREMENT_PRESETS).map(([label, keys]) => (
                             <button key={label} type="button"
                               onClick={async () => {
                                 const fields = keys.map(k => {
                                   const m = COMMON_MEASUREMENTS.find(x => x.key === k)
-                                  return m ? { key:m.key, label:m.label, labelTa:m.labelTa, required:false } : null
+                                  return m
+                                    ? { key:m.key, label:m.label, labelTa:m.labelTa, required:false }
+                                    : null
                                 }).filter(Boolean)
                                 try {
                                   await API.put(`/api/cloth-types/${ct._id}`, { measurements:fields })
                                   fetchData()
-                                  showMsg(`Copied ${label} measurements!`)
-                                } catch(e) { showMsg('Failed', true) }
+                                  showMsg(`Copied ${label} preset!`)
+                                } catch(e) { showMsg('Failed to copy preset', true) }
                               }}
                               style={{ padding:'5px 12px', borderRadius:999, cursor:'pointer',
                                 fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.75rem',
@@ -451,126 +482,232 @@ const MEASUREMENT_PRESETS = {
                             </button>
                           ))}
                         </div>
-                        <p style={{ fontSize:'0.68rem', color:'#9CA3AF', marginBottom:10 }}>
-                          Or manually toggle individual fields:
-                        </p>
 
-                        
-                        {/* Toggle required */}
-                        {(ct.measurements||[]).length > 0 && (
-                          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                            {(ct.measurements||[]).map(m => (
+                        {/* Toggle individual fields */}
+                        <p style={{ fontSize:'0.72rem', color:'#6B7280',
+                          fontWeight:700, marginBottom:8 }}>
+                          TOGGLE FIELDS (click to add/remove)
+                        </p>
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
+                          {COMMON_MEASUREMENTS.map(m => {
+                            const isSelected = (ct.measurements||[]).find(x => x.key === m.key)
+                            return (
                               <button key={m.key} type="button"
                                 onClick={async () => {
-                                  const updated = (ct.measurements||[]).map(x =>
-                                    x.key===m.key ? { ...x, required:!x.required } : x
-                                  )
+                                  let updated
+                                  if (isSelected) {
+                                    updated = (ct.measurements||[]).filter(x => x.key !== m.key)
+                                  } else {
+                                    updated = [
+                                      ...(ct.measurements||[]),
+                                      { key:m.key, label:m.label, labelTa:m.labelTa, required:false },
+                                    ]
+                                  }
                                   try {
                                     await API.put(`/api/cloth-types/${ct._id}`, { measurements:updated })
                                     fetchData()
-                                  } catch(e) { showMsg('Failed',true) }
+                                  } catch(e) { showMsg('Failed to update', true) }
                                 }}
-                                style={{ padding:'4px 10px', borderRadius:999, cursor:'pointer',
-                                  fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.72rem',
-                                  border:   m.required?'2px solid #DC2626':'1.5px solid rgba(156,163,175,0.4)',
-                                  background:m.required?'rgba(239,68,68,0.1)':'rgba(255,255,255,0.7)',
-                                  color:    m.required?'#DC2626':'#6B7280' }}>
-                                {m.label} {m.required?'✓ Required':'→ Optional'}
+                                style={{ padding:'6px 14px', borderRadius:999, cursor:'pointer',
+                                  fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.78rem',
+                                  border:    isSelected
+                                    ? '2px solid #4F46E5' : '1.5px solid rgba(79,70,229,0.2)',
+                                  background: isSelected
+                                    ? 'rgba(79,70,229,0.1)' : 'rgba(255,255,255,0.8)',
+                                  color:      isSelected ? '#4F46E5' : '#6B7280',
+                                  transition:'all 0.15s' }}>
+                                {isSelected ? '✓ ' : '+ '}{m.label} / {m.labelTa}
                               </button>
-                            ))}
+                            )
+                          })}
+                        </div>
+
+                        {/* Toggle required/optional for selected fields */}
+                        {(ct.measurements||[]).length > 0 && (
+                          <>
+                            <p style={{ fontSize:'0.72rem', color:'#6B7280',
+                              fontWeight:700, marginBottom:8 }}>
+                              MARK REQUIRED / OPTIONAL
+                            </p>
+                            <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:14 }}>
+                              {(ct.measurements||[]).map(m => (
+                                <button key={m.key} type="button"
+                                  onClick={async () => {
+                                    const updated = (ct.measurements||[]).map(x =>
+                                      x.key === m.key ? { ...x, required:!x.required } : x
+                                    )
+                                    try {
+                                      await API.put(`/api/cloth-types/${ct._id}`, { measurements:updated })
+                                      fetchData()
+                                    } catch(e) { showMsg('Failed', true) }
+                                  }}
+                                  style={{ padding:'5px 12px', borderRadius:999, cursor:'pointer',
+                                    fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.75rem',
+                                    border:    m.required
+                                      ? '2px solid #DC2626' : '1.5px solid rgba(156,163,175,0.4)',
+                                    background: m.required
+                                      ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.8)',
+                                    color:      m.required ? '#DC2626' : '#6B7280',
+                                    transition:'all 0.15s' }}>
+                                  {m.label} {m.required ? '✓ Required' : '→ Optional'}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+
+                        {/* Add Custom Measurement */}
+                        <p style={{ fontSize:'0.72rem', color:'#6B7280',
+                          fontWeight:700, marginBottom:8 }}>
+                          ➕ ADD CUSTOM FIELD
+                        </p>
+                        <div style={{ display:'grid',
+                          gridTemplateColumns:'1fr 1fr 1fr auto',
+                          gap:8, alignItems:'flex-end' }}>
+                          <div>
+                            <p style={{ fontSize:'0.65rem', color:'#9CA3AF',
+                              fontWeight:600, marginBottom:4 }}>
+                              NAME (English) *
+                            </p>
+                            <input
+                              value={customMeasurementEdit.label}
+                              onChange={e => {
+                                const label = e.target.value
+                                const key   = label.toLowerCase()
+                                  .replace(/\s+/g,'_')
+                                  .replace(/[^a-z0-9_]/g,'')
+                                setCustomMeasurementEdit(p => ({ ...p, label, key }))
+                              }}
+                              placeholder="e.g. Back Length"
+                              style={{ width:'100%', padding:'9px 12px',
+                                background:'white',
+                                border:'1.5px solid rgba(79,70,229,0.25)',
+                                borderRadius:10, fontFamily:'Poppins,sans-serif',
+                                fontSize:'0.85rem', color:'#1E1B4B', outline:'none' }}
+                            />
+                          </div>
+                          <div>
+                            <p style={{ fontSize:'0.65rem', color:'#9CA3AF',
+                              fontWeight:600, marginBottom:4 }}>
+                              TAMIL NAME
+                            </p>
+                            <input
+                              value={customMeasurementEdit.labelTa}
+                              onChange={e => setCustomMeasurementEdit(
+                                p => ({ ...p, labelTa:e.target.value })
+                              )}
+                              placeholder="e.g. பின் நீளம்"
+                              style={{ width:'100%', padding:'9px 12px',
+                                background:'white',
+                                border:'1.5px solid rgba(79,70,229,0.25)',
+                                borderRadius:10, fontFamily:'Poppins,sans-serif',
+                                fontSize:'0.85rem', color:'#1E1B4B', outline:'none' }}
+                            />
+                          </div>
+                          <div>
+                            <p style={{ fontSize:'0.65rem', color:'#9CA3AF',
+                              fontWeight:600, marginBottom:4 }}>
+                              KEY (auto)
+                            </p>
+                            <input
+                              value={customMeasurementEdit.key}
+                              onChange={e => setCustomMeasurementEdit(
+                                p => ({ ...p, key:e.target.value })
+                              )}
+                              placeholder="back_length"
+                              style={{ width:'100%', padding:'9px 12px',
+                                background:'#F9FAFB',
+                                border:'1.5px solid rgba(79,70,229,0.1)',
+                                borderRadius:10, fontFamily:'Poppins,sans-serif',
+                                fontSize:'0.82rem', color:'#6B7280', outline:'none' }}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!customMeasurementEdit.label.trim()) {
+                                showMsg('Field name is required', true); return
+                              }
+                              if (!customMeasurementEdit.key.trim()) {
+                                showMsg('Key is required', true); return
+                              }
+                              const exists = (ct.measurements||[]).find(
+                                m => m.key === customMeasurementEdit.key.trim()
+                              )
+                              if (exists) {
+                                showMsg('Field already exists', true); return
+                              }
+                              const updated = [
+                                ...(ct.measurements||[]),
+                                {
+                                  key:      customMeasurementEdit.key.trim(),
+                                  label:    customMeasurementEdit.label.trim(),
+                                  labelTa:  customMeasurementEdit.labelTa.trim(),
+                                  required: false,
+                                },
+                              ]
+                              try {
+                                await API.put(`/api/cloth-types/${ct._id}`, { measurements:updated })
+                                setCustomMeasurementEdit({ key:'', label:'', labelTa:'' })
+                                fetchData()
+                                showMsg(`Added "${customMeasurementEdit.label}" field!`)
+                              } catch(e) { showMsg('Failed to add', true) }
+                            }}
+                            style={{ padding:'9px 18px',
+                              background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+                              color:'white', border:'none', borderRadius:10,
+                              fontFamily:'Poppins,sans-serif', fontWeight:700,
+                              fontSize:'0.85rem', cursor:'pointer',
+                              display:'flex', alignItems:'center', gap:6,
+                              whiteSpace:'nowrap' }}>
+                            ➕ Add
+                          </button>
+                        </div>
+
+                        {/* Remove custom fields */}
+                        {(ct.measurements||[]).some(m =>
+                          !COMMON_MEASUREMENTS.find(c => c.key === m.key)
+                        ) && (
+                          <div style={{ marginTop:12 }}>
+                            <p style={{ fontSize:'0.72rem', color:'#9CA3AF',
+                              fontWeight:600, marginBottom:6 }}>
+                              CUSTOM FIELDS (click ✕ to remove)
+                            </p>
+                            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                              {(ct.measurements||[])
+                                .filter(m => !COMMON_MEASUREMENTS.find(c => c.key === m.key))
+                                .map(m => (
+                                  <div key={m.key} style={{ display:'flex', alignItems:'center',
+                                    gap:6, padding:'5px 12px', borderRadius:999,
+                                    background:'rgba(245,158,11,0.1)',
+                                    border:'1.5px solid rgba(245,158,11,0.3)' }}>
+                                    <span style={{ fontSize:'0.78rem', fontWeight:600,
+                                      color:'#D97706' }}>
+                                      {m.label} {m.labelTa ? `/ ${m.labelTa}` : ''}
+                                    </span>
+                                    <button type="button"
+                                      onClick={async () => {
+                                        const updated = (ct.measurements||[])
+                                          .filter(x => x.key !== m.key)
+                                        try {
+                                          await API.put(`/api/cloth-types/${ct._id}`, { measurements:updated })
+                                          fetchData()
+                                          showMsg(`Removed "${m.label}"`)
+                                        } catch(e) { showMsg('Failed', true) }
+                                      }}
+                                      style={{ background:'none', border:'none',
+                                        cursor:'pointer', color:'#D97706',
+                                        fontSize:'0.9rem', lineHeight:1,
+                                        padding:'0 2px' }}>
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))}
+                            </div>
                           </div>
                         )}
-                        {/* Add Custom Measurement */}
-                        <div style={{ marginTop:14, padding:'14px', background:'rgba(255,255,255,0.6)', borderRadius:10, border:'1.5px dashed rgba(79,70,229,0.25)' }}>
-                          <p style={{ fontSize:'0.75rem', color:'#4F46E5', fontWeight:700, marginBottom:10 }}>
-                            ➕ Add Custom Measurement Field
-                          </p>
-                          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr auto', gap:8, alignItems:'flex-end' }}>
-                            <div>
-                              <p style={{ fontSize:'0.65rem', color:'#9CA3AF', fontWeight:600, marginBottom:4 }}>
-                                FIELD NAME (English) *
-                              </p>
-                              <input
-                                value={customMeasurement.label}
-                                onChange={e => {
-                                  const label = e.target.value
-                                  // Auto-generate key from label
-                                  const key = label.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')
-                                  setCustomMeasurement(p => ({ ...p, label, key }))
-                                }}
-                                placeholder="e.g. Back Length"
-                                style={{ width:'100%', padding:'9px 12px',
-                                  background:'rgba(255,255,255,0.9)',
-                                  border:'1.5px solid rgba(79,70,229,0.2)',
-                                  borderRadius:10, fontFamily:'Poppins,sans-serif',
-                                  fontSize:'0.85rem', color:'#1E1B4B', outline:'none' }}
-                              />
-                            </div>
-                            <div>
-                              <p style={{ fontSize:'0.65rem', color:'#9CA3AF', fontWeight:600, marginBottom:4 }}>
-                                TAMIL NAME
-                              </p>
-                              <input
-                                value={customMeasurement.labelTa}
-                                onChange={e => setCustomMeasurement(p => ({ ...p, labelTa:e.target.value }))}
-                                placeholder="e.g. பின் நீளம்"
-                                style={{ width:'100%', padding:'9px 12px',
-                                  background:'rgba(255,255,255,0.9)',
-                                  border:'1.5px solid rgba(79,70,229,0.2)',
-                                  borderRadius:10, fontFamily:'Poppins,sans-serif',
-                                  fontSize:'0.85rem', color:'#1E1B4B', outline:'none' }}
-                              />
-                            </div>
-                            <div>
-                              <p style={{ fontSize:'0.65rem', color:'#9CA3AF', fontWeight:600, marginBottom:4 }}>
-                                KEY (auto)
-                              </p>
-                              <input
-                                value={customMeasurement.key}
-                                onChange={e => setCustomMeasurement(p => ({ ...p, key:e.target.value }))}
-                                placeholder="e.g. back_length"
-                                style={{ width:'100%', padding:'9px 12px',
-                                  background:'rgba(249,250,251,1)',
-                                  border:'1.5px solid rgba(79,70,229,0.1)',
-                                  borderRadius:10, fontFamily:'Poppins,sans-serif',
-                                  fontSize:'0.82rem', color:'#6B7280', outline:'none' }}
-                              />
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (!customMeasurement.label.trim()) return
-                                if (!customMeasurement.key.trim()) return
-                                // Check not duplicate
-                                const exists = newMeasurements.find(m => m.key === customMeasurement.key)
-                                if (exists) { showMsg('Field already added', true); return }
-                                setNewMeasurements(prev => [
-                                  ...prev,
-                                  {
-                                    key:      customMeasurement.key.trim(),
-                                    label:    customMeasurement.label.trim(),
-                                    labelTa:  customMeasurement.labelTa.trim(),
-                                    required: false,
-                                  },
-                                ])
-                                setCustomMeasurement({ key:'', label:'', labelTa:'' })
-                              }}
-                              style={{ padding:'9px 18px',
-                                background:'linear-gradient(135deg,#4F46E5,#6366F1)',
-                                color:'white', border:'none', borderRadius:10,
-                                fontFamily:'Poppins,sans-serif', fontWeight:700,
-                                fontSize:'0.85rem', cursor:'pointer',
-                                display:'flex', alignItems:'center', gap:6,
-                                whiteSpace:'nowrap' }}>
-                              ➕ Add
-                            </button>
-                          </div>
-                          <p style={{ fontSize:'0.68rem', color:'#9CA3AF', marginTop:8 }}>
-                            Key is auto-generated from the name. You can edit it manually if needed.
-                          </p>
-                        </div>
                       </div>
-                    </details>
+                    )}
                   </div>
 
                   {/* Types */}
