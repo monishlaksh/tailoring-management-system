@@ -55,6 +55,9 @@ export default function ClothTypesPage() {
 
   const [copied, setCopied] = useState(null)
 
+  const [customMeasurement, setCustomMeasurement] = useState({ key:'', label:'', labelTa:'' })
+  const [customMeasurementEdit, setCustomMeasurementEdit] = useState({ key:'', label:'', labelTa:'' })
+
   useEffect(() => {
     if (!localStorage.getItem('adminToken')) { router.push('/admin/login'); return }
     fetchData()
@@ -477,6 +480,95 @@ const MEASUREMENT_PRESETS = {
                             ))}
                           </div>
                         )}
+                        {/* Add Custom Measurement */}
+                        <div style={{ marginTop:14, padding:'14px', background:'rgba(255,255,255,0.6)', borderRadius:10, border:'1.5px dashed rgba(79,70,229,0.25)' }}>
+                          <p style={{ fontSize:'0.75rem', color:'#4F46E5', fontWeight:700, marginBottom:10 }}>
+                            ➕ Add Custom Measurement Field
+                          </p>
+                          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr auto', gap:8, alignItems:'flex-end' }}>
+                            <div>
+                              <p style={{ fontSize:'0.65rem', color:'#9CA3AF', fontWeight:600, marginBottom:4 }}>
+                                FIELD NAME (English) *
+                              </p>
+                              <input
+                                value={customMeasurement.label}
+                                onChange={e => {
+                                  const label = e.target.value
+                                  // Auto-generate key from label
+                                  const key = label.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')
+                                  setCustomMeasurement(p => ({ ...p, label, key }))
+                                }}
+                                placeholder="e.g. Back Length"
+                                style={{ width:'100%', padding:'9px 12px',
+                                  background:'rgba(255,255,255,0.9)',
+                                  border:'1.5px solid rgba(79,70,229,0.2)',
+                                  borderRadius:10, fontFamily:'Poppins,sans-serif',
+                                  fontSize:'0.85rem', color:'#1E1B4B', outline:'none' }}
+                              />
+                            </div>
+                            <div>
+                              <p style={{ fontSize:'0.65rem', color:'#9CA3AF', fontWeight:600, marginBottom:4 }}>
+                                TAMIL NAME
+                              </p>
+                              <input
+                                value={customMeasurement.labelTa}
+                                onChange={e => setCustomMeasurement(p => ({ ...p, labelTa:e.target.value }))}
+                                placeholder="e.g. பின் நீளம்"
+                                style={{ width:'100%', padding:'9px 12px',
+                                  background:'rgba(255,255,255,0.9)',
+                                  border:'1.5px solid rgba(79,70,229,0.2)',
+                                  borderRadius:10, fontFamily:'Poppins,sans-serif',
+                                  fontSize:'0.85rem', color:'#1E1B4B', outline:'none' }}
+                              />
+                            </div>
+                            <div>
+                              <p style={{ fontSize:'0.65rem', color:'#9CA3AF', fontWeight:600, marginBottom:4 }}>
+                                KEY (auto)
+                              </p>
+                              <input
+                                value={customMeasurement.key}
+                                onChange={e => setCustomMeasurement(p => ({ ...p, key:e.target.value }))}
+                                placeholder="e.g. back_length"
+                                style={{ width:'100%', padding:'9px 12px',
+                                  background:'rgba(249,250,251,1)',
+                                  border:'1.5px solid rgba(79,70,229,0.1)',
+                                  borderRadius:10, fontFamily:'Poppins,sans-serif',
+                                  fontSize:'0.82rem', color:'#6B7280', outline:'none' }}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!customMeasurement.label.trim()) return
+                                if (!customMeasurement.key.trim()) return
+                                // Check not duplicate
+                                const exists = newMeasurements.find(m => m.key === customMeasurement.key)
+                                if (exists) { showMsg('Field already added', true); return }
+                                setNewMeasurements(prev => [
+                                  ...prev,
+                                  {
+                                    key:      customMeasurement.key.trim(),
+                                    label:    customMeasurement.label.trim(),
+                                    labelTa:  customMeasurement.labelTa.trim(),
+                                    required: false,
+                                  },
+                                ])
+                                setCustomMeasurement({ key:'', label:'', labelTa:'' })
+                              }}
+                              style={{ padding:'9px 18px',
+                                background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+                                color:'white', border:'none', borderRadius:10,
+                                fontFamily:'Poppins,sans-serif', fontWeight:700,
+                                fontSize:'0.85rem', cursor:'pointer',
+                                display:'flex', alignItems:'center', gap:6,
+                                whiteSpace:'nowrap' }}>
+                              ➕ Add
+                            </button>
+                          </div>
+                          <p style={{ fontSize:'0.68rem', color:'#9CA3AF', marginTop:8 }}>
+                            Key is auto-generated from the name. You can edit it manually if needed.
+                          </p>
+                        </div>
                       </div>
                     </details>
                   </div>
