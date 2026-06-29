@@ -6,6 +6,7 @@ import {
   CheckCircle, AlertTriangle, Calendar, Plus,
   Search, ChevronRight, X,
 } from 'lucide-react'
+import { useRef } from 'react'
 import { adminAPI as API } from '../../../lib/api'
 
 const STAGE_ICONS = {
@@ -29,6 +30,20 @@ export default function AdminDashboard() {
   const [sortByDate, setSortByDate]           = useState(false)
   const [showNavMenu, setShowNavMenu] = useState(false)
 
+  // 1. Change the state and ref approach
+const menuRef = useRef(null)
+
+// 2. Replace the useEffect — use ref-based check instead
+useEffect(() => {
+  const handleClickOutside = (e) => {
+    if (menuRef.current && !menuRef.current.contains(e.target)) {
+      setShowNavMenu(false)
+    }
+  }
+  document.addEventListener('mousedown', handleClickOutside)
+  return () => document.removeEventListener('mousedown', handleClickOutside)
+}, [])
+
   useEffect(() => {
     const token = localStorage.getItem('adminToken')
     const user  = localStorage.getItem('adminUser')
@@ -37,11 +52,7 @@ export default function AdminDashboard() {
     fetchData()
   }, [])
 
-  useEffect(() => {
-  const close = () => setShowNavMenu(false)
-  document.addEventListener('click', close)
-  return () => document.removeEventListener('click', close)
-}, [])
+ 
   const fetchData = async () => {
     try {
       const [statsRes, ordersRes, empRes] = await Promise.all([
@@ -186,29 +197,63 @@ let filtered = orders.filter(o =>
         </div>
         <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
           {/* Replace multiple buttons with dropdown */}
-          <div style={{ position:'relative' }}>
+          {/* Menu dropdown — wrap BOTH button and menu in ref div */}
+          <div ref={menuRef} style={{ position:'relative' }}>
             <button
-              onClick={e => { e.stopPropagation(); setShowNavMenu(!showNavMenu) }}
-              style={{ display:'flex', alignItems:'center', gap:6, padding:'9px 16px', background:'rgba(79,70,229,0.08)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10, color:'#4F46E5', fontSize:'0.85rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif' }}>
+              onClick={() => setShowNavMenu(prev => !prev)}
+              style={{
+                display:'flex', alignItems:'center', gap:6,
+                padding:'9px 16px',
+                background: showNavMenu
+                  ? 'rgba(79,70,229,0.15)'
+                  : 'rgba(79,70,229,0.08)',
+                border:'1.5px solid rgba(79,70,229,0.2)',
+                borderRadius:10, color:'#4F46E5',
+                fontSize:'0.85rem', fontWeight:600,
+                cursor:'pointer', fontFamily:'Poppins,sans-serif',
+                transition:'all 0.2s',
+              }}>
               ☰ Menu {showNavMenu ? '▲' : '▼'}
             </button>
 
             {showNavMenu && (
-              <div style={{ position:'absolute', right:0, top:'110%', background:'white', borderRadius:14, boxShadow:'0 8px 32px rgba(79,70,229,0.18)', border:'1.5px solid rgba(79,70,229,0.12)', zIndex:200, minWidth:200, overflow:'hidden' }}>
+              <div style={{
+                position:'absolute', right:0, top:'110%',
+                background:'white', borderRadius:14,
+                boxShadow:'0 8px 32px rgba(79,70,229,0.18)',
+                border:'1.5px solid rgba(79,70,229,0.12)',
+                zIndex:200, minWidth:210, overflow:'hidden',
+              }}>
                 {[
-                  { icon:'👥', label:'Customers',         path:'/admin/customers'          },
-                  { icon:'👷', label:'Employees',          path:'/admin/employees'          },
-                  { icon:'✂️', label:'Cloth Types',        path:'/admin/cloth-types'        },
-                  { icon:'🪡', label:'Alteration Options', path:'/admin/alteration-options' },
-                  { icon:'💬', label:'Offers & Messages',  path:'/admin/offers'             },
-                  { icon:'📱', label:'Scan QR',            path:'/admin/scan'               },
-                ].map((item, i) => (
+                  { icon:'👥', label:'Customers',          path:'/admin/customers'          },
+                  { icon:'👷', label:'Employees',           path:'/admin/employees'          },
+                  { icon:'✂️', label:'Cloth Types',         path:'/admin/cloth-types'        },
+                  { icon:'🪡', label:'Alteration Options',  path:'/admin/alteration-options' },
+                  { icon:'💬', label:'Offers & Messages',   path:'/admin/offers'             },
+                  { icon:'📱', label:'Scan QR',             path:'/admin/scan'               },
+                ].map((item, i, arr) => (
                   <button key={i}
-                    onClick={() => { router.push(item.path); setShowNavMenu(false) }}
-                    style={{ width:'100%', padding:'12px 18px', background:'none', border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:12, fontFamily:'Poppins,sans-serif', fontSize:'0.88rem', fontWeight:600, color:'#1E1B4B', textAlign:'left', borderBottom:i<5?'1px solid rgba(79,70,229,0.07)':'none', transition:'background 0.15s' }}
-                    onMouseEnter={e => e.currentTarget.style.background='rgba(79,70,229,0.05)'}
-                    onMouseLeave={e => e.currentTarget.style.background='none'}>
-                    <span style={{ fontSize:'1rem' }}>{item.icon}</span>
+                    onClick={() => {
+                      router.push(item.path)
+                      setShowNavMenu(false)
+                    }}
+                    style={{
+                      width:'100%', padding:'13px 18px',
+                      background:'none', border:'none',
+                      cursor:'pointer',
+                      display:'flex', alignItems:'center', gap:12,
+                      fontFamily:'Poppins,sans-serif',
+                      fontSize:'0.88rem', fontWeight:600,
+                      color:'#1E1B4B', textAlign:'left',
+                      borderBottom: i < arr.length - 1
+                        ? '1px solid rgba(79,70,229,0.07)'
+                        : 'none',
+                    }}
+                    onMouseEnter={e =>
+                      e.currentTarget.style.background = 'rgba(79,70,229,0.05)'}
+                    onMouseLeave={e =>
+                      e.currentTarget.style.background = 'none'}>
+                    <span style={{ fontSize:'1rem', width:22 }}>{item.icon}</span>
                     {item.label}
                   </button>
                 ))}
