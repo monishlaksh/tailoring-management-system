@@ -1,11 +1,8 @@
-const express   = require('express')
-const Order     = require('../models/Order')
-const Allotment = require('../models/Allotment')
-const router    = express.Router()
-
-// In the scan response, add Tamil cloth type
-const clothTypeName = order.clothType?.split(' - ')[0] || ''
-const ctDoc = await require('../models/ClothType').findOne({ name:clothTypeName }).lean()
+const express    = require('express')
+const Order      = require('../models/Order')
+const Allotment  = require('../models/Allotment')
+const ClothType  = require('../models/ClothType')
+const router     = express.Router()
 
 router.get('/:orderID', async (req, res) => {
   try {
@@ -14,10 +11,8 @@ router.get('/:orderID', async (req, res) => {
 
     console.log(`[SCAN] orderID=${cleanID} stage=${stage}`)
 
-    // Try exact match first
     let order = await Order.findOne({ orderID: cleanID }).lean()
 
-    // Try case-insensitive if exact fails
     if (!order) {
       order = await Order.findOne({
         orderID: { $regex: new RegExp(`^${cleanID}$`, 'i') }
@@ -34,9 +29,12 @@ router.get('/:orderID', async (req, res) => {
 
     console.log(`[SCAN] Found: ${order.orderID}`)
 
-    const allotment = await Allotment.findOne({
-      orderID: order.orderID
-    }).lean()
+    const allotment = await Allotment.findOne({ orderID: order.orderID }).lean()
+
+    // Get Tamil name for cloth type
+    const clothTypeName = (order.clothType || '').split(' - ')[0].trim()
+    const ctDoc = await ClothType.findOne({ name: clothTypeName }).lean()
+
     const response = {
       success:      true,
       orderID:      order.orderID,
