@@ -40,7 +40,6 @@ router.get('/', protectAdminOrEmployee, async (req, res) => {
       products = products.filter(p => p.stock <= p.lowStockAlert)
     }
 
-    // Compute revenue per unit
     products = products.map(p => ({
       ...p,
       revenuePerUnit: (p.customerPrice||0) - (p.purchasePrice||0),
@@ -54,28 +53,41 @@ router.get('/', protectAdminOrEmployee, async (req, res) => {
   }
 })
 
-// GET summary stats
+// GET summary stats — revenue based on ACTUAL SALES only
 router.get('/stats/summary', protect, async (req, res) => {
   try {
     const products = await Product.find({ isActive:true }).lean()
 
     const totalProducts   = products.length
     const totalStockValue = products.reduce((s,p) => s + (p.stock||0)*(p.purchasePrice||0), 0)
-    const totalPotentialRevenue = products.reduce((s,p) =>
-      s + (p.stock||0) * ((p.customerPrice||0)-(p.purchasePrice||0)), 0)
-    const lowStockCount = products.filter(p => p.stock <= p.lowStockAlert).length
+
+    // Revenue ONLY from actual sales, not unsold stock
+    const totalRevenue = products.reduce((s,p) => s + (p.totalRevenue||0), 0)
+    const totalUnitsSold = products.reduce((s,p) => s + (p.totalSold||0), 0)
+    const totalSalesValue = products.reduce((s,p) =>
+      s + (p.totalSold||0) * (p.customerPrice||0), 0)
+
+    const lowStockCount   = products.filter(p => p.stock <= p.lowStockAlert).length
     const outOfStockCount = products.filter(p => p.stock === 0).length
 
     res.json({
       success: true,
-      stats: { totalProducts, totalStockValue, totalPotentialRevenue, lowStockCount, outOfStockCount },
+      stats: {
+        totalProducts,
+        totalStockValue,
+        totalRevenue,       // actual profit earned from sales
+        totalUnitsSold,
+        totalSalesValue,    // total ₹ collected from customers
+        lowStockCount,
+        outOfStockCount,
+      },
     })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
 })
 
-// GET single product
+// GET single product with sales history
 router.get('/:productID', protectAdminOrEmployee, async (req, res) => {
   try {
     const product = await Product.findOne({ productID:req.params.productID })
@@ -121,7 +133,7 @@ router.post('/', protect, async (req, res) => {
   }
 })
 
-// PUT update product details
+// PUT update product details (not stock)
 router.put('/:productID', protect, async (req, res) => {
   try {
     const { name, nameTa, category, unit, purchasePrice, customerPrice, lowStockAlert, notes, isActive } = req.body
@@ -146,7 +158,7 @@ router.put('/:productID', protect, async (req, res) => {
   }
 })
 
-// POST add stock (purchase)
+// POST add stock (purchase) — does NOT affect revenue
 router.post('/:productID/stock/add', protect, async (req, res) => {
   try {
     const { quantity, note } = req.body
@@ -168,7 +180,54 @@ router.post('/:productID/stock/add', protect, async (req, res) => {
   }
 })
 
-// POST reduce stock (sale/usage)
+// POST SELL product — this is what generates revenue
+router.post('/:productID/sell', protect, async (req, res) => {
+  try {
+    const { quantity, customerName, note } = req.body
+    const qty = parseFloat(quantity)
+    if (!qty || qty <= 0)
+      return res.status(400).json({ success:false, message:'Valid quantity required' })
+
+    const product = await Product.findOne({ productID:req.params.productID })
+    if (!product)
+      return res.status(404).json({ success:false, message:'Product not found' })
+
+    if (product.stock < qty)
+      return res.status(400).json({
+        success: false,
+        message: `Only ${product.stock} ${product.unit} available`,
+      })
+
+    const revenueEarned = qty * (product.customerPrice - product.purchasePrice)
+    const saleValue      = qty * product.customerPrice
+
+    product.stock        -= qty
+    product.totalSold     = (product.totalSold || 0) + qty
+    product.totalRevenue  = (product.totalRevenue || 0) + revenueEarned
+
+    product.history.push({
+      type:         'sale',
+      quantity:     -qty,
+      unitPrice:    product.customerPrice,
+      revenue:      revenueEarned,
+      customerName: customerName || '',
+      note:         note || '',
+    })
+
+    await product.save()
+
+    res.json({
+      success: true,
+      message: `Sold ${qty} ${product.unit} — ₹${revenueEarned.toFixed(2)} revenue`,
+      product,
+      sale: { quantity:qty, saleValue, revenueEarned },
+    })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
+
+// POST reduce stock without sale (e.g. damage, internal use) — no revenue
 router.post('/:productID/stock/reduce', protect, async (req, res) => {
   try {
     const { quantity, note } = req.body
@@ -184,10 +243,10 @@ router.post('/:productID/stock/reduce', protect, async (req, res) => {
       return res.status(400).json({ success:false, message:`Only ${product.stock} ${product.unit} available` })
 
     product.stock -= qty
-    product.history.push({ type:'sale', quantity:-qty, note:note||'Stock used/sold' })
+    product.history.push({ type:'adjustment', quantity:-qty, note:note||'Stock removed (no sale)' })
     await product.save()
 
-    res.json({ success:true, message:`Reduced ${qty} ${product.unit}`, product })
+    res.json({ success:true, message:`Removed ${qty} ${product.unit}`, product })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
