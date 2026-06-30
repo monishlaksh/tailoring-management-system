@@ -6,49 +6,73 @@ import { adminAPI as API } from '../../../lib/api'
 
 export default function SalesPage() {
   const router = useRouter()
-  const chartRef = useRef(null)
+  const canvasRef = useRef(null)
   const chartInstance = useRef(null)
+  const scriptLoaded = useRef(false)
 
   const [period, setPeriod]   = useState('daily')
   const [data, setData]       = useState([])
   const [totals, setTotals]   = useState({ sales:0, expenses:0, profit:0, orders:0 })
   const [loading, setLoading] = useState(true)
-  const [chartReady, setChartReady] = useState(false)
+  const [error, setError]     = useState('')
 
+  // Load Chart.js once
   useEffect(() => {
     if (!localStorage.getItem('adminToken')) { router.push('/admin/login'); return }
-    // Load Chart.js
+
+    if (window.Chart) {
+      scriptLoaded.current = true
+      fetchData()
+      return
+    }
+
     const script = document.createElement('script')
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js'
-    script.onload = () => setChartReady(true)
+    script.async = true
+    script.onload = () => {
+      scriptLoaded.current = true
+      fetchData()
+    }
+    script.onerror = () => setError('Failed to load chart library')
     document.head.appendChild(script)
-    return () => { if (script.parentNode) script.parentNode.removeChild(script) }
   }, [])
 
+  // Refetch when period changes
   useEffect(() => {
-    if (chartReady) fetchData()
-  }, [period, chartReady])
+    if (scriptLoaded.current) fetchData()
+  }, [period])
 
   const fetchData = async () => {
     setLoading(true)
+    setError('')
     try {
       const res = await API.get(`/api/sales?period=${period}`)
       setData(res.data.data)
       setTotals(res.data.totals)
-      renderChart(res.data.data)
-    } catch (e) { console.error(e) }
-    finally { setLoading(false) }
+      // Wait a tick for canvas to be in DOM after loading=false render
+      setTimeout(() => renderChart(res.data.data), 50)
+    } catch (e) {
+      setError('Failed to load sales data')
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const renderChart = (chartData) => {
-    if (!window.Chart || !chartRef.current) return
-    if (chartInstance.current) chartInstance.current.destroy()
+    if (!window.Chart) { console.error('Chart.js not loaded'); return }
+    if (!canvasRef.current) { console.error('Canvas not ready'); return }
 
-    const labels = chartData.map(d => formatPeriodLabel(d.period))
+    if (chartInstance.current) {
+      chartInstance.current.destroy()
+      chartInstance.current = null
+    }
+
+    const labels   = chartData.map(d => formatPeriodLabel(d.period))
     const sales    = chartData.map(d => d.sales)
     const expenses = chartData.map(d => d.expenses)
 
-    chartInstance.current = new window.Chart(chartRef.current, {
+    chartInstance.current = new window.Chart(canvasRef.current, {
       type: 'bar',
       data: {
         labels,
@@ -58,14 +82,14 @@ export default function SalesPage() {
             data: sales,
             backgroundColor: '#2a78d6',
             borderRadius: 4,
-            maxBarThickness: 24,
+            maxBarThickness: 28,
           },
           {
             label: 'Expenses (Salary)',
             data: expenses,
             backgroundColor: '#e34948',
             borderRadius: 4,
-            maxBarThickness: 24,
+            maxBarThickness: 28,
           },
         ],
       },
@@ -81,10 +105,17 @@ export default function SalesPage() {
           },
         },
         scales: {
-          x: { grid:{ display:false }, ticks:{ autoSkip:false, maxRotation:45 } },
+          x: {
+            grid:  { display:false },
+            ticks: { autoSkip:false, maxRotation:45, font:{ size:11 } },
+          },
           y: {
-            grid:{ color:'#e1e0d9' },
-            ticks:{ callback: (v) => '₹' + v.toLocaleString('en-IN') },
+            beginAtZero: true,
+            grid:  { color:'#e1e0d9' },
+            ticks: {
+              callback: (v) => '₹' + v.toLocaleString('en-IN'),
+              font: { size:11 },
+            },
           },
         },
       },
@@ -92,14 +123,16 @@ export default function SalesPage() {
   }
 
   const formatPeriodLabel = (p) => {
-    if (period === 'daily') {
-      return new Date(p).toLocaleDateString('en-IN', { day:'numeric', month:'short' })
-    } else if (period === 'weekly') {
-      return p // "2026-W26"
-    } else {
-      const [y,m] = p.split('-')
-      return new Date(y, m-1).toLocaleDateString('en-IN', { month:'short', year:'2-digit' })
-    }
+    try {
+      if (period === 'daily') {
+        return new Date(p).toLocaleDateString('en-IN', { day:'numeric', month:'short' })
+      } else if (period === 'weekly') {
+        return p.replace(/^\d{4}-/, '') // "W26"
+      } else {
+        const [y,m] = p.split('-')
+        return new Date(parseInt(y), parseInt(m)-1).toLocaleDateString('en-IN', { month:'short', year:'2-digit' })
+      }
+    } catch { return p }
   }
 
   return (
@@ -118,7 +151,7 @@ export default function SalesPage() {
           </div>
         </div>
 
-        {/* Period filter */}
+        {/* Period filter — ONLY this, no date range inputs */}
         <div style={{ display:'flex', gap:6, background:'rgba(79,70,229,0.06)', padding:5, borderRadius:10 }}>
           {['daily','weekly','monthly'].map(p => (
             <button key={p} onClick={() => setPeriod(p)}
@@ -133,6 +166,19 @@ export default function SalesPage() {
           ))}
         </div>
       </div>
+
+      {/* Range hint */}
+      <p style={{ fontSize:'0.75rem', color:'#9CA3AF', marginBottom:16 }}>
+        {period === 'daily'   && 'Showing last 14 days'}
+        {period === 'weekly'  && 'Showing last 12 weeks'}
+        {period === 'monthly' && 'Showing last 12 months'}
+      </p>
+
+      {error && (
+        <div style={{ background:'rgba(239,68,68,0.08)', border:'1.5px solid rgba(239,68,68,0.2)', borderRadius:10, padding:'12px 16px', marginBottom:16, color:'#DC2626', fontSize:'0.85rem' }}>
+          {error}
+        </div>
+      )}
 
       {/* Summary cards */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:14, marginBottom:24 }}>
@@ -161,20 +207,20 @@ export default function SalesPage() {
         </span>
       </div>
 
-      {/* Chart */}
+      {/* Chart — canvas ALWAYS rendered, never conditionally removed */}
       <div className="glass" style={{ padding:24 }}>
-        {loading ? (
-          <p style={{ textAlign:'center', color:'#9CA3AF', padding:'60px 0' }}>Loading chart...</p>
-        ) : data.length === 0 ? (
-          <p style={{ textAlign:'center', color:'#9CA3AF', padding:'60px 0' }}>No data for this period.</p>
-        ) : (
-          <div style={{ position:'relative', width:'100%', height:380 }}>
-            <canvas ref={chartRef} role="img"
-              aria-label={`Bar chart comparing sales and expenses, ${period} view`}>
-              Sales vs expenses chart
-            </canvas>
-          </div>
+        {loading && (
+          <p style={{ textAlign:'center', color:'#9CA3AF', padding:'20px 0' }}>Loading chart...</p>
         )}
+        {!loading && data.length === 0 && (
+          <p style={{ textAlign:'center', color:'#9CA3AF', padding:'20px 0' }}>No data for this period.</p>
+        )}
+        <div style={{ position:'relative', width:'100%', height:380, display: loading ? 'none' : 'block' }}>
+          <canvas ref={canvasRef} role="img"
+            aria-label={`Bar chart comparing sales and expenses, ${period} view`}>
+            Sales vs expenses chart
+          </canvas>
+        </div>
       </div>
     </main>
   )
