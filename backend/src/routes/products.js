@@ -252,6 +252,86 @@ router.post('/:productID/stock/reduce', protect, async (req, res) => {
   }
 })
 
+// POST sell multiple products at once (cart-style)
+router.post('/sell-multiple', protect, async (req, res) => {
+  try {
+    const { items, customerName, note } = req.body
+    // items = [{ productID, quantity }, ...]
+
+    if (!Array.isArray(items) || items.length === 0)
+      return res.status(400).json({ success:false, message:'No items provided' })
+
+    // First pass — validate all items have enough stock before committing any
+    const productsToUpdate = []
+    for (const item of items) {
+      const qty = parseFloat(item.quantity)
+      if (!qty || qty <= 0)
+        return res.status(400).json({ success:false, message:`Invalid quantity for ${item.productID}` })
+
+      const product = await Product.findOne({ productID:item.productID })
+      if (!product)
+        return res.status(404).json({ success:false, message:`Product ${item.productID} not found` })
+
+      if (product.stock < qty)
+        return res.status(400).json({
+          success: false,
+          message: `Only ${product.stock} ${product.unit} available for "${product.name}"`,
+        })
+
+      productsToUpdate.push({ product, qty })
+    }
+
+    // Second pass — commit all sales
+    const results = []
+    let totalRevenue = 0
+    let totalSaleValue = 0
+
+    for (const { product, qty } of productsToUpdate) {
+      const revenueEarned = qty * (product.customerPrice - product.purchasePrice)
+      const saleValue      = qty * product.customerPrice
+
+      product.stock        -= qty
+      product.totalSold     = (product.totalSold || 0) + qty
+      product.totalRevenue  = (product.totalRevenue || 0) + revenueEarned
+
+      product.history.push({
+        type:         'sale',
+        quantity:     -qty,
+        unitPrice:    product.customerPrice,
+        revenue:      revenueEarned,
+        customerName: customerName || '',
+        note:         note || '',
+      })
+
+      await product.save()
+
+      results.push({
+        productID:    product.productID,
+        name:         product.name,
+        quantity:     qty,
+        unit:         product.unit,
+        saleValue,
+        revenueEarned,
+      })
+
+      totalRevenue   += revenueEarned
+      totalSaleValue += saleValue
+    }
+
+    res.json({
+      success: true,
+      message: `Sold ${results.length} product(s) — ₹${totalRevenue.toFixed(2)} total revenue`,
+      items:   results,
+      totalRevenue,
+      totalSaleValue,
+    })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
+
+
+
 // DELETE (soft) product
 router.delete('/:productID', protect, async (req, res) => {
   try {

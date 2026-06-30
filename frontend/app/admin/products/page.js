@@ -16,6 +16,14 @@ export default function ProductsPage() {
   const [filterLowStock, setFilterLowStock] = useState(false)
   const [msg, setMsg]           = useState({ text:'', err:false })
 
+  // Add near other state declarations
+const [cartModal, setCartModal] = useState(false)
+const [cart, setCart]           = useState([]) // [{ productID, name, unit, stock, customerPrice, purchasePrice, quantity }]
+const [cartCustomer, setCartCustomer] = useState('')
+const [cartNote, setCartNote]   = useState('')
+const [cartSaving, setCartSaving] = useState(false)
+const [cartSearch, setCartSearch] = useState('')
+
   const [modal, setModal]       = useState(false)
   const [editData, setEditData] = useState(null)
   const [form, setForm] = useState({
@@ -53,6 +61,66 @@ export default function ProductsPage() {
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }
+
+  const openCart = () => {
+  setCart([])
+  setCartCustomer('')
+  setCartNote('')
+  setCartSearch('')
+  setCartModal(true)
+}
+
+const addToCart = (product) => {
+  if (cart.find(c => c.productID === product.productID)) {
+    showMsg('Already in cart', true)
+    return
+  }
+  if (product.stock <= 0) {
+    showMsg('Out of stock', true)
+    return
+  }
+  setCart(prev => [...prev, {
+    productID:     product.productID,
+    name:          product.name,
+    unit:          product.unit,
+    stock:         product.stock,
+    customerPrice: product.customerPrice,
+    purchasePrice: product.purchasePrice,
+    quantity:      1,
+  }])
+}
+
+const removeFromCart = (productID) => {
+  setCart(prev => prev.filter(c => c.productID !== productID))
+}
+
+const updateCartQty = (productID, qty) => {
+  setCart(prev => prev.map(c =>
+    c.productID === productID ? { ...c, quantity: Math.max(1, Math.min(qty, c.stock)) } : c
+  ))
+}
+
+const cartTotalRevenue = cart.reduce((s,c) =>
+  s + c.quantity * (c.customerPrice - c.purchasePrice), 0)
+const cartTotalSaleValue = cart.reduce((s,c) =>
+  s + c.quantity * c.customerPrice, 0)
+
+const handleCartCheckout = async () => {
+  if (cart.length === 0) { showMsg('Cart is empty', true); return }
+  setCartSaving(true)
+  try {
+    const res = await API.post('/api/products/sell-multiple', {
+      items: cart.map(c => ({ productID:c.productID, quantity:c.quantity })),
+      customerName: cartCustomer,
+      note: cartNote,
+    })
+    setCartModal(false)
+    fetchData()
+    showMsg(`✅ Sold ${res.data.items.length} products — ₹${res.data.totalRevenue.toFixed(2)} revenue earned!`)
+  } catch (e) {
+    showMsg(e.response?.data?.message || 'Failed', true)
+  } finally { setCartSaving(false) }
+}
 
   const showMsg = (text, err=false) => {
     setMsg({ text, err })
@@ -174,9 +242,17 @@ export default function ProductsPage() {
             <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>Stock, pricing & sales revenue</p>
           </div>
         </div>
-        <button onClick={openAdd} className="btn-primary" style={{ padding:'9px 18px', fontSize:'0.82rem', display:'flex', alignItems:'center', gap:6 }}>
-          <Plus size={15}/> Add Product
+        <div style={{ display:'flex', gap:8 }}>
+        <button onClick={openCart} className="btn-primary"
+            style={{ padding:'9px 18px', fontSize:'0.82rem', display:'flex', alignItems:'center', gap:6,
+            background:'linear-gradient(135deg,#10B981,#059669)' }}>
+            <ShoppingCart size={15}/> Sell Multiple
         </button>
+        <button onClick={openAdd} className="btn-primary"
+            style={{ padding:'9px 18px', fontSize:'0.82rem', display:'flex', alignItems:'center', gap:6 }}>
+            <Plus size={15}/> Add Product
+        </button>
+        </div>
       </div>
 
       {msg.text && (
@@ -389,6 +465,156 @@ export default function ProductsPage() {
           </div>
         </div>
       )}
+
+      {/* SELL MULTIPLE (Cart) Modal */}
+        {cartModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(30,27,75,0.3)', backdropFilter:'blur(8px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:20 }}>
+            <div className="glass" style={{ width:'100%', maxWidth:680, padding:28, maxHeight:'88vh', overflowY:'auto' }}>
+
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+                <h2 style={{ fontWeight:700, color:'#1E1B4B', fontSize:'1.1rem', display:'flex', alignItems:'center', gap:8 }}>
+                <ShoppingCart size={19} color="#059669"/> Sell Multiple Products
+                </h2>
+                <button onClick={()=>setCartModal(false)} style={{ background:'none', border:'none', cursor:'pointer', color:'#9CA3AF' }}>
+                <X size={20}/>
+                </button>
+            </div>
+
+            {/* Product picker */}
+            <div style={{ marginBottom:16 }}>
+                <label className="input-label">SEARCH & ADD PRODUCTS</label>
+                <div style={{ position:'relative', marginBottom:8 }}>
+                <Search size={15} style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'#9CA3AF' }} />
+                <input type="text" placeholder="Search products to add..." value={cartSearch}
+                    onChange={e=>setCartSearch(e.target.value)}
+                    style={{ width:'100%', padding:'10px 14px 10px 36px', background:'rgba(255,255,255,0.9)',
+                    border:'1.5px solid rgba(16,185,129,0.25)', borderRadius:10, fontFamily:'Poppins,sans-serif',
+                    fontSize:'0.88rem', color:'#1E1B4B', outline:'none' }} />
+                </div>
+
+                {cartSearch && (
+                <div style={{ maxHeight:160, overflowY:'auto', border:'1px solid rgba(79,70,229,0.1)', borderRadius:10, background:'rgba(255,255,255,0.6)' }}>
+                    {products
+                    .filter(p => p.stock > 0 &&
+                        (p.name.toLowerCase().includes(cartSearch.toLowerCase()) ||
+                        p.productID.toLowerCase().includes(cartSearch.toLowerCase())) &&
+                        !cart.find(c => c.productID === p.productID))
+                    .slice(0, 8)
+                    .map(p => (
+                        <div key={p.productID} onClick={() => { addToCart(p); setCartSearch('') }}
+                        style={{ padding:'10px 14px', cursor:'pointer', display:'flex',
+                            justifyContent:'space-between', alignItems:'center',
+                            borderBottom:'1px solid rgba(79,70,229,0.06)' }}
+                        onMouseEnter={e => e.currentTarget.style.background='rgba(16,185,129,0.06)'}
+                        onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                        <div>
+                            <p style={{ fontSize:'0.85rem', fontWeight:600, color:'#1E1B4B' }}>{p.name}</p>
+                            <p style={{ fontSize:'0.72rem', color:'#9CA3AF' }}>{p.stock} {p.unit} available · ₹{p.customerPrice}/{p.unit}</p>
+                        </div>
+                        <Plus size={16} color="#059669" />
+                        </div>
+                    ))}
+                    {products.filter(p => p.stock > 0 &&
+                    (p.name.toLowerCase().includes(cartSearch.toLowerCase()) ||
+                    p.productID.toLowerCase().includes(cartSearch.toLowerCase())) &&
+                    !cart.find(c => c.productID === p.productID)).length === 0 && (
+                    <p style={{ padding:'14px', fontSize:'0.82rem', color:'#9CA3AF', textAlign:'center' }}>
+                        No matching products with stock available.
+                    </p>
+                    )}
+                </div>
+                )}
+            </div>
+
+            {/* Cart items */}
+            <div style={{ marginBottom:16 }}>
+                <label className="input-label">CART ({cart.length} item{cart.length!==1?'s':''})</label>
+                {cart.length === 0 ? (
+                <div style={{ padding:'30px', textAlign:'center', background:'rgba(79,70,229,0.03)', borderRadius:10, border:'1.5px dashed rgba(79,70,229,0.15)' }}>
+                    <p style={{ color:'#9CA3AF', fontSize:'0.85rem' }}>🛒 Cart is empty. Search and add products above.</p>
+                </div>
+                ) : (
+                <div style={{ display:'grid', gap:8 }}>
+                    {cart.map(item => (
+                    <div key={item.productID} style={{ display:'grid',
+                        gridTemplateColumns:'1fr 90px 90px auto', gap:10, alignItems:'center',
+                        padding:'10px 14px', background:'rgba(16,185,129,0.04)',
+                        border:'1px solid rgba(16,185,129,0.15)', borderRadius:10 }}>
+                        <div>
+                        <p style={{ fontSize:'0.85rem', fontWeight:600, color:'#1E1B4B' }}>{item.name}</p>
+                        <p style={{ fontSize:'0.7rem', color:'#9CA3AF' }}>
+                            Max {item.stock} {item.unit} · ₹{item.customerPrice}/{item.unit}
+                        </p>
+                        </div>
+                        <input type="number" min="1" max={item.stock} value={item.quantity}
+                        onChange={e => updateCartQty(item.productID, parseFloat(e.target.value)||1)}
+                        style={{ width:'100%', padding:'7px 10px', background:'white',
+                            border:'1.5px solid rgba(16,185,129,0.25)', borderRadius:8,
+                            fontFamily:'Poppins,sans-serif', fontSize:'0.85rem', textAlign:'center', outline:'none' }} />
+                        <p style={{ fontSize:'0.85rem', fontWeight:700, color:'#059669', textAlign:'right' }}>
+                        ₹{(item.quantity*(item.customerPrice-item.purchasePrice)).toFixed(0)}
+                        </p>
+                        <button onClick={()=>removeFromCart(item.productID)}
+                        style={{ background:'none', border:'none', cursor:'pointer', color:'#DC2626', display:'flex' }}>
+                        <X size={16}/>
+                        </button>
+                    </div>
+                    ))}
+                </div>
+                )}
+            </div>
+
+            {cart.length > 0 && (
+                <>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
+                    <div>
+                    <label className="input-label">CUSTOMER NAME (OPTIONAL)</label>
+                    <input value={cartCustomer} onChange={e=>setCartCustomer(e.target.value)}
+                        placeholder="Walk-in or name"
+                        style={{ width:'100%', padding:'10px 14px', background:'rgba(255,255,255,0.9)',
+                        border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10,
+                        fontFamily:'Poppins,sans-serif', fontSize:'0.88rem', outline:'none' }} />
+                    </div>
+                    <div>
+                    <label className="input-label">NOTE (OPTIONAL)</label>
+                    <input value={cartNote} onChange={e=>setCartNote(e.target.value)}
+                        placeholder="e.g. With order ORD000012"
+                        style={{ width:'100%', padding:'10px 14px', background:'rgba(255,255,255,0.9)',
+                        border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:10,
+                        fontFamily:'Poppins,sans-serif', fontSize:'0.88rem', outline:'none' }} />
+                    </div>
+                </div>
+
+                {/* Totals */}
+                <div style={{ padding:'14px 16px', background:'rgba(79,70,229,0.05)', borderRadius:12, marginBottom:18 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                    <span style={{ fontSize:'0.85rem', color:'#6B7280' }}>Total sale value:</span>
+                    <span style={{ fontSize:'0.9rem', fontWeight:700, color:'#2563EB' }}>
+                        ₹{cartTotalSaleValue.toLocaleString('en-IN')}
+                    </span>
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'space-between' }}>
+                    <span style={{ fontSize:'0.85rem', color:'#6B7280' }}>Total revenue earned:</span>
+                    <span style={{ fontSize:'1.05rem', fontWeight:800, color:'#059669' }}>
+                        ₹{cartTotalRevenue.toLocaleString('en-IN')}
+                    </span>
+                    </div>
+                </div>
+
+                <button onClick={handleCartCheckout} disabled={cartSaving}
+                    style={{ width:'100%', padding:'14px', background:'linear-gradient(135deg,#10B981,#059669)',
+                    color:'white', border:'none', borderRadius:12, fontFamily:'Poppins,sans-serif',
+                    fontWeight:700, fontSize:'0.92rem', cursor:'pointer',
+                    display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+                    {cartSaving
+                    ? <><div className="spinner"/>Processing sale...</>
+                    : <><ShoppingCart size={17}/>Checkout — Sell {cart.length} Product{cart.length!==1?'s':''}</>}
+                </button>
+                </>
+            )}
+            </div>
+        </div>
+        )}
 
       {/* SELL Modal */}
       {sellModal && (
