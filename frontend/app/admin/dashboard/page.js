@@ -262,6 +262,10 @@ let filtered = orders.filter(o =>
               </div>
             )}
           </div>
+          <button onClick={() => router.push('/admin/products')} className="btn-ghost"
+            style={{ padding:'8px 14px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}>
+            📦 Products
+          </button>
           <button onClick={() => router.push('/admin/salary')} className="btn-ghost"
             style={{ padding:'8px 14px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}>
             💰 Salary
