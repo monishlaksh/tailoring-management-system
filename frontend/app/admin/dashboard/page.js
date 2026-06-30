@@ -231,6 +231,8 @@ let filtered = orders.filter(o =>
                   { icon:'🪡', label:'Alteration Options',  path:'/admin/alteration-options' },
                   { icon:'💬', label:'Offers & Messages',   path:'/admin/offers'             },
                   { icon:'📱', label:'Scan QR',             path:'/admin/scan'               },
+                  { icon:'💰', label:'Employee Salary', path:'/admin/salary' },
+                  { icon:'📊', label:'View Sales',      path:'/admin/sales'  },
                 ].map((item, i, arr) => (
                   <button key={i}
                     onClick={() => {
@@ -260,6 +262,14 @@ let filtered = orders.filter(o =>
               </div>
             )}
           </div>
+          <button onClick={() => router.push('/admin/salary')} className="btn-ghost"
+            style={{ padding:'8px 14px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}>
+            💰 Salary
+          </button>
+          <button onClick={() => router.push('/admin/sales')} className="btn-ghost"
+            style={{ padding:'8px 14px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}>
+            📊 View Sales
+          </button>
           <button onClick={() => router.push('/admin/orders/new')} className="btn-primary"
             style={{ padding:'8px 16px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}>
             <Plus size={14} /> New Order
