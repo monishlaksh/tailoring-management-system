@@ -5,17 +5,33 @@ const Order     = require('../models/Order')
 const { protect } = require('../middleware/auth')
 const router    = express.Router()
 
-// GET salary breakdown — all employees, optionally filtered by date range
+// GET salary breakdown — filterable by period
 router.get('/', protect, async (req, res) => {
   try {
-    const { startDate, endDate } = req.query
+    const { period = 'daily' } = req.query
 
-    const dateFilter = {}
-    if (startDate) dateFilter.$gte = new Date(startDate)
-    if (endDate) {
-      const end = new Date(endDate)
-      end.setHours(23,59,59,999)
-      dateFilter.$lte = end
+    const now = new Date()
+    let defaultStart = new Date()
+    if (period === 'daily')   defaultStart.setDate(now.getDate() - 14)
+    if (period === 'weekly')  defaultStart.setDate(now.getDate() - 84)
+    if (period === 'monthly') defaultStart.setMonth(now.getMonth() - 12)
+    defaultStart.setHours(0,0,0,0)
+
+    const startDate = req.query.startDate ? new Date(req.query.startDate) : defaultStart
+    const endDate   = req.query.endDate ? new Date(req.query.endDate) : now
+    endDate.setHours(23,59,59,999)
+
+    const groupKey = (date) => {
+      const d = new Date(date)
+      if (period === 'daily') {
+        return d.toISOString().split('T')[0]
+      } else if (period === 'weekly') {
+        const onejan = new Date(d.getFullYear(), 0, 1)
+        const week = Math.ceil((((d - onejan) / 86400000) + onejan.getDay() + 1) / 7)
+        return `${d.getFullYear()}-W${String(week).padStart(2,'0')}`
+      } else {
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+      }
     }
 
     const employees = await Employee.find({ isActive:true }).select('-password').lean()
@@ -32,7 +48,7 @@ router.get('/', protect, async (req, res) => {
 
       let totalEarned = 0
       let totalOrders = 0
-      const dailyBreakdown = {}
+      const periodBreakdown = {}
 
       allotments.forEach(a => {
         ['cutting','stitching','finishing'].forEach(stage => {
@@ -41,27 +57,24 @@ router.get('/', protect, async (req, res) => {
             if (!completedAt) return
             const date = new Date(completedAt)
 
-            if (Object.keys(dateFilter).length > 0) {
-              if (dateFilter.$gte && date < dateFilter.$gte) return
-              if (dateFilter.$lte && date > dateFilter.$lte) return
-            }
+            if (date < startDate || date > endDate) return
 
             const award = a[stage].award || 0
             totalEarned += award
             totalOrders += 1
 
-            const dayKey = date.toISOString().split('T')[0]
-            if (!dailyBreakdown[dayKey]) {
-              dailyBreakdown[dayKey] = { date:dayKey, orders:0, amount:0 }
+            const key = groupKey(date)
+            if (!periodBreakdown[key]) {
+              periodBreakdown[key] = { period:key, orders:0, amount:0 }
             }
-            dailyBreakdown[dayKey].orders += 1
-            dailyBreakdown[dayKey].amount += award
+            periodBreakdown[key].orders += 1
+            periodBreakdown[key].amount += award
           }
         })
       })
 
-      const dailyArray = Object.values(dailyBreakdown).sort((a,b) =>
-        new Date(b.date) - new Date(a.date)
+      const breakdownArray = Object.values(periodBreakdown).sort((a,b) =>
+        b.period.localeCompare(a.period)
       )
 
       return {
@@ -70,13 +83,13 @@ router.get('/', protect, async (req, res) => {
         role:       emp.role,
         totalOrders,
         totalEarned,
-        dailyBreakdown: dailyArray,
+        breakdown:  breakdownArray,
       }
     }))
 
     result.sort((a,b) => b.totalEarned - a.totalEarned)
 
-    res.json({ success:true, salaries:result })
+    res.json({ success:true, period, salaries:result })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
@@ -130,7 +143,6 @@ router.get('/:employeeID', protect, async (req, res) => {
     })
 
     entries.sort((a,b) => new Date(b.completedAt) - new Date(a.completedAt))
-
     const totalEarned = entries.reduce((s,e) => s+e.award, 0)
 
     res.json({
