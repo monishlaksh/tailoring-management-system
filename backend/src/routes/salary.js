@@ -5,21 +5,36 @@ const Order     = require('../models/Order')
 const { protect } = require('../middleware/auth')
 const router    = express.Router()
 
-// GET salary breakdown — filterable by period
 router.get('/', protect, async (req, res) => {
   try {
     const { period = 'daily' } = req.query
 
     const now = new Date()
-    let defaultStart = new Date()
-    if (period === 'daily')   defaultStart.setDate(now.getDate() - 14)
-    if (period === 'weekly')  defaultStart.setDate(now.getDate() - 84)
-    if (period === 'monthly') defaultStart.setMonth(now.getMonth() - 12)
-    defaultStart.setHours(0,0,0,0)
+    let startDate, endDate
 
-    const startDate = req.query.startDate ? new Date(req.query.startDate) : defaultStart
-    const endDate   = req.query.endDate ? new Date(req.query.endDate) : now
-    endDate.setHours(23,59,59,999)
+    if (req.query.startDate && req.query.endDate) {
+      startDate = new Date(req.query.startDate)
+      endDate   = new Date(req.query.endDate)
+    } else if (period === 'daily') {
+      startDate = new Date(now)
+      startDate.setHours(0,0,0,0)
+      endDate = new Date(now)
+      endDate.setHours(23,59,59,999)
+    } else if (period === 'weekly') {
+      // Start of current week (Monday)
+      startDate = new Date(now)
+      const day = startDate.getDay()
+      const diff = startDate.getDate() - day + (day === 0 ? -6 : 1)
+      startDate.setDate(diff)
+      startDate.setHours(0,0,0,0)
+      endDate = new Date(now)
+      endDate.setHours(23,59,59,999)
+    } else {
+      // Start of current month
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+      endDate = new Date(now)
+      endDate.setHours(23,59,59,999)
+    }
 
     const groupKey = (date) => {
       const d = new Date(date)
@@ -89,7 +104,13 @@ router.get('/', protect, async (req, res) => {
 
     result.sort((a,b) => b.totalEarned - a.totalEarned)
 
-    res.json({ success:true, period, salaries:result })
+    res.json({
+      success: true,
+      period,
+      startDate: startDate.toISOString(),
+      endDate:   endDate.toISOString(),
+      salaries: result,
+    })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }

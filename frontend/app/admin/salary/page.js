@@ -10,20 +10,34 @@ export default function SalaryPage() {
   const [loading, setLoading]   = useState(true)
   const [expanded, setExpanded] = useState(null)
   const [period, setPeriod]     = useState('daily')
+  const [showHistory, setShowHistory] = useState(false)
 
-  useEffect(() => {
-    if (!localStorage.getItem('adminToken')) { router.push('/admin/login'); return }
-    fetchSalaries()
-  }, [period])
+// In fetchSalaries, pass custom range when history toggled:
+const fetchSalaries = async () => {
+  setLoading(true)
+  try {
+    let url = `/api/salary?period=${period}`
+    if (showHistory) {
+      const now = new Date()
+      const start = new Date()
+      if (period === 'daily')   start.setDate(now.getDate() - 30)
+      if (period === 'weekly')  start.setDate(now.getDate() - 90)
+      if (period === 'monthly') start.setMonth(now.getMonth() - 12)
+      url += `&startDate=${start.toISOString()}&endDate=${now.toISOString()}`
+    }
+    const res = await API.get(url)
+    setSalaries(res.data.salaries)
+  } catch (e) { console.error(e) }
+  finally { setLoading(false) }
+}
 
-  const fetchSalaries = async () => {
-    setLoading(true)
-    try {
-      const res = await API.get(`/api/salary?period=${period}`)
-      setSalaries(res.data.salaries)
-    } catch (e) { console.error(e) }
-    finally { setLoading(false) }
-  }
+useEffect(() => {
+  if (localStorage.getItem('adminToken')) fetchSalaries()
+}, [period, showHistory])
+
+  
+
+  
 
   const formatPeriodLabel = (p) => {
     try {
@@ -74,11 +88,30 @@ export default function SalaryPage() {
       </div>
 
       {/* Range hint */}
-      <p style={{ fontSize:'0.75rem', color:'#9CA3AF', marginBottom:16 }}>
-        {period === 'daily'   && 'Showing last 14 days'}
-        {period === 'weekly'  && 'Showing last 12 weeks'}
-        {period === 'monthly' && 'Showing last 12 months'}
-      </p>
+        <p style={{ fontSize:'0.75rem', color:'#9CA3AF', marginBottom:16 }}>
+        {showHistory ? (
+            <>
+            {period === 'daily'   && 'Showing last 30 days'}
+            {period === 'weekly'  && 'Showing last 12 weeks'}
+            {period === 'monthly' && 'Showing last 12 months'}
+            </>
+        ) : (
+            <>
+            {period === 'daily'   && `Showing today — ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}`}
+            {period === 'weekly'  && 'Showing this week (Mon–today)'}
+            {period === 'monthly' && `Showing ${new Date().toLocaleDateString('en-IN',{month:'long',year:'numeric'})}`}
+            </>
+        )}
+        </p>
+
+        <button onClick={() => setShowHistory(!showHistory)}
+        style={{ padding:'7px 14px', borderRadius:8,
+            border:'1.5px solid rgba(79,70,229,0.2)', cursor:'pointer',
+            fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.78rem',
+            background: showHistory ? 'rgba(79,70,229,0.1)' : 'white',
+            color:'#4F46E5', marginLeft:8 }}>
+        {showHistory ? '📅 Showing History' : '📅 View History'}
+        </button>
 
       {/* Summary */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:14, marginBottom:20 }}>
