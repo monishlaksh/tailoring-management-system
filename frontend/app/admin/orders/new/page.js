@@ -11,7 +11,7 @@ const MEASUREMENT_LABELS = {
   shoulder:'Shoulder', chest:'Chest', waist:'Waist', hip:'Hip',
   sleeve:'Sleeve', length:'Length', neck:'Neck', custom:'Custom',
 }
-const [voiceNote, setVoiceNote] = useState({ data:'', mimeType:'audio/webm', duration:0 })
+
 
 // ── Alteration Section Component ──────────────────────────────
 function AlterationSection({ alterationOptions, alteration, onChange, loading }) {
@@ -151,6 +151,8 @@ export default function NewOrder() {
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
   const [loadingPage, setLoadingPage] = useState(true)
+
+  const [voiceNote, setVoiceNote] = useState({ data:'', mimeType:'audio/webm', duration:0 })
 
   const [form, setForm] = useState({
     quantity:      1,
