@@ -18,6 +18,69 @@ const STATUS_INFO = {
 
 const BACKEND = 'https://tailoring-management-apwh.onrender.com'
 
+function VoicePlayerCard({ voiceNote }) {
+  const [playing, setPlaying] = useState(false)
+  const audioRef = useRef(null)
+
+  const base64ToBlob = (b64, mime) => {
+    const byteCharacters = atob(b64)
+    const byteNumbers    = Array.from(byteCharacters, c => c.charCodeAt(0))
+    return new Blob([new Uint8Array(byteNumbers)], { type:mime })
+  }
+
+  const togglePlay = () => {
+    if (playing && audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+      setPlaying(false)
+      return
+    }
+    const blob  = base64ToBlob(voiceNote.data, voiceNote.mimeType||'audio/webm')
+    const url   = URL.createObjectURL(blob)
+    const audio = new Audio(url)
+    audioRef.current = audio
+    audio.play()
+    setPlaying(true)
+    audio.onended = () => {
+      setPlaying(false)
+      audioRef.current = null
+      URL.revokeObjectURL(url)
+    }
+  }
+
+  const formatTime = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`
+
+  return (
+    <div style={{ background:'white', borderRadius:16, padding:'18px',
+      marginBottom:14, boxShadow:'0 2px 12px rgba(79,70,229,0.08)',
+      border:'1.5px solid rgba(79,70,229,0.15)' }}>
+      <p style={{ fontSize:'0.72rem', color:'#4F46E5', fontWeight:700,
+        textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:12 }}>
+        🎙️ Admin Voice Note
+      </p>
+      <p style={{ fontSize:'0.78rem', color:'#6B7280', marginBottom:12 }}>
+        Play to hear special instructions from admin.
+      </p>
+      <button onClick={togglePlay}
+        style={{ display:'flex', alignItems:'center', gap:10, width:'100%',
+          padding:'14px 18px', borderRadius:12, border:'none', cursor:'pointer',
+          background: playing
+            ? 'linear-gradient(135deg,#F59E0B,#D97706)'
+            : 'linear-gradient(135deg,#4F46E5,#6366F1)',
+          color:'white', fontFamily:'Poppins,sans-serif',
+          fontWeight:700, fontSize:'0.9rem' }}>
+        <span style={{ fontSize:'1.4rem' }}>{playing ? '⏸' : '▶️'}</span>
+        {playing ? 'Tap to stop' : 'Play Voice Note'}
+        {voiceNote.duration > 0 && (
+          <span style={{ marginLeft:'auto', fontSize:'0.8rem', opacity:0.8 }}>
+            {formatTime(voiceNote.duration)}
+          </span>
+        )}
+      </button>
+    </div>
+  )
+}
+
 function ScanContent() {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
@@ -302,6 +365,11 @@ function ScanContent() {
           )}
         </div>
 
+        {/* ── Voice Note — if exists ── */}
+        {data.voiceNote?.data && (
+          <VoicePlayerCard voiceNote={data.voiceNote} />
+        )}
+
         {/* ── Alterations — stitching stage only ── */}
         {stage === 'stitching' && (
           <div style={{ background:'white', borderRadius:16, padding:'20px',
@@ -447,6 +515,7 @@ function ScanContent() {
               })}
             </div>
           </div>
+          
         )}
 
         {/* ── Footer ── */}

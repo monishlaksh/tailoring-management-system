@@ -99,11 +99,12 @@ router.get('/:orderID', protect, async (req, res) => {
 router.post('/', protectAdminOrFullAccess, async (req, res) => {
   try {
     const {
-      customerID, clothType, quantity,
-      unitCost, amountSettled,
-      fabricNotes, specialInstructions,
-      measurements, alteration, deliveryDate,
-    } = req.body
+    customerID, clothType, quantity,
+    unitCost, amountSettled,
+    fabricNotes, specialInstructions,
+    measurements, alteration, deliveryDate,
+    voiceNote,   // ← ADD THIS
+  } = req.body
 
     if (!customerID)
       return res.status(400).json({ success:false, message:'Customer ID required' })
@@ -130,6 +131,7 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
       measurements:        measurements || {},
       alteration:          alteration  || { required:false, selectedOptions:[], notes:'', extraCost:0 },
       deliveryDate,
+      voiceNote: voiceNote || { data:'', mimeType:'audio/webm', duration:0 },
       createdBy: {
         role:       req.role === 'employee_admin' ? 'employee' : 'admin',
         employeeID: req.employee?.employeeID || '',

@@ -20,6 +20,11 @@ const orderSchema = new mongoose.Schema({
     neck:     { type:String, default:'' },
     custom:   { type:String, default:'' },
   },
+  voiceNote: {
+  data:     { type:String, default:'' },
+  mimeType: { type:String, default:'audio/webm' },
+  duration: { type:Number, default:0 },
+},
   // Updated alteration — now stores array of selected options + notes
   alteration: {
     required:        { type:Boolean, default:false },

@@ -4,12 +4,14 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Search, UserPlus, X, Check } from 'lucide-react'
 import { adminAPI as API } from '../../../../lib/api'
 import NumInput from '../../../../components/NumInput'
+import VoiceRecorder from '../../../../components/VoiceRecorder'
 
 const MEASUREMENT_FIELDS = ['shoulder','chest','waist','hip','sleeve','length','neck','custom']
 const MEASUREMENT_LABELS = {
   shoulder:'Shoulder', chest:'Chest', waist:'Waist', hip:'Hip',
   sleeve:'Sleeve', length:'Length', neck:'Neck', custom:'Custom',
 }
+const [voiceNote, setVoiceNote] = useState({ data:'', mimeType:'audio/webm', duration:0 })
 
 // ── Alteration Section Component ──────────────────────────────
 function AlterationSection({ alterationOptions, alteration, onChange, loading }) {
@@ -266,6 +268,7 @@ export default function NewOrder() {
         customerID: selected.customerID,
         clothType:  clothTypeName,
         unitCost:   form.unitCost,
+        voiceNote,   // ← ADD THIS
       })
       router.push(`/admin/allotment/${res.data.order.orderID}`)
     } catch (e) {
@@ -915,6 +918,20 @@ export default function NewOrder() {
               </div>
             </>
           )}
+        </div>
+
+        {/* Voice Note */}
+        <div className="glass" style={{ padding:24 }}>
+          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:6, fontSize:'0.95rem' }}>
+            🎙️ Voice Note
+            <span style={{ fontSize:'0.75rem', color:'#9CA3AF', fontWeight:400, marginLeft:8 }}>
+              (visible to employees)
+            </span>
+          </h2>
+          <p style={{ fontSize:'0.78rem', color:'#6B7280', marginBottom:14 }}>
+            Record special instructions for the employee — fitting preferences, design notes, etc.
+          </p>
+          <VoiceRecorder value={voiceNote} onChange={setVoiceNote} />
         </div>
 
         {/* ⑥ Alteration */}

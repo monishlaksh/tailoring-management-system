@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { ArrowLeft, Check, X, Users, Award } from 'lucide-react'
+import { ArrowLeft, Check, X, Users, ChevronDown, ChevronUp, Printer } from 'lucide-react'
 import { adminAPI as API } from '../../../../lib/api'
 
 
@@ -32,6 +32,9 @@ export default function AllotmentPage() {
   const [success, setSuccess]       = useState('')
   const [sendingWA, setSendingWA] = useState(false)
 const [waMsg, setWaMsg]         = useState('')
+const [printing, setPrinting] = useState(false)
+
+
 
   // Per-stage state
   const [assigning, setAssigning]   = useState(null) // stage name
@@ -119,6 +122,14 @@ const [waMsg, setWaMsg]         = useState('')
     }
   }
 
+  const handlePrint = () => {
+  setPrinting(true)
+  setTimeout(() => {
+    window.print()
+    setPrinting(false)
+  }, 300)
+}
+
   // Get employees eligible for a stage
   const getEligibleEmployees = (stage) =>
     employees.filter(e => e.role === stage || e.role === 'all')
@@ -157,6 +168,13 @@ const [waMsg, setWaMsg]         = useState('')
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <button onClick={() => router.push('/admin/dashboard')} style={{ background:'none', border:'none', cursor:'pointer', color:'#4F46E5', display:'flex' }}>
             <ArrowLeft size={20} />
+          </button>
+          <button onClick={handlePrint}
+            style={{ width:36, height:36, borderRadius:10,
+              background:'rgba(79,70,229,0.08)', border:'none',
+              cursor:'pointer', display:'flex', alignItems:'center',
+              justifyContent:'center', color:'#4F46E5', flexShrink:0 }}>
+            <Printer size={18}/>
           </button>
           <div>
             <h1 style={{ fontSize:'1rem', fontWeight:700, color:'#1E1B4B' }}>
@@ -530,6 +548,169 @@ const [waMsg, setWaMsg]         = useState('')
 
         </div>
       </div>
+      {/* ── PRINT SHEET — hidden on screen, shown on print ── */}
+<div id="print-sheet" style={{ display:'none' }}>
+  <div style={{ fontFamily:'Georgia,serif', maxWidth:800, margin:'0 auto', padding:20, color:'#000' }}>
+
+    {/* Header */}
+    <div style={{ textAlign:'center', borderBottom:'2px solid #000', paddingBottom:12, marginBottom:16 }}>
+      <h1 style={{ fontSize:22, fontWeight:'bold', margin:0 }}>✂️ Al-Ameen Tailors</h1>
+      <p style={{ fontSize:12, margin:'4px 0 0', color:'#444' }}>Work Order Sheet</p>
+    </div>
+
+    {/* Order & Customer Info */}
+    <table style={{ width:'100%', borderCollapse:'collapse', marginBottom:14 }}>
+      <tbody>
+        <tr>
+          <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12, width:'30%' }}>Order ID</td>
+          <td style={{ padding:'4px 8px', fontSize:12 }}>{order?.orderID}</td>
+          <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12, width:'30%' }}>Delivery Date</td>
+          <td style={{ padding:'4px 8px', fontSize:12 }}>
+            {order?.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('en-IN') : '—'}
+          </td>
+        </tr>
+        <tr style={{ background:'#f5f5f5' }}>
+          <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12 }}>Customer</td>
+          <td style={{ padding:'4px 8px', fontSize:12 }}>{order?.customerRef?.name || '—'}</td>
+          <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12 }}>Phone</td>
+          <td style={{ padding:'4px 8px', fontSize:12 }}>{order?.customerRef?.phone || '—'}</td>
+        </tr>
+        <tr>
+          <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12 }}>Cloth Type</td>
+          <td style={{ padding:'4px 8px', fontSize:12 }} colSpan={3}>{order?.clothType}</td>
+        </tr>
+        <tr style={{ background:'#f5f5f5' }}>
+          <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12 }}>Quantity</td>
+          <td style={{ padding:'4px 8px', fontSize:12 }}>{order?.quantity}</td>
+          <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12 }}>Status</td>
+          <td style={{ padding:'4px 8px', fontSize:12 }}>{order?.status}</td>
+        </tr>
+        {order?.fabricNotes && (
+          <tr>
+            <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12 }}>Fabric Notes</td>
+            <td style={{ padding:'4px 8px', fontSize:12 }} colSpan={3}>{order.fabricNotes}</td>
+          </tr>
+        )}
+        {order?.specialInstructions && (
+          <tr style={{ background:'#f5f5f5' }}>
+            <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12 }}>Special Instructions</td>
+            <td style={{ padding:'4px 8px', fontSize:12 }} colSpan={3}>{order.specialInstructions}</td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+
+    {/* Measurements */}
+    {order?.measurements && Object.entries(order.measurements).some(([,v])=>v) && (
+      <div style={{ marginBottom:14 }}>
+        <h3 style={{ fontSize:13, fontWeight:'bold', borderBottom:'1px solid #000', paddingBottom:4, marginBottom:8 }}>
+          📏 Measurements (inches)
+        </h3>
+        <table style={{ width:'100%', borderCollapse:'collapse' }}>
+          <tbody>
+            <tr>
+              {Object.entries(order.measurements)
+                .filter(([,v])=>v)
+                .map(([k,v]) => (
+                <td key={k} style={{ border:'1px solid #ccc', padding:'6px 10px', fontSize:12, width:'25%' }}>
+                  <div style={{ fontSize:10, color:'#666', textTransform:'uppercase' }}>{k}</div>
+                  <div style={{ fontSize:16, fontWeight:'bold' }}>{v}"</div>
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    )}
+
+    {/* Alterations */}
+    {order?.alteration?.required && (
+      <div style={{ marginBottom:14 }}>
+        <h3 style={{ fontSize:13, fontWeight:'bold', borderBottom:'1px solid #000', paddingBottom:4, marginBottom:8 }}>
+          ⚠️ Alterations Required
+        </h3>
+        {(order.alteration.selectedOptions||[]).length > 0 && (
+          <div style={{ marginBottom:8 }}>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+              {order.alteration.selectedOptions.map((opt,i) => (
+                <span key={i} style={{ border:'1px solid #000', padding:'3px 10px', fontSize:11, borderRadius:4 }}>
+                  {opt}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        {order.alteration.notes && (
+          <p style={{ fontSize:12, color:'#333', fontStyle:'italic', marginTop:6 }}>
+            Notes: {order.alteration.notes}
+          </p>
+        )}
+      </div>
+    )}
+
+    {/* Stage Status */}
+    <div style={{ marginBottom:14 }}>
+      <h3 style={{ fontSize:13, fontWeight:'bold', borderBottom:'1px solid #000', paddingBottom:4, marginBottom:8 }}>
+        Stage Progress
+      </h3>
+      <table style={{ width:'100%', borderCollapse:'collapse' }}>
+        <thead>
+          <tr style={{ background:'#000', color:'white' }}>
+            <th style={{ padding:'6px 10px', fontSize:11, textAlign:'left' }}>Stage</th>
+            <th style={{ padding:'6px 10px', fontSize:11, textAlign:'left' }}>Assigned To</th>
+            <th style={{ padding:'6px 10px', fontSize:11, textAlign:'left' }}>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {allotment && ['cutting','stitching','finishing'].map((stage, i) => (
+            <tr key={stage} style={{ background:i%2===0?'white':'#f9f9f9' }}>
+              <td style={{ padding:'6px 10px', fontSize:12, textTransform:'capitalize', fontWeight:'bold' }}>
+                {stage === 'cutting' ? '✂️' : stage === 'stitching' ? '🧵' : '🚩'} {stage}
+              </td>
+              <td style={{ padding:'6px 10px', fontSize:12 }}>
+                {allotment[stage]?.employeeName || '—'}
+              </td>
+              <td style={{ padding:'6px 10px', fontSize:12, textTransform:'capitalize' }}>
+                {allotment[stage]?.status?.replace('_',' ') || 'Not Assigned'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    {/* Voice Note notice */}
+    {order?.voiceNote?.data && (
+      <div style={{ border:'2px dashed #4F46E5', padding:'10px 14px', borderRadius:8, marginBottom:14 }}>
+        <p style={{ fontSize:12, fontWeight:'bold', color:'#4F46E5', margin:0 }}>
+          🎙️ VOICE NOTE ATTACHED
+        </p>
+        <p style={{ fontSize:11, color:'#555', margin:'4px 0 0' }}>
+          Duration: {Math.floor((order.voiceNote.duration||0)/60)}:{String((order.voiceNote.duration||0)%60).padStart(2,'0')} min
+          — Scan QR code and open the work order page to play the voice note.
+        </p>
+      </div>
+    )}
+
+    {/* QR Code */}
+    {allotment?.qrCode && (
+      <div style={{ textAlign:'center', marginBottom:14, paddingTop:8, borderTop:'1px solid #ccc' }}>
+        <p style={{ fontSize:12, fontWeight:'bold', marginBottom:8 }}>📱 Scan QR to view full work order</p>
+        <img src={allotment.qrCode} alt="QR Code"
+          style={{ width:140, height:140, border:'2px solid #000', borderRadius:8 }} />
+        <p style={{ fontSize:10, color:'#666', marginTop:4 }}>{order?.orderID}</p>
+      </div>
+    )}
+
+    {/* Footer */}
+    <div style={{ borderTop:'1px solid #000', paddingTop:8, marginTop:8, display:'flex', justifyContent:'space-between' }}>
+      <p style={{ fontSize:10, color:'#666' }}>
+        Printed: {new Date().toLocaleString('en-IN')}
+      </p>
+      <p style={{ fontSize:10, color:'#666' }}>Al-Ameen Tailors — Confidential Work Order</p>
+    </div>
+  </div>
+</div>
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>

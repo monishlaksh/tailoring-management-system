@@ -126,3 +126,11 @@ input[type='number']::-webkit-outer-spin-button {
 }
 input[type='number'] { appearance: textfield;
 -moz-appearance: textfield;}
+
+
+  @media print {
+    body > * { display: none !important; }
+    #print-sheet { display: block !important; }
+    #print-sheet * { visibility: visible; }
+    @page { margin: 15mm; size: A4; }
+  }

@@ -43,6 +43,7 @@ router.get('/:orderID', async (req, res) => {
       quantity:     order.quantity,
       measurements: order.measurements || {},
       fabricNotes:  order.fabricNotes  || '',
+      voiceNote:    order.voiceNote    || { data:'', mimeType:'audio/webm', duration:0 },
       stage,
       stageInfo: (allotment && stage !== 'general' && allotment[stage])
         ? {
