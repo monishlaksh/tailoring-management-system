@@ -711,6 +711,14 @@ const [printing, setPrinting] = useState(false)
     </div>
   </div>
 </div>
+      <style>{`
+  @media print {
+    body > * { display: none !important; }
+    #print-sheet { display: block !important; }
+    #print-sheet * { visibility: visible; }
+    @page { margin: 15mm; size: A4; }
+  }
+`}</style>
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>
