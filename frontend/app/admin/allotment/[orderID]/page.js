@@ -169,13 +169,7 @@ const [printing, setPrinting] = useState(false)
           <button onClick={() => router.push('/admin/dashboard')} style={{ background:'none', border:'none', cursor:'pointer', color:'#4F46E5', display:'flex' }}>
             <ArrowLeft size={20} />
           </button>
-          <button onClick={handlePrint}
-            style={{ width:36, height:36, borderRadius:10,
-              background:'rgba(79,70,229,0.08)', border:'none',
-              cursor:'pointer', display:'flex', alignItems:'center',
-              justifyContent:'center', color:'#4F46E5', flexShrink:0 }}>
-            <Printer size={18}/>
-          </button>
+          
           <div>
             <h1 style={{ fontSize:'1rem', fontWeight:700, color:'#1E1B4B' }}>
               Allotment — {orderID}
@@ -186,6 +180,13 @@ const [printing, setPrinting] = useState(false)
           </div>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <button onClick={handlePrint}
+            style={{ width:36, height:36, borderRadius:10,
+              background:'rgba(79,70,229,0.08)', border:'none',
+              cursor:'pointer', display:'flex', alignItems:'center',
+              justifyContent:'center', color:'#4F46E5', flexShrink:0 }}>
+            <Printer size={18}/>
+          </button>
           <span style={{ fontSize:'0.82rem', color:'#6B7280' }}>
             {stagesCompleted}/3 stages done
           </span>
