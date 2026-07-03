@@ -123,11 +123,177 @@ const [printing, setPrinting] = useState(false)
   }
 
   const handlePrint = () => {
-  setPrinting(true)
-  setTimeout(() => {
-    window.print()
-    setPrinting(false)
-  }, 300)
+  if (!order || !allotment) return
+
+  const measurements = order.measurements || {}
+  const hasMeasurements = Object.entries(measurements).some(([,v]) => v)
+
+  const alterations = order.alteration?.selectedOptions || []
+  const hasAlteration = order.alteration?.required && alterations.length > 0
+
+  const stageRows = ['cutting','stitching','finishing'].map(stage => {
+    const s = allotment[stage]
+    const icon = stage==='cutting'?'✂️':stage==='stitching'?'🧵':'🚩'
+    const statusLabel = (s?.status||'not_assigned').replace('_',' ')
+    return `
+      <tr>
+        <td>${icon} ${stage.charAt(0).toUpperCase()+stage.slice(1)}</td>
+        <td>${s?.employeeName || '—'}</td>
+        <td style="text-transform:capitalize">${statusLabel}</td>
+      </tr>
+    `
+  }).join('')
+
+  const measurementCells = hasMeasurements
+    ? Object.entries(measurements)
+        .filter(([,v]) => v)
+        .map(([k,v]) => `
+          <td style="border:1px solid #ccc;padding:8px 10px;">
+            <div style="font-size:10px;color:#666;text-transform:uppercase;margin-bottom:3px">${k}</div>
+            <div style="font-size:18px;font-weight:bold">${v}"</div>
+          </td>
+        `).join('')
+    : ''
+
+  const alterationHtml = hasAlteration ? `
+    <div style="margin-bottom:16px">
+      <h3 style="font-size:13px;font-weight:bold;border-bottom:1px solid #000;padding-bottom:4px;margin-bottom:8px">
+        ⚠️ Alterations Required
+      </h3>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+        ${alterations.map(a => `
+          <span style="border:1px solid #000;padding:3px 10px;font-size:11px;border-radius:4px">${a}</span>
+        `).join('')}
+      </div>
+      ${order.alteration?.notes ? `<p style="font-size:12px;font-style:italic;color:#333">Notes: ${order.alteration.notes}</p>` : ''}
+    </div>
+  ` : ''
+
+  const voiceNoteHtml = order.voiceNote?.data ? `
+    <div style="border:2px dashed #4F46E5;padding:10px 14px;border-radius:8px;margin-bottom:16px">
+      <p style="font-size:12px;font-weight:bold;color:#4F46E5;margin:0">
+        🎙️ VOICE NOTE ATTACHED — Duration: ${Math.floor((order.voiceNote.duration||0)/60)}:${String((order.voiceNote.duration||0)%60).padStart(2,'0')}
+      </p>
+      <p style="font-size:11px;color:#555;margin:4px 0 0">
+        Scan the QR code below and open the work order page to play the voice note.
+      </p>
+    </div>
+  ` : ''
+
+  const qrHtml = allotment.qrCode ? `
+    <div style="text-align:center;padding-top:12px;border-top:1px solid #ccc;margin-top:8px">
+      <p style="font-size:12px;font-weight:bold;margin-bottom:8px">📱 Scan QR to view full work order on phone</p>
+      <img src="${allotment.qrCode}" alt="QR" style="width:150px;height:150px;border:2px solid #000;border-radius:6px" />
+      <p style="font-size:11px;color:#666;margin-top:4px">${order.orderID}</p>
+    </div>
+  ` : ''
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Work Order — ${order.orderID}</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: Georgia, serif; font-size:13px; color:#000; padding:20px; }
+        h1 { font-size:22px; font-weight:bold; margin-bottom:4px; }
+        h3 { font-size:13px; font-weight:bold; }
+        table { width:100%; border-collapse:collapse; margin-bottom:14px; }
+        th { background:#000; color:white; padding:6px 10px; font-size:11px; text-align:left; }
+        td { padding:5px 8px; font-size:12px; border-bottom:1px solid #eee; }
+        tr:nth-child(even) td { background:#f9f9f9; }
+        .label { font-weight:bold; width:28%; color:#333; }
+        .section-title { font-size:13px; font-weight:bold; border-bottom:1px solid #000; padding-bottom:4px; margin:14px 0 8px; }
+        .footer { border-top:1px solid #000; padding-top:8px; margin-top:12px; display:flex; justify-content:space-between; font-size:10px; color:#666; }
+        @media print {
+          @page { margin:12mm; size:A4; }
+          body { padding:0; }
+        }
+      </style>
+    </head>
+    <body>
+      <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:16px">
+        <h1>✂️ Al-Ameen Tailors</h1>
+        <p style="font-size:12px;color:#444;margin-top:4px">Work Order Sheet</p>
+      </div>
+
+      <table>
+        <tbody>
+          <tr>
+            <td class="label">Order ID</td>
+            <td style="font-weight:bold;font-size:14px">${order.orderID}</td>
+            <td class="label">Delivery Date</td>
+            <td>${order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'}) : '—'}</td>
+          </tr>
+          <tr>
+            <td class="label">Customer</td>
+            <td>${order.customerRef?.name || '—'}</td>
+            <td class="label">Phone</td>
+            <td style="font-weight:bold">${order.customerRef?.phone || '—'}</td>
+          </tr>
+          <tr>
+            <td class="label">Cloth Type</td>
+            <td colspan="3">${order.clothType}</td>
+          </tr>
+          <tr>
+            <td class="label">Quantity</td>
+            <td>${order.quantity}</td>
+            <td class="label">Status</td>
+            <td>${order.status}</td>
+          </tr>
+          ${order.fabricNotes ? `
+          <tr>
+            <td class="label">Fabric Notes</td>
+            <td colspan="3">${order.fabricNotes}</td>
+          </tr>` : ''}
+          ${order.specialInstructions ? `
+          <tr>
+            <td class="label">Special Instructions</td>
+            <td colspan="3">${order.specialInstructions}</td>
+          </tr>` : ''}
+        </tbody>
+      </table>
+
+      ${hasMeasurements ? `
+        <div class="section-title">📏 Measurements (inches)</div>
+        <table><tbody><tr>${measurementCells}</tr></tbody></table>
+      ` : ''}
+
+      ${alterationHtml}
+
+      <div class="section-title">Stage Progress</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Stage</th>
+            <th>Assigned To</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>${stageRows}</tbody>
+      </table>
+
+      ${voiceNoteHtml}
+      ${qrHtml}
+
+      <div class="footer">
+        <span>Printed: ${new Date().toLocaleString('en-IN')}</span>
+        <span>Al-Ameen Tailors — Work Order (Confidential)</span>
+      </div>
+
+      <script>
+        window.onload = function() {
+          window.print();
+          window.onafterprint = function() { window.close(); };
+        };
+      </script>
+    </body>
+    </html>
+  `
+
+  const printWindow = window.open('', '_blank', 'width=800,height=900')
+  printWindow.document.write(html)
+  printWindow.document.close()
 }
 
   // Get employees eligible for a stage
@@ -549,177 +715,8 @@ const [printing, setPrinting] = useState(false)
 
         </div>
       </div>
-      {/* ── PRINT SHEET — hidden on screen, shown on print ── */}
-<div id="print-sheet" style={{ display:'none' }}>
-  <div style={{ fontFamily:'Georgia,serif', maxWidth:800, margin:'0 auto', padding:20, color:'#000' }}>
-
-    {/* Header */}
-    <div style={{ textAlign:'center', borderBottom:'2px solid #000', paddingBottom:12, marginBottom:16 }}>
-      <h1 style={{ fontSize:22, fontWeight:'bold', margin:0 }}>✂️ Al-Ameen Tailors</h1>
-      <p style={{ fontSize:12, margin:'4px 0 0', color:'#444' }}>Work Order Sheet</p>
-    </div>
-
-    {/* Order & Customer Info */}
-    <table style={{ width:'100%', borderCollapse:'collapse', marginBottom:14 }}>
-      <tbody>
-        <tr>
-          <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12, width:'30%' }}>Order ID</td>
-          <td style={{ padding:'4px 8px', fontSize:12 }}>{order?.orderID}</td>
-          <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12, width:'30%' }}>Delivery Date</td>
-          <td style={{ padding:'4px 8px', fontSize:12 }}>
-            {order?.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('en-IN') : '—'}
-          </td>
-        </tr>
-        <tr style={{ background:'#f5f5f5' }}>
-          <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12 }}>Customer</td>
-          <td style={{ padding:'4px 8px', fontSize:12 }}>{order?.customerRef?.name || '—'}</td>
-          <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12 }}>Phone</td>
-          <td style={{ padding:'4px 8px', fontSize:12 }}>{order?.customerRef?.phone || '—'}</td>
-        </tr>
-        <tr>
-          <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12 }}>Cloth Type</td>
-          <td style={{ padding:'4px 8px', fontSize:12 }} colSpan={3}>{order?.clothType}</td>
-        </tr>
-        <tr style={{ background:'#f5f5f5' }}>
-          <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12 }}>Quantity</td>
-          <td style={{ padding:'4px 8px', fontSize:12 }}>{order?.quantity}</td>
-          <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12 }}>Status</td>
-          <td style={{ padding:'4px 8px', fontSize:12 }}>{order?.status}</td>
-        </tr>
-        {order?.fabricNotes && (
-          <tr>
-            <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12 }}>Fabric Notes</td>
-            <td style={{ padding:'4px 8px', fontSize:12 }} colSpan={3}>{order.fabricNotes}</td>
-          </tr>
-        )}
-        {order?.specialInstructions && (
-          <tr style={{ background:'#f5f5f5' }}>
-            <td style={{ padding:'4px 8px', fontWeight:'bold', fontSize:12 }}>Special Instructions</td>
-            <td style={{ padding:'4px 8px', fontSize:12 }} colSpan={3}>{order.specialInstructions}</td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-
-    {/* Measurements */}
-    {order?.measurements && Object.entries(order.measurements).some(([,v])=>v) && (
-      <div style={{ marginBottom:14 }}>
-        <h3 style={{ fontSize:13, fontWeight:'bold', borderBottom:'1px solid #000', paddingBottom:4, marginBottom:8 }}>
-          📏 Measurements (inches)
-        </h3>
-        <table style={{ width:'100%', borderCollapse:'collapse' }}>
-          <tbody>
-            <tr>
-              {Object.entries(order.measurements)
-                .filter(([,v])=>v)
-                .map(([k,v]) => (
-                <td key={k} style={{ border:'1px solid #ccc', padding:'6px 10px', fontSize:12, width:'25%' }}>
-                  <div style={{ fontSize:10, color:'#666', textTransform:'uppercase' }}>{k}</div>
-                  <div style={{ fontSize:16, fontWeight:'bold' }}>{v}"</div>
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    )}
-
-    {/* Alterations */}
-    {order?.alteration?.required && (
-      <div style={{ marginBottom:14 }}>
-        <h3 style={{ fontSize:13, fontWeight:'bold', borderBottom:'1px solid #000', paddingBottom:4, marginBottom:8 }}>
-          ⚠️ Alterations Required
-        </h3>
-        {(order.alteration.selectedOptions||[]).length > 0 && (
-          <div style={{ marginBottom:8 }}>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-              {order.alteration.selectedOptions.map((opt,i) => (
-                <span key={i} style={{ border:'1px solid #000', padding:'3px 10px', fontSize:11, borderRadius:4 }}>
-                  {opt}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-        {order.alteration.notes && (
-          <p style={{ fontSize:12, color:'#333', fontStyle:'italic', marginTop:6 }}>
-            Notes: {order.alteration.notes}
-          </p>
-        )}
-      </div>
-    )}
-
-    {/* Stage Status */}
-    <div style={{ marginBottom:14 }}>
-      <h3 style={{ fontSize:13, fontWeight:'bold', borderBottom:'1px solid #000', paddingBottom:4, marginBottom:8 }}>
-        Stage Progress
-      </h3>
-      <table style={{ width:'100%', borderCollapse:'collapse' }}>
-        <thead>
-          <tr style={{ background:'#000', color:'white' }}>
-            <th style={{ padding:'6px 10px', fontSize:11, textAlign:'left' }}>Stage</th>
-            <th style={{ padding:'6px 10px', fontSize:11, textAlign:'left' }}>Assigned To</th>
-            <th style={{ padding:'6px 10px', fontSize:11, textAlign:'left' }}>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {allotment && ['cutting','stitching','finishing'].map((stage, i) => (
-            <tr key={stage} style={{ background:i%2===0?'white':'#f9f9f9' }}>
-              <td style={{ padding:'6px 10px', fontSize:12, textTransform:'capitalize', fontWeight:'bold' }}>
-                {stage === 'cutting' ? '✂️' : stage === 'stitching' ? '🧵' : '🚩'} {stage}
-              </td>
-              <td style={{ padding:'6px 10px', fontSize:12 }}>
-                {allotment[stage]?.employeeName || '—'}
-              </td>
-              <td style={{ padding:'6px 10px', fontSize:12, textTransform:'capitalize' }}>
-                {allotment[stage]?.status?.replace('_',' ') || 'Not Assigned'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-
-    {/* Voice Note notice */}
-    {order?.voiceNote?.data && (
-      <div style={{ border:'2px dashed #4F46E5', padding:'10px 14px', borderRadius:8, marginBottom:14 }}>
-        <p style={{ fontSize:12, fontWeight:'bold', color:'#4F46E5', margin:0 }}>
-          🎙️ VOICE NOTE ATTACHED
-        </p>
-        <p style={{ fontSize:11, color:'#555', margin:'4px 0 0' }}>
-          Duration: {Math.floor((order.voiceNote.duration||0)/60)}:{String((order.voiceNote.duration||0)%60).padStart(2,'0')} min
-          — Scan QR code and open the work order page to play the voice note.
-        </p>
-      </div>
-    )}
-
-    {/* QR Code */}
-    {allotment?.qrCode && (
-      <div style={{ textAlign:'center', marginBottom:14, paddingTop:8, borderTop:'1px solid #ccc' }}>
-        <p style={{ fontSize:12, fontWeight:'bold', marginBottom:8 }}>📱 Scan QR to view full work order</p>
-        <img src={allotment.qrCode} alt="QR Code"
-          style={{ width:140, height:140, border:'2px solid #000', borderRadius:8 }} />
-        <p style={{ fontSize:10, color:'#666', marginTop:4 }}>{order?.orderID}</p>
-      </div>
-    )}
-
-    {/* Footer */}
-    <div style={{ borderTop:'1px solid #000', paddingTop:8, marginTop:8, display:'flex', justifyContent:'space-between' }}>
-      <p style={{ fontSize:10, color:'#666' }}>
-        Printed: {new Date().toLocaleString('en-IN')}
-      </p>
-      <p style={{ fontSize:10, color:'#666' }}>Al-Ameen Tailors — Confidential Work Order</p>
-    </div>
-  </div>
-</div>
-      <style>{`
-  @media print {
-    body > * { display: none !important; }
-    #print-sheet { display: block !important; }
-    #print-sheet * { visibility: visible; }
-    @page { margin: 15mm; size: A4; }
-  }
-`}</style>
+      
+      
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>
