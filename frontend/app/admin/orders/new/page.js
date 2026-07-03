@@ -850,6 +850,35 @@ export default function NewOrder() {
             </>
           )}
         </div>
+        {/* ③ Order Details */}
+        <div className="glass" style={{ padding:24 }}>
+          <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>
+            ③ Order Details
+          </h2>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:14 }}>
+            <div>
+              <label className="input-label">QUANTITY *</label>
+              <div style={{ position:'relative' }}>
+                <input
+                  type="number"
+                  min="1"
+                  value={form.quantity}
+                  onChange={e => setForm({...form, quantity: Math.max(1, parseInt(e.target.value)||1)})}
+                  style={{ width:'100%', padding:'13px 16px',
+                    background:'rgba(255,255,255,0.8)',
+                    border:'1.5px solid rgba(79,70,229,0.25)',
+                    borderRadius:10, fontFamily:'Poppins,sans-serif',
+                    fontSize:'1rem', color:'#1E1B4B', outline:'none',
+                    fontWeight:600 }}
+                />
+              </div>
+              <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:4 }}>
+                Number of pieces
+              </p>
+            </div>
+            {/* delivery date, fabric notes, etc remain the same */}
+          </div>
+        </div>
 
         {/* ⑤ Measurements — cloth-type specific */}
         <div className="glass" style={{ padding:24 }}>

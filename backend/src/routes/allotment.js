@@ -315,4 +315,68 @@ router.post('/:orderID/unassign', protect, async (req, res) => {
   }
 })
 
+// POST mark order as delivered — admin only, no employee needed
+router.post('/:orderID/deliver', protect, async (req, res) => {
+  try {
+    const { orderID } = req.params
+    const { notes, acknowledgedBy } = req.body
+
+    const allotment = await Allotment.findOne({ orderID })
+    if (!allotment)
+      return res.status(404).json({ success:false, message:'Allotment not found' })
+
+    // Can only deliver if finishing is completed
+    if (allotment.finishing.status !== 'completed')
+      return res.status(400).json({
+        success: false,
+        message: 'Finishing stage must be completed before delivery',
+      })
+
+    if (allotment.delivery.status === 'delivered')
+      return res.status(400).json({ success:false, message:'Already marked as delivered' })
+
+    allotment.delivery = {
+      status:         'delivered',
+      deliveredAt:    new Date(),
+      acknowledgedBy: acknowledgedBy || 'Admin',
+      notes:          notes || '',
+    }
+
+    await allotment.save()
+
+    // Update order status to Delivered
+    await Order.findOneAndUpdate(
+      { orderID },
+      { $set:{ status:'Delivered' } }
+    )
+
+    res.json({ success:true, message:'Order marked as delivered', allotment })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
+
+// POST undo delivery (if marked by mistake)
+router.post('/:orderID/undo-deliver', protect, async (req, res) => {
+  try {
+    const { orderID } = req.params
+
+    const allotment = await Allotment.findOne({ orderID })
+    if (!allotment)
+      return res.status(404).json({ success:false, message:'Allotment not found' })
+
+    allotment.delivery = { status:'pending', deliveredAt:null, acknowledgedBy:'', notes:'' }
+    await allotment.save()
+
+    await Order.findOneAndUpdate(
+      { orderID },
+      { $set:{ status:'Ready For Delivery' } }
+    )
+
+    res.json({ success:true, message:'Delivery undone', allotment })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
+
 module.exports = router
