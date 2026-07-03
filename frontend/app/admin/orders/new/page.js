@@ -859,7 +859,7 @@ export default function NewOrder() {
             <div>
               <label className="input-label">QUANTITY *</label>
               <div style={{ position:'relative' }}>
-                <input
+                <NumInput
                   type="number"
                   min="1"
                   value={form.quantity}
