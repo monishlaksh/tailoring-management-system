@@ -379,4 +379,39 @@ router.post('/:orderID/undo-deliver', protect, async (req, res) => {
   }
 })
 
+// POST give bonus to employee for a specific stage
+router.post('/:orderID/bonus', protect, async (req, res) => {
+  try {
+    const { orderID }   = req.params
+    const { stage, bonusAmount } = req.body
+
+    if (!['cutting','stitching','finishing'].includes(stage))
+      return res.status(400).json({ success:false, message:'Invalid stage' })
+
+    const bonus = parseFloat(bonusAmount)
+    if (!bonus || bonus <= 0)
+      return res.status(400).json({ success:false, message:'Valid bonus amount required' })
+
+    const allotment = await Allotment.findOne({ orderID })
+    if (!allotment)
+      return res.status(404).json({ success:false, message:'Allotment not found' })
+
+    if (allotment[stage].status !== 'completed')
+      return res.status(400).json({ success:false, message:'Stage must be completed to give bonus' })
+
+    const prevAward = allotment[stage].award || 0
+    allotment[stage].award = prevAward + bonus
+    await allotment.save()
+
+    res.json({
+      success: true,
+      message: `Bonus ₹${bonus} given for ${stage}`,
+      newAward: allotment[stage].award,
+      allotment,
+    })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
+
 module.exports = router
