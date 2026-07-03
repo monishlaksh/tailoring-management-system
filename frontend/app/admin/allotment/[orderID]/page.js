@@ -511,30 +511,7 @@ const [printing, setPrinting] = useState(false)
       <!-- Alterations -->
       ${alterationHtml}
 
-      <!-- Stage Progress -->
-      <div class="section-title">
-        <span class="en">Stage Progress</span>
-        <span class="ta">பணி நிலை</span>
-      </div>
-      <table class="stage-table">
-        <thead>
-          <tr>
-            <th>
-              <span>Stage</span>
-              <span style="font-size:8px;font-weight:400;margin-left:4px;opacity:0.8">நிலை</span>
-            </th>
-            <th>
-              <span>Employee</span>
-              <span style="font-size:8px;font-weight:400;margin-left:4px;opacity:0.8">பணியாளர்</span>
-            </th>
-            <th>
-              <span>Status</span>
-              <span style="font-size:8px;font-weight:400;margin-left:4px;opacity:0.8">தகவல்</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>${stageRows}</tbody>
-      </table>
+      
 
       <!-- Voice Note Notice -->
       ${voiceNoteHtml}
