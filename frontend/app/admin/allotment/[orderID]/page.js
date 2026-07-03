@@ -122,180 +122,449 @@ const [printing, setPrinting] = useState(false)
     }
   }
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
   if (!order || !allotment) return
 
+  // ── Fetch Tamil names from cloth type ──────────────────────
+  let clothTypeTa   = ''
+  let typeTa        = ''
+  let subtypeTa     = ''
+  let measurementsTa = {} // { key: labelTa }
+
+  try {
+    const parts         = (order.clothType || '').split(' - ').map(s => s.trim())
+    const ctName        = parts[0] || ''
+    const typeName      = parts[1] || ''
+    const subtypeName   = parts[2] || ''
+
+    const ctRes = await API.get('/api/cloth-types/all')
+    const ctDoc = ctRes.data.clothTypes?.find(c => c.name === ctName)
+
+    if (ctDoc) {
+      clothTypeTa = ctDoc.nameTa || ''
+
+      // Build measurement Tamil map
+      ;(ctDoc.measurements || []).forEach(m => {
+        measurementsTa[m.key] = {
+          label:   m.label,
+          labelTa: m.labelTa || m.label,
+        }
+      })
+
+      const typeDoc = ctDoc.types?.find(t => t.name === typeName)
+      if (typeDoc) {
+        typeTa = typeDoc.nameTa || ''
+        const subDoc = typeDoc.subtypes?.find(s => s.name === subtypeName)
+        if (subDoc) subtypeTa = subDoc.nameTa || ''
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch Tamil names:', e)
+  }
+
+  // ── Build print content ─────────────────────────────────────
   const measurements = order.measurements || {}
   const hasMeasurements = Object.entries(measurements).some(([,v]) => v)
-
   const alterations = order.alteration?.selectedOptions || []
   const hasAlteration = order.alteration?.required && alterations.length > 0
 
+  // Cloth type display — English / Tamil
+  const clothParts   = (order.clothType || '').split(' - ').map(s => s.trim())
+  const clothMain    = clothParts[0] || ''
+  const clothType    = clothParts[1] || ''
+  const clothSubtype = clothParts[2] || ''
+
   const stageRows = ['cutting','stitching','finishing'].map(stage => {
     const s = allotment[stage]
-    const icon = stage==='cutting'?'✂️':stage==='stitching'?'🧵':'🚩'
-    const statusLabel = (s?.status||'not_assigned').replace('_',' ')
+    const statusLabel = (s?.status || 'not_assigned').replace(/_/g,' ')
+    const statusTa = {
+      'not assigned': 'நியமிக்கப்படவில்லை',
+      'pending':      'நிலுவையில் உள்ளது',
+      'completed':    'முடிந்தது',
+    }[statusLabel] || statusLabel
+
+    const stageTa = {
+      cutting:   'வெட்டுதல்',
+      stitching: 'தையல்',
+      finishing: 'இறுதி பணி',
+    }[stage] || stage
+
+    const stageIcon = stage==='cutting'?'✂️':stage==='stitching'?'🧵':'🚩'
+
     return `
       <tr>
-        <td>${icon} ${stage.charAt(0).toUpperCase()+stage.slice(1)}</td>
+        <td>
+          <span style="font-size:14px">${stageIcon}</span>
+          <span class="en">${stage.charAt(0).toUpperCase()+stage.slice(1)}</span>
+          <span class="ta">${stageTa}</span>
+        </td>
         <td>${s?.employeeName || '—'}</td>
-        <td style="text-transform:capitalize">${statusLabel}</td>
+        <td>
+          <span class="en">${statusLabel}</span>
+          <span class="ta">${statusTa}</span>
+        </td>
       </tr>
     `
   }).join('')
 
-  const measurementCells = hasMeasurements
+  const measurementRows = hasMeasurements
     ? Object.entries(measurements)
         .filter(([,v]) => v)
-        .map(([k,v]) => `
-          <td style="border:1px solid #ccc;padding:8px 10px;">
-            <div style="font-size:10px;color:#666;text-transform:uppercase;margin-bottom:3px">${k}</div>
-            <div style="font-size:18px;font-weight:bold">${v}"</div>
-          </td>
-        `).join('')
+        .map(([key, val]) => {
+          const info   = measurementsTa[key]
+          const label  = info?.label  || key
+          const labelT = info?.labelTa || key
+          return `
+            <td class="meas-cell">
+              <div class="meas-en">${label}</div>
+              <div class="meas-ta">${labelT}</div>
+              <div class="meas-val">${val}<span class="meas-unit">"</span></div>
+            </td>
+          `
+        }).join('')
     : ''
 
   const alterationHtml = hasAlteration ? `
-    <div style="margin-bottom:16px">
-      <h3 style="font-size:13px;font-weight:bold;border-bottom:1px solid #000;padding-bottom:4px;margin-bottom:8px">
-        ⚠️ Alterations Required
-      </h3>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+    <div class="section">
+      <div class="section-title">
+        ⚠️ <span class="en">Alterations</span>
+        <span class="ta">மாற்றங்கள்</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px">
         ${alterations.map(a => `
-          <span style="border:1px solid #000;padding:3px 10px;font-size:11px;border-radius:4px">${a}</span>
+          <span class="tag">${a}</span>
         `).join('')}
       </div>
-      ${order.alteration?.notes ? `<p style="font-size:12px;font-style:italic;color:#333">Notes: ${order.alteration.notes}</p>` : ''}
+      ${order.alteration?.notes ? `
+        <p style="font-size:9px;font-style:italic;color:#333;margin-top:4px">
+          <span class="en">Note:</span> <span class="ta">குறிப்பு:</span> ${order.alteration.notes}
+        </p>` : ''}
     </div>
   ` : ''
 
   const voiceNoteHtml = order.voiceNote?.data ? `
-    <div style="border:2px dashed #4F46E5;padding:10px 14px;border-radius:8px;margin-bottom:16px">
-      <p style="font-size:12px;font-weight:bold;color:#4F46E5;margin:0">
-        🎙️ VOICE NOTE ATTACHED — Duration: ${Math.floor((order.voiceNote.duration||0)/60)}:${String((order.voiceNote.duration||0)%60).padStart(2,'0')}
+    <div style="border:2px dashed #4F46E5;padding:7px 10px;border-radius:6px;margin:8px 0">
+      <p style="font-size:10px;font-weight:bold;color:#4F46E5;margin:0">
+        🎙️ <span class="en">Voice Note Attached</span>
+        <span class="ta">குரல் குறிப்பு இணைக்கப்பட்டுள்ளது</span>
       </p>
-      <p style="font-size:11px;color:#555;margin:4px 0 0">
-        Scan the QR code below and open the work order page to play the voice note.
+      <p style="font-size:9px;color:#555;margin:3px 0 0">
+        <span class="en">Duration: ${Math.floor((order.voiceNote.duration||0)/60)}:${String((order.voiceNote.duration||0)%60).padStart(2,'0')} — Scan QR to play</span>
+        <br/><span class="ta">QR ஸ்கேன் செய்து குரல் குறிப்பை கேளுங்கள்</span>
       </p>
     </div>
   ` : ''
 
   const qrHtml = allotment.qrCode ? `
-    <div style="text-align:center;padding-top:12px;border-top:1px solid #ccc;margin-top:8px">
-      <p style="font-size:12px;font-weight:bold;margin-bottom:8px">📱 Scan QR to view full work order on phone</p>
-      <img src="${allotment.qrCode}" alt="QR" style="width:150px;height:150px;border:2px solid #000;border-radius:6px" />
-      <p style="font-size:11px;color:#666;margin-top:4px">${order.orderID}</p>
+    <div style="text-align:center;padding-top:10px;border-top:1px solid #ccc;margin-top:10px">
+      <p style="font-size:10px;font-weight:bold;margin-bottom:6px">
+        📱 <span class="en">Scan QR to view work order</span>
+        <span class="ta">QR ஸ்கேன் செய்யவும்</span>
+      </p>
+      <img src="${allotment.qrCode}" alt="QR"
+        style="width:110px;height:110px;border:2px solid #000;border-radius:5px" />
+      <p style="font-size:9px;color:#666;margin-top:3px;font-weight:bold">${order.orderID}</p>
     </div>
   ` : ''
+
+  const deliveryDate = order.deliveryDate
+    ? new Date(order.deliveryDate).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' })
+    : '—'
 
   const html = `
     <!DOCTYPE html>
     <html>
     <head>
+      <meta charset="UTF-8"/>
       <title>Work Order — ${order.orderID}</title>
       <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700&display=swap');
+
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family: Georgia, serif; font-size:13px; color:#000; padding:20px; }
-        h1 { font-size:22px; font-weight:bold; margin-bottom:4px; }
-        h3 { font-size:13px; font-weight:bold; }
-        table { width:100%; border-collapse:collapse; margin-bottom:14px; }
-        th { background:#000; color:white; padding:6px 10px; font-size:11px; text-align:left; }
-        td { padding:5px 8px; font-size:12px; border-bottom:1px solid #eee; }
-        tr:nth-child(even) td { background:#f9f9f9; }
-        .label { font-weight:bold; width:28%; color:#333; }
-        .section-title { font-size:13px; font-weight:bold; border-bottom:1px solid #000; padding-bottom:4px; margin:14px 0 8px; }
-        .footer { border-top:1px solid #000; padding-top:8px; margin-top:12px; display:flex; justify-content:space-between; font-size:10px; color:#666; }
+
+        body {
+          font-family: 'Noto Sans Tamil', Georgia, serif;
+          font-size: 11px;
+          color: #000;
+          padding: 10mm;
+          background: white;
+        }
+
+        /* Tamil text style */
+        .ta {
+          font-family: 'Noto Sans Tamil', serif;
+          font-size: 9px;
+          color: #444;
+          display: block;
+          line-height: 1.4;
+        }
+        .en {
+          font-size: 11px;
+          font-weight: 600;
+          display: block;
+          line-height: 1.3;
+        }
+
+        /* Header */
+        .header {
+          text-align: center;
+          border-bottom: 2px solid #000;
+          padding-bottom: 8px;
+          margin-bottom: 10px;
+        }
+        .header h1 { font-size: 18px; font-weight: bold; }
+        .header .subtitle { font-size: 10px; color: #555; margin-top: 2px; }
+
+        /* Info table */
+        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .info-table td { padding: 4px 6px; font-size: 10px; vertical-align: top; border-bottom: 1px solid #eee; }
+        .info-table .lbl { font-weight: bold; color: #000; width: 28%; background: #f5f5f5; }
+
+        /* Cloth type box */
+        .cloth-box {
+          background: #f0f0f0;
+          border: 1px solid #ccc;
+          border-radius: 5px;
+          padding: 8px 10px;
+          margin-bottom: 10px;
+          display: flex;
+          gap: 0;
+        }
+        .cloth-part {
+          flex: 1;
+          text-align: center;
+          border-right: 1px solid #ccc;
+          padding: 4px 6px;
+        }
+        .cloth-part:last-child { border-right: none; }
+        .cloth-lbl { font-size: 8px; color: #777; text-transform: uppercase; margin-bottom: 3px; }
+        .cloth-val-en { font-size: 12px; font-weight: bold; }
+        .cloth-val-ta { font-size: 10px; color: #444; margin-top: 1px; }
+
+        /* Section title */
+        .section-title {
+          font-size: 11px;
+          font-weight: bold;
+          border-bottom: 1px solid #000;
+          padding-bottom: 3px;
+          margin: 8px 0 6px;
+        }
+        .section-title .ta { display: inline; font-size: 9px; color: #555; margin-left: 4px; }
+        .section-title .en { display: inline; font-size: 11px; }
+
+        /* Measurements */
+        .meas-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        .meas-cell {
+          border: 1px solid #ccc;
+          padding: 5px 6px;
+          text-align: center;
+          width: 25%;
+          vertical-align: top;
+        }
+        .meas-en  { font-size: 9px; font-weight: 600; color: #333; }
+        .meas-ta  { font-size: 8px; color: #777; margin-bottom: 3px; font-family:'Noto Sans Tamil',serif; }
+        .meas-val { font-size: 18px; font-weight: bold; line-height: 1; }
+        .meas-unit{ font-size: 10px; color: #777; }
+
+        /* Stage table */
+        .stage-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        .stage-table th {
+          background: #222; color: white;
+          padding: 5px 8px; font-size: 10px; text-align: left;
+        }
+        .stage-table td { padding: 5px 8px; font-size: 10px; border-bottom: 1px solid #eee; }
+        .stage-table tr:nth-child(even) td { background: #f9f9f9; }
+
+        /* Alteration tags */
+        .tag {
+          border: 1px solid #333;
+          padding: 2px 7px;
+          font-size: 9px;
+          border-radius: 3px;
+          display: inline-block;
+        }
+
+        /* Footer */
+        .footer {
+          border-top: 1px solid #000;
+          padding-top: 6px;
+          margin-top: 8px;
+          display: flex;
+          justify-content: space-between;
+          font-size: 9px;
+          color: #666;
+        }
+
         @media print {
-          @page { margin:12mm; size:A4; }
-          body { padding:0; }
+          @page {
+            size: A5 portrait;
+            margin: 8mm;
+          }
+          body { padding: 0; }
         }
       </style>
     </head>
     <body>
-      <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:16px">
+
+      <!-- Header -->
+      <div class="header">
         <h1>✂️ Al-Ameen Tailors</h1>
-        <p style="font-size:12px;color:#444;margin-top:4px">Work Order Sheet</p>
+        <div class="subtitle">
+          Work Order Sheet &nbsp;|&nbsp; பணி ஆணை தாள்
+        </div>
       </div>
 
-      <table>
+      <!-- Order Info -->
+      <table class="info-table">
         <tbody>
           <tr>
-            <td class="label">Order ID</td>
-            <td style="font-weight:bold;font-size:14px">${order.orderID}</td>
-            <td class="label">Delivery Date</td>
-            <td>${order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'}) : '—'}</td>
+            <td class="lbl">
+              <span class="en">Order ID</span>
+              <span class="ta">ஆர்டர் எண்</span>
+            </td>
+            <td style="font-weight:bold;font-size:13px">${order.orderID}</td>
+            <td class="lbl">
+              <span class="en">Delivery</span>
+              <span class="ta">டெலிவரி தேதி</span>
+            </td>
+            <td style="font-weight:bold">${deliveryDate}</td>
           </tr>
           <tr>
-            <td class="label">Customer</td>
+            <td class="lbl">
+              <span class="en">Customer</span>
+              <span class="ta">வாடிக்கையாளர்</span>
+            </td>
             <td>${order.customerRef?.name || '—'}</td>
-            <td class="label">Phone</td>
-            <td style="font-weight:bold">${order.customerRef?.phone || '—'}</td>
+            <td class="lbl">
+              <span class="en">Phone</span>
+              <span class="ta">தொலைபேசி</span>
+            </td>
+            <td style="font-weight:bold;font-size:12px">${order.customerRef?.phone || '—'}</td>
           </tr>
           <tr>
-            <td class="label">Cloth Type</td>
-            <td colspan="3">${order.clothType}</td>
-          </tr>
-          <tr>
-            <td class="label">Quantity</td>
-            <td>${order.quantity}</td>
-            <td class="label">Status</td>
+            <td class="lbl">
+              <span class="en">Quantity</span>
+              <span class="ta">அளவு</span>
+            </td>
+            <td style="font-weight:bold">${order.quantity}</td>
+            <td class="lbl">
+              <span class="en">Status</span>
+              <span class="ta">நிலை</span>
+            </td>
             <td>${order.status}</td>
           </tr>
           ${order.fabricNotes ? `
           <tr>
-            <td class="label">Fabric Notes</td>
+            <td class="lbl">
+              <span class="en">Fabric</span>
+              <span class="ta">துணி குறிப்பு</span>
+            </td>
             <td colspan="3">${order.fabricNotes}</td>
           </tr>` : ''}
           ${order.specialInstructions ? `
           <tr>
-            <td class="label">Special Instructions</td>
+            <td class="lbl">
+              <span class="en">Instructions</span>
+              <span class="ta">சிறப்பு அறிவுரை</span>
+            </td>
             <td colspan="3">${order.specialInstructions}</td>
           </tr>` : ''}
         </tbody>
       </table>
 
+      <!-- Cloth Type — 3 level display -->
+      <div class="section-title">
+        <span class="en">Cloth Type</span>
+        <span class="ta">துணி வகை</span>
+      </div>
+      <div class="cloth-box">
+        <div class="cloth-part">
+          <div class="cloth-lbl">Type / வகை</div>
+          <div class="cloth-val-en">${clothMain}</div>
+          ${clothTypeTa ? `<div class="cloth-val-ta">${clothTypeTa}</div>` : ''}
+        </div>
+        <div class="cloth-part">
+          <div class="cloth-lbl">Style / பாணி</div>
+          <div class="cloth-val-en">${clothType || '—'}</div>
+          ${typeTa ? `<div class="cloth-val-ta">${typeTa}</div>` : ''}
+        </div>
+        <div class="cloth-part">
+          <div class="cloth-lbl">Finish / வகை</div>
+          <div class="cloth-val-en">${clothSubtype || '—'}</div>
+          ${subtypeTa ? `<div class="cloth-val-ta">${subtypeTa}</div>` : ''}
+        </div>
+      </div>
+
+      <!-- Measurements -->
       ${hasMeasurements ? `
-        <div class="section-title">📏 Measurements (inches)</div>
-        <table><tbody><tr>${measurementCells}</tr></tbody></table>
+        <div class="section-title">
+          <span class="en">📏 Measurements (inches)</span>
+          <span class="ta">அளவீடுகள் (இஞ்சி)</span>
+        </div>
+        <table class="meas-table">
+          <tbody>
+            <tr>${measurementRows}</tr>
+          </tbody>
+        </table>
       ` : ''}
 
+      <!-- Alterations -->
       ${alterationHtml}
 
-      <div class="section-title">Stage Progress</div>
-      <table>
+      <!-- Stage Progress -->
+      <div class="section-title">
+        <span class="en">Stage Progress</span>
+        <span class="ta">பணி நிலை</span>
+      </div>
+      <table class="stage-table">
         <thead>
           <tr>
-            <th>Stage</th>
-            <th>Assigned To</th>
-            <th>Status</th>
+            <th>
+              <span>Stage</span>
+              <span style="font-size:8px;font-weight:400;margin-left:4px;opacity:0.8">நிலை</span>
+            </th>
+            <th>
+              <span>Employee</span>
+              <span style="font-size:8px;font-weight:400;margin-left:4px;opacity:0.8">பணியாளர்</span>
+            </th>
+            <th>
+              <span>Status</span>
+              <span style="font-size:8px;font-weight:400;margin-left:4px;opacity:0.8">தகவல்</span>
+            </th>
           </tr>
         </thead>
         <tbody>${stageRows}</tbody>
       </table>
 
+      <!-- Voice Note Notice -->
       ${voiceNoteHtml}
+
+      <!-- QR Code -->
       ${qrHtml}
 
+      <!-- Footer -->
       <div class="footer">
         <span>Printed: ${new Date().toLocaleString('en-IN')}</span>
-        <span>Al-Ameen Tailors — Work Order (Confidential)</span>
+        <span>Al-Ameen Tailors — பணி ஆணை</span>
       </div>
 
       <script>
-        window.onload = function() {
-          window.print();
-          window.onafterprint = function() { window.close(); };
-        };
+        // Wait for Noto Sans Tamil font to load before printing
+        document.fonts.ready.then(function() {
+          setTimeout(function() {
+            window.print();
+            window.onafterprint = function() { window.close(); };
+          }, 500);
+        });
       </script>
     </body>
     </html>
   `
 
-  const printWindow = window.open('', '_blank', 'width=800,height=900')
+  const printWindow = window.open('', '_blank', 'width=600,height=820')
   printWindow.document.write(html)
   printWindow.document.close()
 }
-
   // Get employees eligible for a stage
   const getEligibleEmployees = (stage) =>
     employees.filter(e => e.role === stage || e.role === 'all')
