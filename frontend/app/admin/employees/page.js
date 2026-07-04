@@ -42,6 +42,10 @@ export default function EmployeesPage() {
     name:'', username:'', password:'', role:'all', isActive:true,
   })
 
+  const [settingBonus, setSettingBonus] = useState(null) // employeeID
+  const [bonusInput, setBonusInput]     = useState(0)
+  const [savingBonus, setSavingBonus]   = useState(false)
+
   useEffect(() => {
     if (!localStorage.getItem('adminToken')) {
       router.push('/admin/login'); return
@@ -121,6 +125,17 @@ const openEdit = async (emp) => {
       fetchEmployees()
     } catch (e) { alert('Failed') }
   }
+
+  const handleSetBonus = async (employeeID) => {
+  setSavingBonus(true)
+  try {
+    await API.patch(`/api/employees/${employeeID}/bonus`, { bonus: bonusInput })
+    fetchEmployees()
+    setSettingBonus(null)
+    setBonusInput(0)
+  } catch (e) { alert('Failed to set bonus') }
+  finally { setSavingBonus(false) }
+}
 
   const handleToggleAccess = async (employeeID, currentAccess) => {
     setTogglingAccess(employeeID)
@@ -313,6 +328,83 @@ const openEdit = async (emp) => {
                         ? '🔒 Revoke Access'
                         : '🔓 Grant Access'}
                   </button>
+
+                  {/* Bonus section in employee card */}
+                  <div onClick={e => e.stopPropagation()}
+                    style={{ width:'100%', marginTop:8, padding:'10px 14px',
+                      background:'rgba(245,158,11,0.05)',
+                      border:'1px solid rgba(245,158,11,0.2)',
+                      borderRadius:10 }}>
+
+                    {settingBonus === employee.employeeID ? (
+                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <span style={{ fontSize:'0.78rem', color:'#D97706', fontWeight:600 }}>
+                          Bonus per order:
+                        </span>
+                        <div style={{ position:'relative', flex:1 }}>
+                          <span style={{ position:'absolute', left:8, top:'50%',
+                            transform:'translateY(-50%)', color:'#9CA3AF', fontSize:'0.85rem' }}>
+                            ₹
+                          </span>
+                          <input
+                            type="number" min="0" value={bonusInput}
+                            onChange={e => setBonusInput(parseFloat(e.target.value)||0)}
+                            style={{ width:'100%', padding:'7px 10px 7px 22px',
+                              border:'1.5px solid rgba(245,158,11,0.3)',
+                              borderRadius:8, fontFamily:'Poppins,sans-serif',
+                              fontSize:'0.88rem', outline:'none' }}
+                            autoFocus
+                          />
+                        </div>
+                        <button onClick={() => handleSetBonus(employee.employeeID)}
+                          disabled={savingBonus}
+                          style={{ padding:'7px 14px', background:'linear-gradient(135deg,#F59E0B,#D97706)',
+                            color:'white', border:'none', borderRadius:8, cursor:'pointer',
+                            fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.8rem',
+                            display:'flex', alignItems:'center', gap:4 }}>
+                          {savingBonus ? '...' : <><Check size={12}/> Set</>}
+                        </button>
+                        <button onClick={() => setSettingBonus(null)}
+                          style={{ padding:'7px 10px', background:'rgba(239,68,68,0.08)',
+                            border:'1px solid rgba(239,68,68,0.2)', borderRadius:8,
+                            color:'#DC2626', cursor:'pointer', display:'flex', alignItems:'center' }}>
+                          <X size={13}/>
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display:'flex', alignItems:'center',
+                        justifyContent:'space-between' }}>
+                        <div>
+                          <span style={{ fontSize:'0.72rem', color:'#9CA3AF', fontWeight:600 }}>
+                            BONUS PER ORDER:
+                          </span>
+                          <span style={{ fontSize:'0.9rem', fontWeight:800,
+                            color: employee.bonus > 0 ? '#D97706' : '#9CA3AF',
+                            marginLeft:8 }}>
+                            {employee.bonus > 0 ? `₹${employee.bonus}` : 'None'}
+                          </span>
+                          {employee.bonus > 0 && (
+                            <span style={{ fontSize:'0.7rem', color:'#6B7280', marginLeft:6 }}>
+                              (emp rate + ₹{employee.bonus} per order)
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSettingBonus(employee.employeeID)
+                            setBonusInput(employee.bonus || 0)
+                          }}
+                          style={{ padding:'5px 12px',
+                            background:'rgba(245,158,11,0.08)',
+                            border:'1px solid rgba(245,158,11,0.25)',
+                            borderRadius:7, color:'#D97706',
+                            fontSize:'0.75rem', fontWeight:600,
+                            cursor:'pointer', fontFamily:'Poppins,sans-serif' }}>
+                          🏆 {employee.bonus > 0 ? 'Edit Bonus' : 'Set Bonus'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Edit */}
                   <button onClick={() => openEdit(employee)}

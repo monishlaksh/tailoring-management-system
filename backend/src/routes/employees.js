@@ -221,5 +221,32 @@ router.delete('/:employeeID', protect, async (req, res) => {
     res.status(500).json({ success:false, message:e.message })
   }
 })
+// PATCH set employee bonus
+router.patch('/:employeeID/bonus', protect, async (req, res) => {
+  try {
+    const { bonus } = req.body
+    if (bonus === undefined || bonus < 0)
+      return res.status(400).json({ success:false, message:'Valid bonus amount required' })
+
+    const employee = await Employee.findOneAndUpdate(
+      { employeeID:req.params.employeeID },
+      { bonus: parseFloat(bonus) || 0 },
+      { new:true }
+    ).select('-password')
+
+    if (!employee)
+      return res.status(404).json({ success:false, message:'Employee not found' })
+
+    res.json({
+      success:  true,
+      message:  bonus > 0
+        ? `Bonus ₹${bonus}/order set for ${employee.name}`
+        : `Bonus removed for ${employee.name}`,
+      employee,
+    })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
 
 module.exports = router

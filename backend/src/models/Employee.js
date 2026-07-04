@@ -9,6 +9,7 @@ const employeeSchema = new mongoose.Schema({
   role:          { type:String, enum:['cutting','stitching','finishing','all'], default:'all' },
   hasFullAccess: { type:Boolean, default:false }, // admin grants this
   isActive:      { type:Boolean, default:true },
+  bonus: { type:Number, default:0 }, // fixed bonus per order on top of emp rate
 }, { timestamps:true })
 
 module.exports = mongoose.model('Employee', employeeSchema)

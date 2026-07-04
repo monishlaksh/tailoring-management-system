@@ -39,14 +39,6 @@ const [deliveryModal, setDeliveryModal] = useState(false)
 const [deliveryNote, setDeliveryNote]   = useState('')
 const [delivering, setDelivering]       = useState(false)
 
-// Bonus state
-const [bonusModal, setBonusModal]   = useState(null) // { stage }
-const [bonusAmount, setBonusAmount] = useState(0)
-const [givingBonus, setGivingBonus] = useState(false)
-
-
-
-
 
   // Per-stage state
   const [assigning, setAssigning]   = useState(null) // stage name
@@ -157,22 +149,6 @@ const handleUndoDeliver = async () => {
   } catch (e) {
     showMsg(e.response?.data?.message || 'Failed', true)
   }
-}
-
-const handleBonus = async () => {
-  if (!bonusAmount || bonusAmount <= 0) { showMsg('Enter valid bonus', true); return }
-  setGivingBonus(true)
-  try {
-    const res = await API.post(`/api/allotment/${orderID}/bonus`, {
-      stage: bonusModal.stage, bonusAmount,
-    })
-    showMsg(`🎉 Bonus ₹${bonusAmount} given! New total: ₹${res.data.newAward}`)
-    setBonusModal(null)
-    setBonusAmount(0)
-    fetchData()
-  } catch (e) {
-    showMsg(e.response?.data?.message || 'Failed', true)
-  } finally { setGivingBonus(false) }
 }
 
   const handlePrint = async () => {
@@ -946,150 +922,75 @@ const handleBonus = async () => {
 
         {/* COMPLETED */}
         {stageData.status === 'completed' && (
-          <div>
-            <div style={{ padding:'14px', background:'#F0FDF4',
-              borderRadius:12, border:'1px solid #D1FAE5', marginBottom:10 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <div>
-                  <p style={{ fontSize:'0.88rem', color:'#059669', fontWeight:700, marginBottom:4 }}>
-                    ✅ {stageData.employeeName}
-                  </p>
-                  <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
-                    Completed {stageData.completedAt
-                      ? new Date(stageData.completedAt).toLocaleDateString('en-IN')
-                      : ''}
-                  </p>
-                </div>
-                <div style={{ textAlign:'right', background:'#DCFCE7', padding:'8px 12px', borderRadius:10 }}>
-                  <p style={{ fontSize:'0.65rem', color:'#059669', fontWeight:600, marginBottom:2 }}>AWARDED</p>
-                  <p style={{ fontSize:'1.1rem', fontWeight:800, color:'#059669', lineHeight:1 }}>
-                    ₹{(stageData.award||0).toLocaleString('en-IN')}
-                  </p>
-                </div>
+        <div>
+          <div style={{ padding:'14px', background:'#F0FDF4',
+            borderRadius:12, border:'1px solid #D1FAE5',
+            marginBottom: stage==='finishing' && waDigits ? 10 : 0 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div>
+                <p style={{ fontSize:'0.88rem', color:'#059669',
+                  fontWeight:700, marginBottom:4 }}>
+                  ✅ {stageData.employeeName}
+                </p>
+                <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
+                  Completed {stageData.completedAt
+                    ? new Date(stageData.completedAt).toLocaleDateString('en-IN')
+                    : ''}
+                </p>
+              </div>
+              <div style={{ textAlign:'right', background:'#DCFCE7',
+                padding:'8px 12px', borderRadius:10 }}>
+                <p style={{ fontSize:'0.65rem', color:'#059669',
+                  fontWeight:600, marginBottom:2 }}>
+                  AWARDED
+                </p>
+                <p style={{ fontSize:'1.1rem', fontWeight:800,
+                  color:'#059669', lineHeight:1 }}>
+                  ₹{(stageData.award||0).toLocaleString('en-IN')}
+                </p>
+                <p style={{ fontSize:'0.65rem', color:'#6B7280', marginTop:2 }}>
+                  incl. bonus
+                </p>
               </div>
             </div>
+          </div>
 
-            {/* ── Delivery Stage ── */}
-            {allotment && (
-              <div style={{ background:'white', borderRadius:16, overflow:'hidden',
-                boxShadow:'0 2px 12px rgba(0,0,0,0.06)',
-                border: allotment.delivery?.status==='delivered'
-                  ? '2px solid #10B981' : '1.5px solid #E5E7EB' }}>
+          {/* WhatsApp — finishing only */}
+          {stage === 'finishing' && waDigits && (
+            <a href={waURL} target="_blank" rel="noopener noreferrer"
+              style={{ display:'flex', alignItems:'center', justifyContent:'center',
+                gap:10, padding:'12px', marginTop:10,
+                background:'linear-gradient(135deg,#25D366,#128C7E)',
+                color:'white', borderRadius:10, textDecoration:'none',
+                fontFamily:'Poppins,sans-serif', fontWeight:700, fontSize:'0.88rem' }}>
+              <span style={{ fontSize:'1.2rem' }}>💬</span>
+              Notify Customer on WhatsApp
+            </a>
+          )}
+        </div>
+      )}
 
-                {/* Header */}
-                <div style={{ padding:'16px 18px',
-                  background: allotment.delivery?.status==='delivered'
-                    ? '#F0FDF4' : '#F9FAFB',
-                  display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                    <span style={{ fontSize:'1.4rem' }}>🚚</span>
-                    <div>
-                      <p style={{ fontWeight:700, color:'#059669', fontSize:'0.95rem' }}>
-                        Delivery
-                      </p>
-                      <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
-                        {allotment.delivery?.status === 'delivered'
-                          ? 'Order delivered to customer'
-                          : allotment.finishing?.status !== 'completed'
-                            ? 'Complete finishing first'
-                            : 'Ready to mark as delivered'}
-                      </p>
-                    </div>
-                  </div>
-                  <span style={{ fontSize:'0.75rem', fontWeight:700, padding:'4px 12px',
-                    borderRadius:999,
-                    background: allotment.delivery?.status==='delivered'
-                      ? 'rgba(16,185,129,0.15)' : 'rgba(156,163,175,0.15)',
-                    color: allotment.delivery?.status==='delivered' ? '#059669' : '#6B7280' }}>
-                    {allotment.delivery?.status === 'delivered' ? '✅ Delivered' : 'Pending'}
-                  </span>
-                </div>
-
-                <div style={{ padding:'16px 18px' }}>
-                  {allotment.delivery?.status === 'delivered' ? (
-                    // Delivered — show info
-                    <div>
-                      <div style={{ padding:'12px 14px', background:'#F0FDF4',
-                        borderRadius:12, border:'1px solid #D1FAE5', marginBottom:12 }}>
-                        <p style={{ fontSize:'0.85rem', fontWeight:700, color:'#059669', marginBottom:4 }}>
-                          ✅ Delivered on{' '}
-                          {new Date(allotment.delivery.deliveredAt).toLocaleDateString('en-IN',{
-                            weekday:'short', day:'numeric', month:'long', year:'numeric'
-                          })}
-                        </p>
-                        <p style={{ fontSize:'0.75rem', color:'#6B7280' }}>
-                          Acknowledged by: {allotment.delivery.acknowledgedBy || 'Admin'}
-                        </p>
-                        {allotment.delivery.notes && (
-                          <p style={{ fontSize:'0.78rem', color:'#4B5563', marginTop:6,
-                            fontStyle:'italic' }}>
-                            "{allotment.delivery.notes}"
-                          </p>
-                        )}
-                      </div>
-                      <button onClick={handleUndoDeliver}
-                        style={{ width:'100%', padding:'9px', background:'rgba(239,68,68,0.06)',
-                          border:'1.5px solid rgba(239,68,68,0.2)', borderRadius:10,
-                          color:'#DC2626', fontFamily:'Poppins,sans-serif', fontWeight:600,
-                          fontSize:'0.8rem', cursor:'pointer' }}>
-                        ↩ Undo Delivery
-                      </button>
-                    </div>
-                  ) : allotment.finishing?.status !== 'completed' ? (
-                    // Finishing not done
-                    <div style={{ textAlign:'center', padding:'12px 0', color:'#9CA3AF' }}>
-                      <p style={{ fontSize:'0.82rem' }}>
-                        🔒 Complete all 3 stages before delivery
-                      </p>
-                    </div>
-                  ) : (
-                    // Ready to deliver
-                    <button onClick={() => setDeliveryModal(true)}
-                      style={{ width:'100%', padding:'14px',
-                        background:'linear-gradient(135deg,#059669,#10B981)',
-                        color:'white', border:'none', borderRadius:12,
-                        fontFamily:'Poppins,sans-serif', fontWeight:700,
-                        fontSize:'0.9rem', cursor:'pointer',
-                        display:'flex', alignItems:'center',
-                        justifyContent:'center', gap:8 }}>
-                      🚚 Mark as Delivered to Customer
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Bonus button — for completed stages */}
-            <button
-              onClick={() => { setBonusModal({ stage }); setBonusAmount(0) }}
-              style={{ width:'100%', padding:'10px', marginBottom: stage==='finishing'?10:0,
-                background:'rgba(245,158,11,0.08)',
-                border:'1.5px solid rgba(245,158,11,0.3)',
-                borderRadius:10, color:'#D97706',
-                fontFamily:'Poppins,sans-serif', fontWeight:600,
-                fontSize:'0.85rem', cursor:'pointer',
-                display:'flex', alignItems:'center',
-                justifyContent:'center', gap:6 }}>
-              🏆 Give Bonus to {stageData.employeeName}
-            </button>
-
-            {/* WhatsApp button — finishing only */}
-            {stage === 'finishing' && waDigits && (
-              <a href={waURL} target="_blank" rel="noopener noreferrer"
-                style={{ display:'flex', alignItems:'center', justifyContent:'center',
-                  gap:10, padding:'12px',
-                  background:'linear-gradient(135deg,#25D366,#128C7E)',
-                  color:'white', borderRadius:10, textDecoration:'none',
-                  fontFamily:'Poppins,sans-serif', fontWeight:700, fontSize:'0.88rem' }}>
-                <span style={{ fontSize:'1.2rem' }}>💬</span>
-                Notify Customer on WhatsApp
-              </a>
-            )}
+        
+        
+        {/* Locked */}
+        {isLocked && (
+          <div style={{ textAlign:'center', padding:'16px 0',
+            color:'#9CA3AF' }}>
+            <p style={{ fontSize:'0.82rem' }}>
+              🔒 Complete {idx > 0 ? STAGE_INFO[STAGES[idx-1]].label : ''} first
+            </p>
           </div>
         )}
 
+      </div>
+    </div>
+  )
+})}
 
-        {/* Delivery Modal */}
+        </div>
+      </div>
+      
+      {/* Delivery Modal */}
         {deliveryModal && (
           <div style={{ position:'fixed', inset:0, background:'rgba(30,27,75,0.3)',
             backdropFilter:'blur(8px)', display:'flex', alignItems:'center',
@@ -1165,124 +1066,7 @@ const handleBonus = async () => {
           </div>
         )}
 
-        {/* Bonus Modal */}
-        {bonusModal && (
-          <div style={{ position:'fixed', inset:0, background:'rgba(30,27,75,0.3)',
-            backdropFilter:'blur(8px)', display:'flex', alignItems:'center',
-            justifyContent:'center', zIndex:1000, padding:20 }}>
-            <div className="glass" style={{ width:'100%', maxWidth:400, padding:28 }}>
-              <div style={{ display:'flex', justifyContent:'space-between',
-                alignItems:'center', marginBottom:20 }}>
-                <h2 style={{ fontWeight:700, color:'#1E1B4B', fontSize:'1.05rem',
-                  display:'flex', alignItems:'center', gap:8 }}>
-                  🏆 Give Bonus
-                </h2>
-                <button onClick={()=>setBonusModal(null)}
-                  style={{ background:'none', border:'none', cursor:'pointer', color:'#9CA3AF' }}>
-                  <X size={18}/>
-                </button>
-              </div>
-
-              {/* Employee & stage info */}
-              <div style={{ padding:'12px 14px', background:'rgba(245,158,11,0.06)',
-                borderRadius:10, marginBottom:16,
-                border:'1px solid rgba(245,158,11,0.2)' }}>
-                <p style={{ fontSize:'0.85rem', fontWeight:700, color:'#D97706', marginBottom:4 }}>
-                  {bonusModal.stage.charAt(0).toUpperCase()+bonusModal.stage.slice(1)} Stage
-                </p>
-                <p style={{ fontSize:'0.82rem', color:'#4B5563' }}>
-                  Employee: <strong>{allotment?.[bonusModal.stage]?.employeeName}</strong>
-                </p>
-                <p style={{ fontSize:'0.78rem', color:'#6B7280', marginTop:3 }}>
-                  Base award: ₹{allotment?.[bonusModal.stage]?.award || 0}
-                  → After bonus: ₹{(allotment?.[bonusModal.stage]?.award || 0) + (bonusAmount || 0)}
-                </p>
-              </div>
-
-              <label className="input-label">BONUS AMOUNT (₹) *</label>
-              <div style={{ position:'relative', marginBottom:20 }}>
-                <span style={{ position:'absolute', left:14, top:'50%',
-                  transform:'translateY(-50%)', color:'#9CA3AF',
-                  fontSize:'1rem', fontWeight:600 }}>₹</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={bonusAmount||''}
-                  onChange={e => setBonusAmount(parseFloat(e.target.value)||0)}
-                  placeholder="Enter bonus amount"
-                  style={{ width:'100%', padding:'13px 14px 13px 30px',
-                    background:'rgba(255,255,255,0.9)',
-                    border:'1.5px solid rgba(245,158,11,0.3)',
-                    borderRadius:10, fontFamily:'Poppins,sans-serif',
-                    fontSize:'1.1rem', fontWeight:700,
-                    color:'#D97706', outline:'none' }}
-                />
-              </div>
-
-              {bonusAmount > 0 && (
-                <div style={{ padding:'10px 14px', background:'rgba(16,185,129,0.06)',
-                  borderRadius:8, marginBottom:14,
-                  border:'1px solid rgba(16,185,129,0.2)' }}>
-                  <p style={{ fontSize:'0.85rem', color:'#059669', fontWeight:600 }}>
-                    {allotment?.[bonusModal.stage]?.employeeName} will receive:
-                    ₹{(allotment?.[bonusModal.stage]?.award||0) + bonusAmount}
-                    <span style={{ fontSize:'0.75rem', color:'#6B7280', marginLeft:6 }}>
-                      (base ₹{allotment?.[bonusModal.stage]?.award||0} + bonus ₹{bonusAmount})
-                    </span>
-                  </p>
-                </div>
-              )}
-
-              <div style={{ display:'flex', gap:10 }}>
-                <button onClick={()=>setBonusModal(null)}
-                  className="btn-ghost" style={{ flex:1 }}>
-                  Cancel
-                </button>
-                <button onClick={handleBonus} disabled={givingBonus||!bonusAmount}
-                  style={{ flex:2, padding:'12px',
-                    background: bonusAmount
-                      ? 'linear-gradient(135deg,#F59E0B,#D97706)' : '#E5E7EB',
-                    color: bonusAmount ? 'white' : '#9CA3AF',
-                    border:'none', borderRadius:12,
-                    fontFamily:'Poppins,sans-serif', fontWeight:700,
-                    fontSize:'0.9rem', cursor:bonusAmount?'pointer':'not-allowed',
-                    display:'flex', alignItems:'center',
-                    justifyContent:'center', gap:8 }}>
-                  {givingBonus
-                    ? <><div style={{ width:18,height:18,
-                        border:'2px solid rgba(255,255,255,0.3)',
-                        borderTopColor:'white', borderRadius:'50%',
-                        animation:'spin 0.8s linear infinite' }}/>
-                        Giving bonus...</>
-                    : <>🏆 Give Bonus</>}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-
-
-        {/* Locked */}
-        {isLocked && (
-          <div style={{ textAlign:'center', padding:'16px 0',
-            color:'#9CA3AF' }}>
-            <p style={{ fontSize:'0.82rem' }}>
-              🔒 Complete {idx > 0 ? STAGE_INFO[STAGES[idx-1]].label : ''} first
-            </p>
-          </div>
-        )}
-
-      </div>
-    </div>
-  )
-})}
-
-        </div>
-      </div>
       
-      
-
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>
   )
