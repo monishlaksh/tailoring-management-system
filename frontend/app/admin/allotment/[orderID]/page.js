@@ -47,13 +47,6 @@ const [delivering, setDelivering]       = useState(false)
   const [selectedEmp, setSelectedEmp]  = useState({ cutting:'', stitching:'', finishing:'' })
   const [stageNotes, setStageNotes]    = useState({ cutting:'', stitching:'', finishing:'' })
 
-  useEffect(() => {
-    if (!localStorage.getItem('adminToken')) { router.push('/admin/login'); return }
-    if (orderID && orderID !== 'undefined') fetchData()
-  }, [orderID])
-
-  
-
     // Inside fetchData, after setting order:
     const fetchData = async () => {
       try {
@@ -86,6 +79,11 @@ const [delivering, setDelivering]       = useState(false)
         if (isErr) { setError(msg);   setTimeout(() => setError(''),   4000) }
         else       { setSuccess(msg); setTimeout(() => setSuccess(''), 3000) }
       }
+
+      useEffect(() => {
+    if (!localStorage.getItem('adminToken')) { router.push('/admin/login'); return }
+    if (orderID && orderID !== 'undefined') fetchData()
+  }, [orderID])
 
   const handleAssign = async (stage) => {
     const empID = selectedEmp[stage]
@@ -956,7 +954,7 @@ const handleUndoDeliver = async () => {
           </div>
 
           {/* WhatsApp — finishing only */}
-          {stage === 'finishing' && waDigits && (
+          {stage === 'finishing' && waFormatted && (
             <a href={waURL} target="_blank" rel="noopener noreferrer"
               style={{ display:'flex', alignItems:'center', justifyContent:'center',
                 gap:10, padding:'12px', marginTop:10,
