@@ -923,7 +923,7 @@ const handleUndoDeliver = async () => {
         <div>
           <div style={{ padding:'14px', background:'#F0FDF4',
             borderRadius:12, border:'1px solid #D1FAE5',
-            marginBottom: stage==='finishing' && waDigits ? 10 : 0 }}>
+            marginBottom: stage==='finishing' && waFormatted ? 10 : 0 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <div>
                 <p style={{ fontSize:'0.88rem', color:'#059669',
@@ -954,7 +954,7 @@ const handleUndoDeliver = async () => {
           </div>
 
           {/* WhatsApp — finishing only */}
-          {stage === 'finishing' && waFormatted && (
+          {stage === 'finishing' && waFormatted && (  
             <a href={waURL} target="_blank" rel="noopener noreferrer"
               style={{ display:'flex', alignItems:'center', justifyContent:'center',
                 gap:10, padding:'12px', marginTop:10,
