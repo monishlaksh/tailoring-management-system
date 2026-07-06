@@ -33,8 +33,8 @@ const orderSchema = new mongoose.Schema({
     extraCost:       { type:Number, default:0 },
   },
   status: {
-  type: String,
-  enum: ['Booking','Cutting','Stitching','Finishing','Ready For Delivery','Delivered'],
+  type:    String,
+  enum:    ['Booking','Cutting','Stitching','Finishing','Ready For Delivery','Delivered'],
   default: 'Booking',
 },
   bookingDate:    { type:Date, default:Date.now },

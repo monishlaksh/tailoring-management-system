@@ -144,6 +144,13 @@ router.get('/:orderID', protect, async (req, res) => {
         customerRef:         order.customerRef,
       },
     })
+
+    // Ensure delivery field exists on old allotments
+    if (!allotment.delivery) {
+      allotment.delivery = { status:'pending', deliveredAt:null, acknowledgedBy:'', notes:'' }
+      await allotment.save()
+    }
+
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
@@ -335,24 +342,23 @@ router.post('/:orderID/unassign', protect, async (req, res) => {
   }
 })
 
-// POST mark order as delivered — admin only, no employee needed
+// POST mark as delivered — no employee needed
 router.post('/:orderID/deliver', protect, async (req, res) => {
   try {
-    const { orderID } = req.params
-    const { notes, acknowledgedBy } = req.body
+    const { orderID }                  = req.params
+    const { notes, acknowledgedBy }    = req.body
 
     const allotment = await Allotment.findOne({ orderID })
     if (!allotment)
       return res.status(404).json({ success:false, message:'Allotment not found' })
 
-    // Can only deliver if finishing is completed
     if (allotment.finishing.status !== 'completed')
       return res.status(400).json({
         success: false,
         message: 'Finishing stage must be completed before delivery',
       })
 
-    if (allotment.delivery.status === 'delivered')
+    if (allotment.delivery?.status === 'delivered')
       return res.status(400).json({ success:false, message:'Already marked as delivered' })
 
     allotment.delivery = {
@@ -364,7 +370,6 @@ router.post('/:orderID/deliver', protect, async (req, res) => {
 
     await allotment.save()
 
-    // Update order status to Delivered
     await Order.findOneAndUpdate(
       { orderID },
       { $set:{ status:'Delivered' } }
@@ -376,7 +381,7 @@ router.post('/:orderID/deliver', protect, async (req, res) => {
   }
 })
 
-// POST undo delivery (if marked by mistake)
+// POST undo delivery
 router.post('/:orderID/undo-deliver', protect, async (req, res) => {
   try {
     const { orderID } = req.params
@@ -385,7 +390,13 @@ router.post('/:orderID/undo-deliver', protect, async (req, res) => {
     if (!allotment)
       return res.status(404).json({ success:false, message:'Allotment not found' })
 
-    allotment.delivery = { status:'pending', deliveredAt:null, acknowledgedBy:'', notes:'' }
+    allotment.delivery = {
+      status:         'pending',
+      deliveredAt:    null,
+      acknowledgedBy: '',
+      notes:          '',
+    }
+
     await allotment.save()
 
     await Order.findOneAndUpdate(

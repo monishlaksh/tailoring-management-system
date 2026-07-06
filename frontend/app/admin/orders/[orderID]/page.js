@@ -5,8 +5,8 @@ import { ArrowLeft, Save, Trash2, ChevronRight } from 'lucide-react'
 import { adminAPI as API } from '../../../../lib/api'
 import NumInput from '../../../../components/NumInput'
 
-const STAGES      = ['Booking','Cutting','Stitching','Finishing','Ready For Delivery']
-const STAGE_ICONS = { 'Booking':'📘','Cutting':'✂️','Stitching':'🧵','Finishing':'🚩','Ready For Delivery':'✅' }
+const STAGES      = ['Booking','Cutting','Stitching','Finishing','Ready For Delivery','Delivered']
+const STAGE_ICONS = { 'Booking':'📘','Cutting':'✂️','Stitching':'🧵','Finishing':'🚩','Ready For Delivery':'✅','Delivered':'🚚' }
 const MEASUREMENT_FIELDS = ['shoulder','chest','waist','hip','sleeve','length','neck','custom']
 
 export default function OrderDetail() {
