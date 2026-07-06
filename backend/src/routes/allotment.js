@@ -93,7 +93,7 @@ router.get('/:orderID', protect, async (req, res) => {
     const { orderID } = req.params
 
     const order = await Order.findOne({ orderID })
-      .populate('customerRef', 'name phone customerID')
+      .populate('customerRef', 'name phone customerID address')
     if (!order)
       return res.status(404).json({ success:false, message:'Order not found' })
 
@@ -111,23 +111,43 @@ router.get('/:orderID', protect, async (req, res) => {
       if (!stage.employeeID) return stage
       const emp = await Employee.findOne({ employeeID:stage.employeeID })
         .select('name employeeID role').lean()
-      return { ...stage, employeeDetails:emp || null }
+      return { ...stage, employeeDetails: emp || null }
     }
 
     const cutting   = await enrichStage(allotment.cutting.toObject())
     const stitching = await enrichStage(allotment.stitching.toObject())
     const finishing = await enrichStage(allotment.finishing.toObject())
 
+    // Return full order object — all fields
     res.json({
       success:   true,
-      allotment: { ...allotment.toObject(), cutting, stitching, finishing },
-      order,
+      allotment: {
+        ...allotment.toObject(),
+        cutting,
+        stitching,
+        finishing,
+      },
+      order: {
+        orderID:             order.orderID,
+        customerID:          order.customerID,
+        clothType:           order.clothType,
+        quantity:            order.quantity,        // ← explicit
+        unitCost:            order.unitCost,
+        amountSettled:       order.amountSettled,
+        fabricNotes:         order.fabricNotes,
+        specialInstructions: order.specialInstructions,
+        measurements:        order.measurements,
+        alteration:          order.alteration,
+        deliveryDate:        order.deliveryDate,
+        status:              order.status,
+        voiceNote:           order.voiceNote,
+        customerRef:         order.customerRef,
+      },
     })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
 })
-
 // POST assign employee to stage
 router.post('/:orderID/assign', protect, async (req, res) => {
   try {
