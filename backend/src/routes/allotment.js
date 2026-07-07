@@ -1,7 +1,8 @@
 const express     = require('express')
 const Allotment   = require('../models/Allotment')
 const Order       = require('../models/Order')
-const Employee    = require('../models/Employee')
+const Employee    = require('../models/Employee')   // ← TOP LEVEL
+const ClothType   = require('../models/ClothType')  // ← TOP LEVEL
 const { protect } = require('../middleware/auth')
 const QRCode      = require('qrcode')
 const router      = express.Router()
@@ -226,11 +227,11 @@ router.post('/:orderID/assign', protect, async (req, res) => {
 })
 
 // POST approve stage — sends WhatsApp on finishing
-// POST approve stage — auto-calculates award from cloth type empCost
+// POST approve stage — auto award = empCost + employee.bonus
 router.post('/:orderID/approve', protect, async (req, res) => {
   try {
     const { orderID } = req.params
-    const { stage }    = req.body  // award no longer accepted from frontend
+    const { stage }   = req.body
 
     if (!['cutting','stitching','finishing'].includes(stage))
       return res.status(400).json({ success:false, message:'Invalid stage' })
@@ -240,24 +241,19 @@ router.post('/:orderID/approve', protect, async (req, res) => {
       return res.status(404).json({ success:false, message:'Allotment not found' })
 
     if (allotment[stage].status !== 'pending')
-      return res.status(400).json({
-        success: false,
-        message: `${stage} is not in pending state`,
-      })
+      return res.status(400).json({ success:false, message:`${stage} is not pending` })
 
-    // ── Get the pre-fixed employee rate from the cloth type ──
     const order = await Order.findOne({ orderID })
     if (!order)
       return res.status(404).json({ success:false, message:'Order not found' })
 
-    // order.clothType is stored as "Blouse - Half Sleeve - Normal"
-    const parts        = (order.clothType || '').split(' - ')
-    const clothTypeName = parts[0]?.trim()
-    const typeName       = parts[1]?.trim()
-
+    // ── Step 1: Get emp rate from cloth type ─────────────────
+    const parts         = (order.clothType || '').split(' - ')
+    const clothTypeName = parts[0]?.trim() || ''
+    const typeName      = parts[1]?.trim() || ''
     let empRate = 0
+
     if (clothTypeName && typeName) {
-      const ClothType = require('../models/ClothType')
       const ctDoc = await ClothType.findOne({ name: clothTypeName }).lean()
       if (ctDoc) {
         const matchedType = ctDoc.types?.find(
@@ -267,15 +263,32 @@ router.post('/:orderID/approve', protect, async (req, res) => {
       }
     }
 
+    console.log(`[APPROVE] ${stage} — clothType="${clothTypeName}" type="${typeName}" empRate=₹${empRate}`)
+
+    // ── Step 2: Get bonus from employee profile ───────────────
+    const employeeID = allotment[stage].employeeID
+    let empBonus = 0
+
+    if (employeeID) {
+      const emp = await Employee.findOne({ employeeID }).lean()
+      empBonus = emp?.bonus || 0
+      console.log(`[APPROVE] Employee ${employeeID} bonus=₹${empBonus}`)
+    }
+
+    const totalAward = empRate + empBonus
+
+    console.log(`[APPROVE] Total award = ₹${empRate} + ₹${empBonus} = ₹${totalAward}`)
+
+    // ── Step 3: Save ──────────────────────────────────────────
     allotment[stage].status        = 'completed'
     allotment[stage].adminApproved = true
     allotment[stage].approvedAt    = new Date()
     allotment[stage].completedAt   = new Date()
-    allotment[stage].award         = empRate  // ← auto-fixed, not manual
+    allotment[stage].award         = totalAward
 
     await allotment.save()
 
-    // Finishing approved → Ready For Delivery + WhatsApp
+    // ── Step 4: If finishing — update order + WhatsApp ────────
     if (stage === 'finishing') {
       const updatedOrder = await Order.findOneAndUpdate(
         { orderID },
@@ -284,31 +297,37 @@ router.post('/:orderID/approve', protect, async (req, res) => {
       ).populate('customerRef', 'name phone customerID')
 
       if (updatedOrder?.customerRef?.phone) {
-        const { sendWA } = require('./whatsapp')
-        const waMsg =
-          `🎉 *Al-Ameen Tailors*\n\n` +
-          `Dear ${updatedOrder.customerRef.name},\n\n` +
-          `Your order *${orderID}* (${updatedOrder.clothType}) is ` +
-          `*Ready for Delivery!* ✅\n\n` +
-          `Please visit our shop to collect your order.\n\n` +
-          `Thank you for choosing Al-Ameen Tailors! ✂️`
-        sendWA(updatedOrder.customerRef.phone, waMsg)
-          .then(r => console.log('[WA] Result:', JSON.stringify(r)))
-          .catch(e => console.error('[WA] Error:', e.message))
+        try {
+          const { sendWA } = require('./whatsapp')
+          const waMsg =
+            `🎉 *Al-Ameen Tailors*\n\n` +
+            `Dear ${updatedOrder.customerRef.name},\n\n` +
+            `Your order *${orderID}* (${updatedOrder.clothType}) is ` +
+            `*Ready for Delivery!* ✅\n\n` +
+            `Please visit our shop to collect your order.\n\n` +
+            `Thank you for choosing Al-Ameen Tailors! ✂️`
+          sendWA(updatedOrder.customerRef.phone, waMsg)
+            .then(r  => console.log('[WA]', JSON.stringify(r)))
+            .catch(e => console.error('[WA]', e.message))
+        } catch (e) {
+          console.error('[WA] import error:', e.message)
+        }
       }
     }
 
     res.json({
-      success: true,
-      message: `${stage} approved — ₹${empRate} credited to employee`,
-      allotment,
+      success:    true,
+      message:    `${stage} approved — ₹${empRate} + ₹${empBonus} bonus = ₹${totalAward}`,
       empRate,
+      empBonus,
+      totalAward,
+      allotment,
     })
   } catch (e) {
+    console.error('[APPROVE]', e.message)
     res.status(500).json({ success:false, message:e.message })
   }
-})
-// POST unassign stage
+})// POST unassign stage
 router.post('/:orderID/unassign', protect, async (req, res) => {
   try {
     const { orderID } = req.params

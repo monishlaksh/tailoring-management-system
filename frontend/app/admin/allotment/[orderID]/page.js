@@ -46,35 +46,52 @@ const [delivering, setDelivering]       = useState(false)
   const [empRates, setEmpRates] = useState({ cutting:0, stitching:0, finishing:0 })
   const [selectedEmp, setSelectedEmp]  = useState({ cutting:'', stitching:'', finishing:'' })
   const [stageNotes, setStageNotes]    = useState({ cutting:'', stitching:'', finishing:'' })
-
+  
+  const [empBonuses, setEmpBonuses] = useState({ cutting:0, stitching:0, finishing:0 })
     // Inside fetchData, after setting order:
     const fetchData = async () => {
-      try {
-        const [allotRes, empRes] = await Promise.all([
-          API.get(`/api/allotment/${orderID}`),
-          API.get('/api/employees'),
-        ])
-        setAllotment(allotRes.data.allotment)
-        setOrder(allotRes.data.order)
-        setEmployees(empRes.data.employees.filter(e => e.isActive))
+  try {
+    const [allotRes, empRes] = await Promise.all([
+      API.get(`/api/allotment/${orderID}`),
+      API.get('/api/employees'),
+    ])
+    const allotData = allotRes.data.allotment
+    const orderData = allotRes.data.order
+    setAllotment(allotData)
+    setOrder(orderData)
+    setEmployees(empRes.data.employees.filter(e => e.isActive))
 
-        // Get emp rate from cloth type
-        const clothTypeFull = allotRes.data.order.clothType || ''
-        const [ctName, typeName] = clothTypeFull.split(' - ').map(s => s?.trim())
-        if (ctName && typeName) {
-          const ctRes = await API.get('/api/cloth-types/all')
-          const matchedCT = ctRes.data.clothTypes.find(c => c.name === ctName)
-          const matchedType = matchedCT?.types?.find(t => t.name === typeName)
-          const rate = matchedType?.empCost || 0
-          // Same rate applies to all 3 stages (or customize per stage if needed)
-          setEmpRates({ cutting: rate, stitching: rate, finishing: rate })
-        }
-      } catch (e) {
-        setError('Failed to load allotment')
-      } finally {
-        setLoading(false)
+    // Get emp rate from cloth type
+    const clothTypeFull = orderData?.clothType || ''
+    const [ctName, typeName] = clothTypeFull.split(' - ').map(s => s?.trim())
+    if (ctName && typeName) {
+      try {
+        const ctRes       = await API.get('/api/cloth-types/all')
+        const matchedCT   = ctRes.data.clothTypes?.find(c => c.name === ctName)
+        const matchedType = matchedCT?.types?.find(t => t.name === typeName)
+        const rate = matchedType?.empCost || 0
+        setEmpRates({ cutting:rate, stitching:rate, finishing:rate })
+      } catch (e) { console.error('cloth type fetch:', e) }
+    }
+
+    // Get employee bonus for each assigned stage
+    const bonuses = { cutting:0, stitching:0, finishing:0 }
+    for (const stage of ['cutting','stitching','finishing']) {
+      const empID = allotData?.[stage]?.employeeID
+      if (empID) {
+        const emp = empRes.data.employees.find(e => e.employeeID === empID)
+        bonuses[stage] = emp?.bonus || 0
       }
     }
+    setEmpBonuses(bonuses)
+
+  } catch (e) {
+    setError('Failed to load allotment')
+    console.error(e)
+  } finally {
+    setLoading(false)
+  }
+}
       const showMsg = (msg, isErr = false) => {
         if (isErr) { setError(msg);   setTimeout(() => setError(''),   4000) }
         else       { setSuccess(msg); setTimeout(() => setSuccess(''), 3000) }
@@ -106,7 +123,8 @@ const [delivering, setDelivering]       = useState(false)
   setApproving(stage)
   try {
     const res = await API.post(`/api/allotment/${orderID}/approve`, { stage })
-    showMsg(`✅ ${STAGE_INFO[stage].label} approved! ₹${res.data.empRate} credited to employee`)
+    const { empRate=0, empBonus=0, totalAward=0 } = res.data
+    showMsg(`✅ ${STAGE_INFO[stage].label} approved! ₹${empRate} + ₹${empBonus} bonus = ₹${totalAward} awarded`)
     fetchData()
   } catch (e) {
     showMsg(e.response?.data?.message || 'Failed', true)
@@ -871,25 +889,25 @@ const handleUndoDeliver = async () => {
               )}
             </div>
 
-            {/* Fixed employee rate display — read only */}
-            <div style={{ padding:'14px', background:'rgba(16,185,129,0.06)',
+            <div style={{ padding:'12px 14px', background:'rgba(16,185,129,0.06)',
               border:'1.5px solid rgba(16,185,129,0.2)', borderRadius:12,
-              marginBottom:16, display:'flex', alignItems:'center',
-              justifyContent:'space-between' }}>
-              <div>
-                <p style={{ fontSize:'0.68rem', color:'#059669', fontWeight:700,
-                  textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:3 }}>
-                  Fixed Employee Rate
-                </p>
-                <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
-                  Set in Cloth Type → Type → Emp Rate
+              marginBottom:14 }}>
+              <div style={{ display:'flex', alignItems:'center',
+                justifyContent:'space-between' }}>
+                <div>
+                  <p style={{ fontSize:'0.68rem', color:'#059669', fontWeight:700,
+                    textTransform:'uppercase', marginBottom:2 }}>
+                    Will Be Awarded
+                  </p>
+                  <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
+                    Emp rate: ₹{empRates[stage]} + Bonus: ₹{empBonuses[stage] || 0}
+                  </p>
+                </div>
+                <p style={{ fontSize:'1.4rem', fontWeight:800, color:'#059669' }}>
+                  ₹{(empRates[stage] || 0) + (empBonuses[stage] || 0)}
                 </p>
               </div>
-              <p style={{ fontSize:'1.4rem', fontWeight:800, color:'#059669' }}>
-                ₹{(empRates[stage]||0).toLocaleString('en-IN')}
-              </p>
             </div>
-
             <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:10 }}>
               <button onClick={() => handleApprove(stage)}
                 disabled={approving===stage}
