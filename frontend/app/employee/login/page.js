@@ -34,23 +34,24 @@ export default function EmployeeLogin() {
       if (res.data.success) {
         const emp = res.data.employee
 
-        // Save EVERY field to localStorage
-        localStorage.setItem('employeeToken', res.data.token)
         localStorage.setItem('employeeUser', JSON.stringify({
-          employeeID:    emp.employeeID,
-          name:          emp.name,
-          username:      emp.username,
-          role:          emp.role,
-          employeeRole:  emp.employeeRole  || 'all',
-          hasFullAccess: emp.hasFullAccess === true,
-        }))
+        employeeID:    emp.employeeID,
+        name:          emp.name,
+        username:      emp.username,
+        role:          emp.role,
+        employeeRole:  emp.employeeRole  || 'all',
+        accessRole:    emp.accessRole    || 'employee',
+        hasFullAccess: emp.hasFullAccess === true,
+      }))
 
-        // Redirect based on access
-        if (emp.hasFullAccess === true) {
-          router.push('/employee/admin')
-        } else {
-          router.push('/employee/dashboard')
-        }
+    // Redirect based on accessRole
+    if (emp.accessRole === 'manager' || emp.hasFullAccess === true) {
+      router.push('/employee/admin')
+    } else if (emp.accessRole === 'receptionist') {
+      router.push('/employee/receptionist')
+    } else {
+      router.push('/employee/dashboard')
+    }
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid username or password')

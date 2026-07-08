@@ -117,14 +117,20 @@ router.post('/', protect, async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10)
     const employeeID     = await getNextEmployeeID()
 
+    const validAccessRoles = ['employee','receptionist','manager']
+    const accessRole = validAccessRoles.includes(req.body.accessRole)
+      ? req.body.accessRole : 'employee'
+
     const employee = await Employee.create({
-    employeeID,
-    name:          name.trim(),
-    username:      username.trim(),
-    password:      hashedPassword,
-    plainPassword: password, // store plain for admin
-    role:          empRole,
-  })
+      employeeID,
+      name:          name.trim(),
+      username:      username.trim(),
+      password:      hashedPassword,
+      plainPassword: password,
+      role:          empRole,
+      accessRole,
+      hasFullAccess: accessRole === 'manager',
+    })
     res.status(201).json({
       success:  true,
       message:  'Employee created',
@@ -161,6 +167,13 @@ router.put('/:employeeID', protect, async (req, res) => {
     employee.plainPassword = password // update plain too
   }
 
+    // In PUT update employee route, add:
+const validAccessRoles = ['employee','receptionist','manager']
+if (req.body.accessRole && validAccessRoles.includes(req.body.accessRole)) {
+  employee.accessRole    = req.body.accessRole
+  employee.hasFullAccess = req.body.accessRole === 'manager'
+}
+
     await employee.save()
     res.json({
       success:  true,
@@ -173,6 +186,8 @@ router.put('/:employeeID', protect, async (req, res) => {
         isActive:   employee.isActive,
       },
     })
+
+
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }

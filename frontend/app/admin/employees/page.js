@@ -38,14 +38,39 @@ export default function EmployeesPage() {
   const [togglingAccess, setTogglingAccess] = useState(null)
   const [error, setError]         = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
+  
   const [form, setForm] = useState({
-    name:'', username:'', password:'', role:'all', isActive:true,
-  })
+  name:'', username:'', password:'', role:'all',
+  accessRole:'employee', isActive:true,
+})
 
   const [settingBonus, setSettingBonus] = useState(null) // employeeID
   const [bonusInput, setBonusInput]     = useState(0)
   const [savingBonus, setSavingBonus]   = useState(false)
 
+  const ACCESS_ROLES = [
+  {
+    value:  'employee',
+    label:  '👷 Employee',
+    color:  '#6B7280',
+    bg:     'rgba(107,114,128,0.08)',
+    desc:   'Can only scan QR and view assigned work. No financial details.',
+  },
+  {
+    value:  'receptionist',
+    label:  '🎟️ Receptionist',
+    color:  '#4F46E5',
+    bg:     'rgba(79,70,229,0.08)',
+    desc:   'Can create orders and manage customers. Sees customer prices only.',
+  },
+  {
+    value:  'manager',
+    label:  '⭐ Manager',
+    color:  '#D97706',
+    bg:     'rgba(245,158,11,0.08)',
+    desc:   'Full admin access. Can do everything the admin can.',
+  },
+]
   useEffect(() => {
     if (!localStorage.getItem('adminToken')) {
       router.push('/admin/login'); return
@@ -99,12 +124,14 @@ const openEdit = async (emp) => {
     setSaving(true); setError('')
     try {
       const payload = {
-        name:     form.name,
-        username: form.username,
-        role:     form.role,
-        isActive: form.isActive,
-      }
-      if (form.password) payload.password = form.password
+      name:          form.name,
+      username:      form.username,
+      role:          form.role,
+      accessRole:    form.accessRole,
+      isActive:      form.isActive,
+      hasFullAccess: form.accessRole === 'manager',
+    }
+    if (form.password) payload.password = form.password
 
       if (editData) {
         await API.put(`/api/employees/${editData.employeeID}`, payload)
@@ -293,6 +320,7 @@ const openEdit = async (emp) => {
                   </div>
                 </div>
 
+                
                 {/* Right — actions */}
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}
                   onClick={e => e.stopPropagation()}>
@@ -328,6 +356,15 @@ const openEdit = async (emp) => {
                         ? '🔒 Revoke Access'
                         : '🔓 Grant Access'}
                   </button>
+                  {/* Access role badge */}
+                  {(() => {
+                    const ar = ACCESS_ROLES.find(r => r.value === (employee.accessRole||'employee')) || ACCESS_ROLES[0]
+                    return (
+                      <span style={{ fontSize:'0.7rem', padding:'2px 8px', borderRadius:999, background:ar.bg, color:ar.color, fontWeight:600 }}>
+                        {ar.label}
+                      </span>
+                    )
+                  })()}
 
                   {/* Bonus section in employee card */}
                   <div onClick={e => e.stopPropagation()}
@@ -583,6 +620,35 @@ const openEdit = async (emp) => {
                   {form.role === 'stitching' && 'Can only work on stitching stage'}
                   {form.role === 'finishing' && 'Can only work on finishing stage'}
                 </p>
+              </div>
+
+              {/* Access Role — what they can do */}
+              <div>
+                <label className="input-label">ACCESS ROLE *</label>
+                <p style={{ fontSize:'0.72rem', color:'#9CA3AF', marginBottom:8 }}>
+                  Controls what sections and data this employee can access.
+                </p>
+                <div style={{ display:'grid', gap:8 }}>
+                  {ACCESS_ROLES.map(r => (
+                    <button key={r.value} type="button"
+                      onClick={() => {
+                        setForm({...form, accessRole:r.value,
+                          // Manager auto-gets full access
+                          hasFullAccess: r.value === 'manager'
+                        })
+                      }}
+                      style={{ padding:'12px 14px', borderRadius:10, textAlign:'left',
+                        fontFamily:'Poppins,sans-serif', cursor:'pointer',
+                        border:   form.accessRole===r.value ? `2px solid ${r.color}` : '1.5px solid rgba(79,70,229,0.15)',
+                        background: form.accessRole===r.value ? r.bg : 'rgba(255,255,255,0.7)',
+                      }}>
+                      <p style={{ fontWeight:700, fontSize:'0.88rem', color:form.accessRole===r.value?r.color:'#1E1B4B', marginBottom:3 }}>
+                        {r.label} {form.accessRole===r.value && '✓'}
+                      </p>
+                      <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>{r.desc}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {editData && (
