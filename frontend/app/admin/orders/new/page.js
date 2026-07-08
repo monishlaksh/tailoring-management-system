@@ -147,6 +147,10 @@ export default function NewOrder() {
   // Delivery
   const [deliveryInfo, setDeliveryInfo] = useState(null)
 
+  // Add state for saved measurements
+const [savedMeasurements, setSavedMeasurements] = useState(null)
+const [loadingMeasurements, setLoadingMeasurements] = useState(false)
+
   // Page state
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
@@ -196,6 +200,23 @@ export default function NewOrder() {
     }
   } finally {
     setLoadingPage(false)
+  }
+}
+const fetchCustomerMeasurements = async (customerID) => {
+  setLoadingMeasurements(true)
+  setSavedMeasurements(null)
+  try {
+    const res = await API.get(`/api/customers/${customerID}/measurements`)
+    if (res.data.hasMeasurements) {
+      setSavedMeasurements({
+        measurements:  res.data.measurements,
+        updatedAt:     res.data.measurementsUpdatedAt,
+      })
+    }
+  } catch (e) {
+    console.error('Failed to fetch measurements:', e)
+  } finally {
+    setLoadingMeasurements(false)
   }
 }
 
@@ -249,6 +270,9 @@ export default function NewOrder() {
       setSelected(res.data.customer)
       setShowNewCustomer(false)
       setNewCustForm({ name:'', phone:'', address:'', notes:'' })
+      setCustomers(prev => [res.data.customer, ...prev])
+      setSavedMeasurements(null) // new customer has no saved measurements
+  
     } catch (e) {
       setNewCustError(e.response?.data?.message || 'Failed to create customer')
     } finally { setNewCustSaving(false) }
@@ -416,6 +440,7 @@ export default function NewOrder() {
                       setSelected(c)
                       setCustSearch('')
                       setShowNewCustomer(false)
+                      fetchCustomerMeasurements(c.customerID)
                     }}
                     style={{ padding:'11px 16px',
                       background:'rgba(255,255,255,0.6)',
@@ -881,75 +906,157 @@ export default function NewOrder() {
         </div>
 
         {/* ⑤ Measurements — cloth-type specific */}
-        <div className="glass" style={{ padding:24 }}>
-          <h2 style={{ fontWeight:700, color:'#1E1B4B',
-            marginBottom:6, fontSize:'0.95rem' }}>
-            ③ Measurements
-            <span style={{ fontSize:'0.75rem', color:'#9CA3AF',
-              fontWeight:400, marginLeft:6 }}>(inches)</span>
-          </h2>
+        {/* ③ Measurements */}
+<div className="glass" style={{ padding:24 }}>
+  <h2 style={{ fontWeight:700, color:'#1E1B4B',
+    marginBottom:6, fontSize:'0.95rem' }}>
+    ③ Measurements
+    <span style={{ fontSize:'0.75rem', color:'#9CA3AF',
+      fontWeight:400, marginLeft:6 }}>(inches)</span>
+  </h2>
 
-          {!selectedClothType ? (
-            <div style={{ padding:'20px', background:'rgba(79,70,229,0.04)',
-              borderRadius:10, textAlign:'center' }}>
-              <p style={{ color:'#9CA3AF', fontSize:'0.85rem' }}>
-                Select a cloth type first to see measurement fields
-              </p>
-            </div>
-          ) : !selectedClothType.measurements || selectedClothType.measurements.length === 0 ? (
-            <div style={{ padding:'20px', background:'rgba(245,158,11,0.05)',
-              borderRadius:10, border:'1.5px dashed rgba(245,158,11,0.3)' }}>
-              <p style={{ color:'#D97706', fontSize:'0.85rem', fontWeight:500 }}>
-                ⚠️ No measurement fields set for {selectedClothType.name}.
-                Go to <strong>Cloth Types</strong> → Manage → Edit measurement fields.
-              </p>
-            </div>
-          ) : (
-            <>
-              <p style={{ fontSize:'0.78rem', color:'#6B7280', marginBottom:16 }}>
-                Measurements for <strong>{selectedClothType.name}</strong>
-                {selectedClothType.nameTa && (
-                  <span style={{ marginLeft:6, color:'#9CA3AF' }}>
-                    ({selectedClothType.nameTa})
-                  </span>
-                )}
-              </p>
-              <div style={{ display:'grid',
-                gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',
-                gap:14 }}>
-                {selectedClothType.measurements.map(field => (
-                  <div key={field.key}>
-                    <label className="input-label">
-                      {field.label.toUpperCase()}
-                      {field.required && (
-                        <span style={{ color:'#DC2626', marginLeft:2 }}>*</span>
-                      )}
-                    </label>
-                    {field.labelTa && (
-                      <p style={{ fontSize:'0.68rem', color:'#9CA3AF',
-                        marginBottom:4, marginTop:-2 }}>
-                        {field.labelTa}
-                      </p>
-                    )}
-                    <input
-                      type="text"
-                      value={form.measurements[field.key] || ''}
-                      onChange={e => setForm({
-                        ...form,
-                        measurements: {
-                          ...form.measurements,
-                          [field.key]: e.target.value,
-                        },
-                      })}
-                      placeholder="e.g. 36"
-                      className="input-field"
-                    />
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+  {/* Saved measurements banner */}
+  {loadingMeasurements && (
+    <div style={{ padding:'10px 14px', background:'rgba(79,70,229,0.05)',
+      borderRadius:10, marginBottom:14, fontSize:'0.82rem', color:'#9CA3AF' }}>
+      Loading saved measurements...
+    </div>
+  )}
+
+  {savedMeasurements && !loadingMeasurements && (
+    <div style={{ padding:'14px 16px',
+      background:'rgba(16,185,129,0.06)',
+      border:'1.5px solid rgba(16,185,129,0.25)',
+      borderRadius:12, marginBottom:16 }}>
+      <div style={{ display:'flex', alignItems:'center',
+        justifyContent:'space-between', flexWrap:'wrap', gap:10 }}>
+        <div>
+          <p style={{ fontSize:'0.85rem', fontWeight:700,
+            color:'#059669', marginBottom:3 }}>
+            📐 Saved measurements found for {selected?.name}
+          </p>
+          <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
+            Last updated:{' '}
+            {savedMeasurements.updatedAt
+              ? new Date(savedMeasurements.updatedAt)
+                  .toLocaleDateString('en-IN',{
+                    day:'numeric', month:'long', year:'numeric'
+                  })
+              : 'Previously'}
+          </p>
+          {/* Preview saved values */}
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginTop:8 }}>
+            {Object.entries(savedMeasurements.measurements)
+              .filter(([,v]) => v)
+              .map(([k,v]) => (
+                <span key={k} style={{ fontSize:'0.72rem', padding:'2px 8px',
+                  borderRadius:999, background:'rgba(16,185,129,0.1)',
+                  color:'#059669', fontWeight:600 }}>
+                  {k}: {v}"
+                </span>
+              ))}
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            setForm(f => ({
+              ...f,
+              measurements: {
+                ...f.measurements,
+                ...savedMeasurements.measurements,
+              },
+            }))
+          }}
+          style={{ padding:'9px 18px',
+            background:'linear-gradient(135deg,#10B981,#059669)',
+            color:'white', border:'none', borderRadius:10,
+            fontFamily:'Poppins,sans-serif', fontWeight:600,
+            fontSize:'0.82rem', cursor:'pointer',
+            display:'flex', alignItems:'center', gap:6,
+            whiteSpace:'nowrap' }}>
+          ✓ Use Saved Measurements
+        </button>
+      </div>
+    </div>
+  )}
+
+  {!selectedClothType ? (
+    <div style={{ padding:'20px', background:'rgba(79,70,229,0.04)',
+      borderRadius:10, textAlign:'center' }}>
+      <p style={{ color:'#9CA3AF', fontSize:'0.85rem' }}>
+        Select a cloth type first to see measurement fields
+      </p>
+    </div>
+  ) : !selectedClothType.measurements ||
+      selectedClothType.measurements.length === 0 ? (
+    <div style={{ padding:'16px', background:'rgba(245,158,11,0.05)',
+      borderRadius:10, border:'1.5px dashed rgba(245,158,11,0.3)' }}>
+      <p style={{ color:'#D97706', fontSize:'0.85rem' }}>
+        ⚠️ No measurement fields set for {selectedClothType.name}.
+        Go to Cloth Types → Manage → Edit measurement fields.
+      </p>
+    </div>
+  ) : (
+    <div style={{ display:'grid',
+      gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',
+      gap:14 }}>
+      {selectedClothType.measurements.map(field => (
+        <div key={field.key}>
+          <label className="input-label">
+            {field.label.toUpperCase()}
+            {field.required && (
+              <span style={{ color:'#DC2626', marginLeft:2 }}>*</span>
+            )}
+          </label>
+          {field.labelTa && (
+            <p style={{ fontSize:'0.68rem', color:'#9CA3AF',
+              marginBottom:4, marginTop:-2 }}>
+              {field.labelTa}
+            </p>
+          )}
+          <div style={{ position:'relative' }}>
+            <input
+              type="text"
+              value={form.measurements[field.key] || ''}
+              onChange={e => setForm({
+                ...form,
+                measurements: {
+                  ...form.measurements,
+                  [field.key]: e.target.value,
+                },
+              })}
+              placeholder="e.g. 36"
+              className="input-field"
+              style={{
+                borderColor: savedMeasurements?.measurements?.[field.key] &&
+                  form.measurements[field.key] !==
+                  savedMeasurements.measurements[field.key]
+                  ? 'rgba(245,158,11,0.5)'  // changed from saved — highlight
+                  : undefined,
+              }}
+            />
+            {/* Show saved value hint if different */}
+            {savedMeasurements?.measurements?.[field.key] &&
+              form.measurements[field.key] &&
+              form.measurements[field.key] !==
+              savedMeasurements.measurements[field.key] && (
+              <p style={{ fontSize:'0.65rem', color:'#D97706',
+                marginTop:2 }}>
+                Saved: {savedMeasurements.measurements[field.key]}"
+              </p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+
+  {/* Note about auto-save */}
+  <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:12 }}>
+    💾 Measurements are automatically saved to the customer's profile when order is saved.
+  </p>
+</div>
 
         {/* Voice Note */}
         <div className="glass" style={{ padding:24 }}>

@@ -96,15 +96,16 @@ router.get('/:orderID', protect, async (req, res) => {
 })
 
 // POST create order — admin or full access employee
+// POST create order
 router.post('/', protectAdminOrFullAccess, async (req, res) => {
   try {
     const {
-    customerID, clothType, quantity,
-    unitCost, amountSettled,
-    fabricNotes, specialInstructions,
-    measurements, alteration, deliveryDate,
-    voiceNote,   // ← ADD THIS
-  } = req.body
+      customerID, clothType, quantity,
+      unitCost, amountSettled,
+      fabricNotes, specialInstructions,
+      measurements, alteration, deliveryDate,
+      voiceNote,
+    } = req.body
 
     if (!customerID)
       return res.status(400).json({ success:false, message:'Customer ID required' })
@@ -123,15 +124,15 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
       customerID,
       customerRef:         customer._id,
       clothType,
-      quantity:            quantity    || 1,
-      unitCost:            unitCost    || 0,
-      amountSettled:       amountSettled || 0,
-      fabricNotes:         fabricNotes || '',
-      specialInstructions: specialInstructions || '',
-      measurements:        measurements || {},
-      alteration:          alteration  || { required:false, selectedOptions:[], notes:'', extraCost:0 },
+      quantity:            quantity             || 1,
+      unitCost:            unitCost             || 0,
+      amountSettled:       amountSettled        || 0,
+      fabricNotes:         fabricNotes          || '',
+      specialInstructions: specialInstructions  || '',
+      measurements:        measurements         || {},
+      alteration:          alteration           || { required:false, selectedOptions:[], notes:'', extraCost:0 },
       deliveryDate,
-      voiceNote: voiceNote || { data:'', mimeType:'audio/webm', duration:0 },
+      voiceNote:           voiceNote            || { data:'', mimeType:'audio/webm', duration:0 },
       createdBy: {
         role:       req.role === 'employee_admin' ? 'employee' : 'admin',
         employeeID: req.employee?.employeeID || '',
@@ -139,13 +140,21 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
       },
     })
 
+    // ── Save measurements to customer profile ────────────────
+    if (measurements && Object.values(measurements).some(v => v?.trim())) {
+      await Customer.findOneAndUpdate(
+        { customerID },
+        { $set:{ measurements, measurementsUpdatedAt:new Date() } }
+      )
+    }
+
     res.status(201).json({ success:true, message:'Order created', order })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
 })
 
-// PUT update order — admin or full access employee
+// PUT update order
 router.put('/:orderID', protectAdminOrFullAccess, async (req, res) => {
   try {
     const order = await Order.findOneAndUpdate(
@@ -153,14 +162,48 @@ router.put('/:orderID', protectAdminOrFullAccess, async (req, res) => {
       req.body,
       { new:true, runValidators:true }
     ).populate('customerRef','name phone customerID')
+
     if (!order)
       return res.status(404).json({ success:false, message:'Order not found' })
+
+    // ── Sync measurements to customer profile ────────────────
+    if (req.body.measurements &&
+        Object.values(req.body.measurements).some(v => v?.trim())) {
+      await Customer.findOneAndUpdate(
+        { customerID: order.customerID },
+        { $set:{ measurements:req.body.measurements, measurementsUpdatedAt:new Date() } }
+      )
+    }
+
     res.json({ success:true, message:'Order updated', order })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
 })
+// GET customer measurements
+router.get('/:customerID/measurements', protectAdminOrEmployee, async (req, res) => {
+  try {
+    const customer = await Customer.findOne({ customerID:req.params.customerID })
+      .select('customerID name measurements measurementsUpdatedAt')
+      .lean()
+    if (!customer)
+      return res.status(404).json({ success:false, message:'Customer not found' })
 
+    // Convert Map to plain object if needed
+    const measurements = customer.measurements instanceof Map
+      ? Object.fromEntries(customer.measurements)
+      : customer.measurements || {}
+
+    res.json({
+      success:              true,
+      measurements,
+      measurementsUpdatedAt: customer.measurementsUpdatedAt,
+      hasMeasurements:      Object.values(measurements).some(v => v),
+    })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
 // PATCH status — admin only
 router.patch('/:orderID/status', protect, async (req, res) => {
   try {
