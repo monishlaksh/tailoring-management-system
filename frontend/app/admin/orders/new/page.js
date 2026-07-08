@@ -555,6 +555,7 @@ const fetchCustomerMeasurements = async (customerID) => {
                       setSelectedClothType(ct)
                       setSelectedType(null)
                       setSelectedSubtype(null)
+                      fetchCustomerMeasurements(c.customerID) 
                       // Reset measurements to empty object
                       // New fields will show based on cloth type's measurement config
                       setForm(f => ({
@@ -563,6 +564,7 @@ const fetchCustomerMeasurements = async (customerID) => {
                         measurements: {}, // clear previous measurements
                         alteration:   { required:false, selectedOptions:[], notes:'', extraCost:0 },
                       }))
+                      
                     }}
                     style={{ padding:'8px 16px', borderRadius:999,
                       cursor:'pointer', fontFamily:'Poppins,sans-serif',
