@@ -18,6 +18,8 @@ const scanRoutes        = require('./routes/scan')
 const salaryRoutes = require('./routes/salary')
 const salesRoutes  = require('./routes/sales')
 const productRoutes = require('./routes/products')
+const expenseRoutes = require('./routes/expenses')
+
 
 // whatsapp.js exports { router, sendWA } — we need only router here
 const { router: whatsappRoutes } = require('./routes/whatsapp')
@@ -62,6 +64,7 @@ app.use('/api/whatsapp',           whatsappRoutes)
 app.use('/api/salary', salaryRoutes)
 app.use('/api/sales',  salesRoutes)
 app.use('/api/products', productRoutes)
+app.use('/api/expenses', expenseRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status:'ok', message:'✂️ Tailoring API running' })

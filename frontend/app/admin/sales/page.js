@@ -59,69 +59,86 @@ export default function SalesPage() {
     }
   }
 
-  const renderChart = (chartData) => {
-    if (!window.Chart) { console.error('Chart.js not loaded'); return }
-    if (!canvasRef.current) { console.error('Canvas not ready'); return }
+  // Replace renderChart function:
+const renderChart = (chartData) => {
+  if (!window.Chart || !canvasRef.current) return
+  if (chartInstance.current) { chartInstance.current.destroy(); chartInstance.current = null }
 
-    if (chartInstance.current) {
-      chartInstance.current.destroy()
-      chartInstance.current = null
-    }
-
-    const labels   = chartData.map(d => formatPeriodLabel(d.period))
-    const sales    = chartData.map(d => d.sales)
-    const expenses = chartData.map(d => d.expenses)
-
-    chartInstance.current = new window.Chart(canvasRef.current, {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [
-          {
-            label: 'Sales',
-            data: sales,
-            backgroundColor: '#2a78d6',
-            borderRadius: 4,
-            maxBarThickness: 28,
-          },
-          {
-            label: 'Expenses (Salary)',
-            data: expenses,
-            backgroundColor: '#e34948',
-            borderRadius: 4,
-            maxBarThickness: 28,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display:false },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => `${ctx.dataset.label}: ₹${ctx.parsed.y.toLocaleString('en-IN')}`,
-            },
-          },
+  chartInstance.current = new window.Chart(canvasRef.current, {
+    type: 'bar',
+    data: {
+      labels: chartData.map(d => formatPeriodLabel(d.period)),
+      datasets: [
+        {
+          label: 'Sales',
+          data:  chartData.map(d => d.sales),
+          backgroundColor: '#2a78d6',
+          borderRadius: 4, maxBarThickness: 22,
         },
-        scales: {
-          x: {
-            grid:  { display:false },
-            ticks: { autoSkip:false, maxRotation:45, font:{ size:11 } },
-          },
-          y: {
-            beginAtZero: true,
-            grid:  { color:'#e1e0d9' },
-            ticks: {
-              callback: (v) => '₹' + v.toLocaleString('en-IN'),
-              font: { size:11 },
-            },
+        {
+          label: 'Salary Cost',
+          data:  chartData.map(d => d.salaryCost),
+          backgroundColor: '#e34948',
+          borderRadius: 4, maxBarThickness: 22,
+        },
+        {
+          label: 'Shop Expenses',
+          data:  chartData.map(d => d.shopExpenses),
+          backgroundColor: '#F59E0B',
+          borderRadius: 4, maxBarThickness: 22,
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display:false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ₹${ctx.parsed.y.toLocaleString('en-IN')}`,
           },
         },
       },
-    })
-  }
+      scales: {
+        x: { grid:{ display:false }, ticks:{ autoSkip:false, maxRotation:45, font:{ size:11 } } },
+        y: {
+          beginAtZero: true,
+          grid:{ color:'#e1e0d9' },
+          ticks:{ callback:v=>'₹'+v.toLocaleString('en-IN'), font:{ size:11 } },
+        },
+      },
+    },
+  })
+}
 
+{/* Summary cards */}
+<div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:14, marginBottom:24 }}>
+  {[
+    { label:'Total Sales',    value:`₹${(totals.sales||0).toLocaleString('en-IN')}`,        color:'#2a78d6', bg:'rgba(42,120,214,0.07)'  },
+    { label:'Salary Cost',    value:`₹${(totals.salaryCost||0).toLocaleString('en-IN')}`,   color:'#e34948', bg:'rgba(227,73,72,0.07)'   },
+    { label:'Shop Expenses',  value:`₹${(totals.shopExpenses||0).toLocaleString('en-IN')}`, color:'#F59E0B', bg:'rgba(245,158,11,0.07)'  },
+    { label:'Net Profit',     value:`₹${(totals.profit||0).toLocaleString('en-IN')}`,       color:'#059669', bg:'rgba(16,185,129,0.07)'  },
+    { label:'Total Orders',   value:totals.orders||0,                                         color:'#7C3AED', bg:'rgba(124,58,237,0.07)'  },
+  ].map((s,i) => (
+    <div key={i} className="glass" style={{ padding:'16px', background:s.bg }}>
+      <p style={{ fontSize:'0.7rem', color:'#6B7280', fontWeight:500, marginBottom:4 }}>{s.label}</p>
+      <p style={{ fontSize:'1.3rem', fontWeight:800, color:s.color, lineHeight:1 }}>{s.value}</p>
+    </div>
+  ))}
+</div>
+    {/* Legend */}
+<div style={{ display:'flex', gap:16, marginBottom:12, fontSize:'0.8rem', color:'#6B7280', flexWrap:'wrap' }}>
+  {[
+    { color:'#2a78d6', label:'Sales (Order revenue)'  },
+    { color:'#e34948', label:'Salary Cost'            },
+    { color:'#F59E0B', label:'Shop Expenses'          },
+  ].map((l,i) => (
+    <span key={i} style={{ display:'flex', alignItems:'center', gap:5 }}>
+      <span style={{ width:11, height:11, borderRadius:3, background:l.color, flexShrink:0 }}/>
+      {l.label}
+    </span>
+  ))}
+</div>
   const formatPeriodLabel = (p) => {
     try {
       if (period === 'daily') {

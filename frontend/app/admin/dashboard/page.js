@@ -233,6 +233,7 @@ let filtered = orders.filter(o =>
                   { icon:'📱', label:'Scan QR',             path:'/admin/scan'               },
                   { icon:'💰', label:'Employee Salary', path:'/admin/salary' },
                   { icon:'📊', label:'View Sales',      path:'/admin/sales'  },
+                  { icon:'💸', label:'Expenses', path:'/admin/expenses' },
                 ].map((item, i, arr) => (
                   <button key={i}
                     onClick={() => {
