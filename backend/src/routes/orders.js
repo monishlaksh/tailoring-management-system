@@ -49,6 +49,18 @@ router.get('/stats/dashboard', protect, async (req, res) => {
 })
 
 // GET all orders — admin only
+// Helper to convert order Map fields to plain objects
+const serializeOrder = (order) => {
+  const obj = order.toObject ? order.toObject() : order
+  if (obj.measurements instanceof Map) {
+    obj.measurements = Object.fromEntries(obj.measurements)
+  } else if (obj.measurements && typeof obj.measurements === 'object') {
+    // Already plain object, keep as is
+  }
+  return obj
+}
+
+// GET all orders
 router.get('/', protect, async (req, res) => {
   try {
     const { search, status, customerID } = req.query
@@ -65,7 +77,39 @@ router.get('/', protect, async (req, res) => {
     const orders = await Order.find(query)
       .populate('customerRef','name phone customerID')
       .sort({ createdAt:-1 })
-    res.json({ success:true, count:orders.length, orders })
+      .lean()
+
+    // Convert Map to plain object for each order
+    const serialized = orders.map(o => ({
+      ...o,
+      measurements: o.measurements instanceof Map
+        ? Object.fromEntries(o.measurements)
+        : (o.measurements || {}),
+    }))
+
+    res.json({ success:true, count:serialized.length, orders:serialized })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
+
+// GET single order
+router.get('/:orderID', protect, async (req, res) => {
+  try {
+    const order = await Order.findOne({ orderID:req.params.orderID })
+      .populate('customerRef','name phone customerID address')
+      .lean()
+    if (!order)
+      return res.status(404).json({ success:false, message:'Order not found' })
+
+    const serialized = {
+      ...order,
+      measurements: order.measurements instanceof Map
+        ? Object.fromEntries(order.measurements)
+        : (order.measurements || {}),
+    }
+
+    res.json({ success:true, order:serialized })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
@@ -82,18 +126,6 @@ router.get('/my-orders', protectCustomer, async (req, res) => {
   }
 })
 
-// GET single order — admin only
-router.get('/:orderID', protect, async (req, res) => {
-  try {
-    const order = await Order.findOne({ orderID:req.params.orderID })
-      .populate('customerRef','name phone customerID address')
-    if (!order)
-      return res.status(404).json({ success:false, message:'Order not found' })
-    res.json({ success:true, order })
-  } catch (e) {
-    res.status(500).json({ success:false, message:e.message })
-  }
-})
 
 // POST create order — admin or full access employee
 // POST create order
@@ -119,37 +151,47 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
       return res.status(404).json({ success:false, message:'Customer not found' })
 
     const orderID = await getNextOrderID()
-    const order   = await Order.create({
-      orderID,
-      customerID,
-      customerRef:         customer._id,
-      clothType,
-      quantity:            quantity             || 1,
-      unitCost:            unitCost             || 0,
-      amountSettled:       amountSettled        || 0,
-      fabricNotes:         fabricNotes          || '',
-      specialInstructions: specialInstructions  || '',
-      measurements:        measurements         || {},
-      alteration:          alteration           || { required:false, selectedOptions:[], notes:'', extraCost:0 },
-      deliveryDate,
-      voiceNote:           voiceNote            || { data:'', mimeType:'audio/webm', duration:0 },
-      createdBy: {
-        role:       req.role === 'employee_admin' ? 'employee' : 'admin',
-        employeeID: req.employee?.employeeID || '',
-        name:       req.employee?.name || 'Admin',
-      },
-    })
+    // In POST create order:
+      const order = await Order.create({
+        orderID,
+        customerID,
+        customerRef:         customer._id,
+        clothType,
+        quantity:            quantity    || 1,
+        unitCost:            unitCost    || 0,
+        amountSettled:       amountSettled || 0,
+        fabricNotes:         fabricNotes || '',
+        specialInstructions: specialInstructions || '',
+        measurements:        measurements || {},
+        alteration:          alteration  || { required:false, selectedOptions:[], notes:'', extraCost:0 },
+        deliveryDate,
+        voiceNote:           voiceNote   || { data:'', mimeType:'audio/webm', duration:0 },
+        createdBy: {
+          role:       req.role === 'employee_admin' ? 'employee' : 'admin',
+          employeeID: req.employee?.employeeID || '',
+          name:       req.employee?.name || 'Admin',
+        },
+      })
 
-    // ── Save measurements to customer profile ────────────────
-    if (measurements && Object.values(measurements).some(v => v?.trim())) {
-      await Customer.findOneAndUpdate(
-        { customerID },
-        { $set:{ measurements, measurementsUpdatedAt:new Date() } }
-      )
+      // Save measurements to customer profile
+      if (measurements && Object.values(measurements).some(v => v?.trim?.())) {
+        await Customer.findOneAndUpdate(
+          { customerID },
+          { $set:{ measurements, measurementsUpdatedAt:new Date() } }
+        )
+      }
+
+      // Return serialized
+      const serialized = order.toObject()
+      if (serialized.measurements instanceof Map) {
+        serialized.measurements = Object.fromEntries(serialized.measurements)
+      }
+      res.status(201).json({ success:true, message:'Order created', order:serialized })
+      res.status(201).json({ success:true, message:'Order created', order })
     }
 
-    res.status(201).json({ success:true, message:'Order created', order })
-  } catch (e) {
+    
+   catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
 })

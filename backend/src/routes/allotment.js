@@ -89,69 +89,60 @@ router.get('/scan/:orderID', async (req, res) => {
 })
 
 // GET allotment for order (create if not exists)
-router.get('/:orderID', protect, async (req, res) => {
+router.get('/:orderID', async (req, res) => {
   try {
-    const { orderID } = req.params
+    const cleanID = req.params.orderID.trim().toUpperCase()
+    const stage   = (req.query.stage || 'general').toLowerCase()
 
-    const order = await Order.findOne({ orderID })
-      .populate('customerRef', 'name phone customerID address')
+    const order = await Order.findOne({ orderID:cleanID }).lean()
     if (!order)
-      return res.status(404).json({ success:false, message:'Order not found' })
+      return res.status(404).json({ success:false, message:`Order "${cleanID}" not found` })
 
-    let allotment = await Allotment.findOne({ orderID })
-    if (!allotment) {
-      const qrCode = await generateQR(orderID)
-      allotment = await Allotment.create({
-        orderID,
-        customerID: order.customerID,
-        qrCode,
-      })
+    const allotment = await Allotment.findOne({ orderID:order.orderID }).lean()
+    const ctDoc     = await ClothType.findOne({
+      name:(order.clothType||'').split(' - ')[0].trim()
+    }).lean()
+
+    // ── Serialize measurements ───────────────────────────────
+    const measurements = order.measurements instanceof Map
+      ? Object.fromEntries(order.measurements)
+      : (order.measurements || {})
+
+    const response = {
+      success:      true,
+      orderID:      order.orderID,
+      clothType:    order.clothType,
+      clothTypeTa:  ctDoc?.nameTa || '',
+      quantity:     order.quantity,
+      measurements,              // ← serialized
+      fabricNotes:  order.fabricNotes  || '',
+      voiceNote:    order.voiceNote    || { data:'', mimeType:'audio/webm', duration:0 },
+      stage,
+      stageInfo: (allotment && stage !== 'general' && allotment[stage])
+        ? {
+            status:     allotment[stage].status     || 'not_assigned',
+            employeeID: allotment[stage].employeeID || '',
+            notes:      allotment[stage].notes      || '',
+          }
+        : { status:'not_assigned', employeeID:'', notes:'' },
+      allStages: allotment
+        ? {
+            cutting:   { status:allotment.cutting?.status   || 'not_assigned' },
+            stitching: { status:allotment.stitching?.status || 'not_assigned' },
+            finishing: { status:allotment.finishing?.status || 'not_assigned' },
+          }
+        : {
+            cutting:   { status:'not_assigned' },
+            stitching: { status:'not_assigned' },
+            finishing: { status:'not_assigned' },
+          },
     }
 
-    const enrichStage = async (stage) => {
-      if (!stage.employeeID) return stage
-      const emp = await Employee.findOne({ employeeID:stage.employeeID })
-        .select('name employeeID role').lean()
-      return { ...stage, employeeDetails: emp || null }
+    if (stage === 'stitching') {
+      response.alteration = order.alteration || { required:false }
     }
 
-    const cutting   = await enrichStage(allotment.cutting.toObject())
-    const stitching = await enrichStage(allotment.stitching.toObject())
-    const finishing = await enrichStage(allotment.finishing.toObject())
-
-    // Return full order object — all fields
-    res.json({
-      success:   true,
-      allotment: {
-        ...allotment.toObject(),
-        cutting,
-        stitching,
-        finishing,
-      },
-      order: {
-        orderID:             order.orderID,
-        customerID:          order.customerID,
-        clothType:           order.clothType,
-        quantity:            order.quantity,        // ← explicit
-        unitCost:            order.unitCost,
-        amountSettled:       order.amountSettled,
-        fabricNotes:         order.fabricNotes,
-        specialInstructions: order.specialInstructions,
-        measurements:        order.measurements,
-        alteration:          order.alteration,
-        deliveryDate:        order.deliveryDate,
-        status:              order.status,
-        voiceNote:           order.voiceNote,
-        customerRef:         order.customerRef,
-      },
-    })
-
-    // Ensure delivery field exists on old allotments
-    if (!allotment.delivery) {
-      allotment.delivery = { status:'pending', deliveredAt:null, acknowledgedBy:'', notes:'' }
-      await allotment.save()
-    }
-
+    res.json(response)
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
