@@ -177,14 +177,7 @@ const [loadingMeasurements, setLoadingMeasurements] = useState(false)
     },
   })
 
-  // ── Load initial data ───────────────────────────────────────
-  useEffect(() => {
-    const token = localStorage.getItem('adminToken')
-    if (!token) { router.push('/admin/login'); return }
-    fetchInitialData()
-  }, [])
-
-  const fetchInitialData = async () => {
+    const fetchInitialData = async () => {
   try {
     const [custRes, clothRes] = await Promise.all([
       API.get('/api/customers'),
@@ -202,6 +195,15 @@ const [loadingMeasurements, setLoadingMeasurements] = useState(false)
     setLoadingPage(false)
   }
 }
+
+  // ── Load initial data ───────────────────────────────────────
+  useEffect(() => {
+    const token = localStorage.getItem('adminToken')
+    if (!token) { router.push('/admin/login'); return }
+    fetchInitialData()
+  }, [])
+
+
 const fetchCustomerMeasurements = async (customerID) => {
   setLoadingMeasurements(true)
   setSavedMeasurements(null)
