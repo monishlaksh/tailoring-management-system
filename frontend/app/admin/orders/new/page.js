@@ -209,9 +209,17 @@ const fetchCustomerMeasurements = async (customerID) => {
     const res = await API.get(`/api/customers/${customerID}/measurements`)
     if (res.data.hasMeasurements) {
       setSavedMeasurements({
-        measurements:  res.data.measurements,
-        updatedAt:     res.data.measurementsUpdatedAt,
+        measurements: res.data.measurements,
+        updatedAt:    res.data.measurementsUpdatedAt,
       })
+      // Auto-apply saved measurements immediately
+      setForm(f => ({
+        ...f,
+        measurements: {
+          ...f.measurements,
+          ...res.data.measurements,
+        },
+      }))
     }
   } catch (e) {
     console.error('Failed to fetch measurements:', e)
@@ -385,7 +393,11 @@ const fetchCustomerMeasurements = async (customerID) => {
                   {selected.customerID} · {selected.phone}
                 </p>
               </div>
-              <button onClick={() => setSelected(null)}
+              <button onClick={() => {
+                    setSelected(null)
+                    setSavedMeasurements(null)
+                    setForm(f => ({ ...f, measurements:{} }))  // ← only clear here
+                  }}
                 style={{ background:'none', border:'none',
                   cursor:'pointer', color:'#9CA3AF', fontSize:'1.1rem' }}>
                 ✕
@@ -437,11 +449,12 @@ const fetchCustomerMeasurements = async (customerID) => {
                 {filteredCust.map(c => (
                   <div key={c._id}
                     onClick={() => {
-                      setSelected(c)
-                      setCustSearch('')
-                      setShowNewCustomer(false)
-                      fetchCustomerMeasurements(c.customerID)
-                    }}
+                        setSelected(c)
+                        setCustSearch('')
+                        setShowNewCustomer(false)
+                        setForm(f => ({ ...f, measurements:{} }))  // ← clear old measurements first
+                        fetchCustomerMeasurements(c.customerID)    // ← then fetch this customer's saved ones
+                      }}
                     style={{ padding:'11px 16px',
                       background:'rgba(255,255,255,0.6)',
                       border:'1px solid rgba(79,70,229,0.1)',
@@ -561,7 +574,6 @@ const fetchCustomerMeasurements = async (customerID) => {
                       setForm(f => ({
                         ...f,
                         unitCost:     0,
-                        measurements: {}, // clear previous measurements
                         alteration:   { required:false, selectedOptions:[], notes:'', extraCost:0 },
                       }))
                       
