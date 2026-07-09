@@ -92,24 +92,29 @@ export default function EmployeesPage() {
     setError(''); setShowPass(false); setModal(true)
   }
 
-const openEdit = async (emp) => {
-  setEditData(emp)
+const openEdit = async (employee) => {
+  setEditData(employee)
   setForm({
-    name:     emp.name,
-    username: emp.username,
-    password: '',
-    role:     emp.role || 'all',
-    isActive: emp.isActive,
+    name:       employee.name,
+    username:   employee.username,
+    password:   '',
+    role:       employee.role || 'all',
+    accessRole: employee.accessRole || 'employee',
+    isActive:   employee.isActive,
   })
   setError('')
   setShowPass(false)
+  setCurrentPassword('')
 
-  // Fetch current password for admin to see
   try {
-    const res = await API.get(`/api/employees/${emp.employeeID}/password`)
-    setCurrentPassword(res.data.password || '')
+    const res = await API.get(`/api/employees/${employee.employeeID}/password`)
+    if (res.data.password) {
+      setCurrentPassword(res.data.password)
+    } else {
+      setCurrentPassword(null) // explicitly null — not unavailable
+    }
   } catch {
-    setCurrentPassword('(unavailable)')
+    setCurrentPassword(null)
   }
 
   setModal(true)
@@ -577,16 +582,30 @@ const openEdit = async (emp) => {
               </div>
 
               {/* New password — only shown when editing */}
+              {/* Current password display */}
               {editData && (
                 <div>
-                  <label className="input-label">NEW PASSWORD (leave blank to keep)</label>
-                  <input
-                    type="text"
-                    value={form.password}
-                    onChange={e => setForm({...form, password:e.target.value})}
-                    placeholder="Enter new password to change"
-                    className="input-field"
-                  />
+                  <label className="input-label">CURRENT PASSWORD</label>
+                  {currentPassword === null ? (
+                    <div style={{ padding:'11px 14px', background:'rgba(245,158,11,0.06)', border:'1.5px solid rgba(245,158,11,0.2)', borderRadius:10, marginBottom:4 }}>
+                      <p style={{ fontSize:'0.82rem', color:'#D97706' }}>
+                        ⚠️ Password not available — set a new password below to update it.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ position:'relative' }}>
+                      <input
+                        type={showPass ? 'text' : 'password'}
+                        value={currentPassword}
+                        readOnly
+                        style={{ width:'100%', padding:'11px 44px 11px 14px', background:'rgba(245,158,11,0.04)', border:'1.5px solid rgba(245,158,11,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none', cursor:'default' }}
+                      />
+                      <button type="button" onClick={() => setShowPass(!showPass)}
+                        style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#9CA3AF', display:'flex' }}>
+                        {showPass ? <EyeOff size={16}/> : <Eye size={16}/>}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 

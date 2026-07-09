@@ -34,6 +34,22 @@ router.get('/', protect, async (req, res) => {
   }
 })
 
+// GET current password — admin only
+router.get('/:employeeID/password', protect, async (req, res) => {
+  try {
+    const employee = await Employee.findOne({ employeeID:req.params.employeeID })
+    if (!employee)
+      return res.status(404).json({ success:false, message:'Not found' })
+
+    res.json({
+      success:  true,
+      password: employee.plainPassword || null,
+    })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
+
 // GET employee stats — admin only
 // Returns completed stages count and total awards per employee
 router.get('/:employeeID/stats', protect, async (req, res) => {
@@ -122,15 +138,15 @@ router.post('/', protect, async (req, res) => {
       ? req.body.accessRole : 'employee'
 
     const employee = await Employee.create({
-      employeeID,
-      name:          name.trim(),
-      username:      username.trim(),
-      password:      hashedPassword,
-      plainPassword: password,
-      role:          empRole,
-      accessRole,
-      hasFullAccess: accessRole === 'manager',
-    })
+       employeeID,
+        name:          name.trim(),
+        username:      username.trim(),
+        password:      hashedPassword,
+        plainPassword: password,        // ← save plain
+        role:          empRole,
+        accessRole:    accessRole || 'employee',
+        hasFullAccess: (accessRole||'employee') === 'manager',
+      })
     res.status(201).json({
       success:  true,
       message:  'Employee created',
@@ -163,9 +179,10 @@ router.put('/:employeeID', protect, async (req, res) => {
     if (role && validRoles.includes(role)) employee.role = role
 
     if (password && password.trim() !== '') {
-    employee.password      = await bcrypt.hash(password, 10)
-    employee.plainPassword = password // update plain too
-  }
+  employee.password      = await bcrypt.hash(password, 10)
+  employee.plainPassword = password.trim()   // ← update plain
+}
+
 
     // In PUT update employee route, add:
 const validAccessRoles = ['employee','receptionist','manager']
