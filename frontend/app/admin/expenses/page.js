@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Plus, Edit2, Trash2, X, Check, Filter } from 'lucide-react'
+import { ArrowLeft, Plus, Edit2, Trash2, X, Check } from 'lucide-react'
 import { adminAPI as API } from '../../../lib/api'
 import NumInput from '../../../components/NumInput'
 
@@ -11,9 +11,9 @@ const CATEGORIES = [
 ]
 
 const CAT_COLORS = {
-  Rent:        '#4F46E5', Electricity:'#D97706', Materials:'#059669',
-  Equipment:   '#2563EB', Salary:     '#7C3AED', Maintenance:'#DC2626',
-  Transport:   '#D97706', Food:       '#059669', Other:      '#6B7280',
+  Rent:'#4F46E5', Electricity:'#D97706', Materials:'#059669',
+  Equipment:'#2563EB', Salary:'#7C3AED', Maintenance:'#DC2626',
+  Transport:'#F59E0B', Food:'#10B981', Other:'#6B7280',
 }
 
 const CAT_ICONS = {
@@ -29,10 +29,8 @@ export default function ExpensesPage() {
   const [loading, setLoading]     = useState(true)
   const [msg, setMsg]             = useState({ text:'', err:false })
 
-  // Filters
-  const [filterCategory, setFilterCategory] = useState('')
-  const [filterStart, setFilterStart]       = useState('')
-  const [filterEnd, setFilterEnd]           = useState('')
+  // Period filter — same as salary page
+  const [period, setPeriod] = useState('daily')
 
   // Modal
   const [modal, setModal]     = useState(false)
@@ -47,15 +45,37 @@ export default function ExpensesPage() {
   useEffect(() => {
     if (!localStorage.getItem('adminToken')) { router.push('/admin/login'); return }
     fetchData()
-  }, [])
+  }, [period])
 
-  const fetchData = async (cat='', sd='', ed='') => {
+  const getDateRange = () => {
+    const now   = new Date()
+    let startDate, endDate
+
+    if (period === 'daily') {
+      startDate = new Date(now); startDate.setHours(0,0,0,0)
+      endDate   = new Date(now); endDate.setHours(23,59,59,999)
+    } else if (period === 'weekly') {
+      // Start of current week (Monday)
+      startDate = new Date(now)
+      const day = startDate.getDay()
+      const diff = startDate.getDate() - day + (day === 0 ? -6 : 1)
+      startDate.setDate(diff)
+      startDate.setHours(0,0,0,0)
+      endDate = new Date(now); endDate.setHours(23,59,59,999)
+    } else {
+      // Start of current month
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+      endDate   = new Date(now); endDate.setHours(23,59,59,999)
+    }
+
+    return { startDate:startDate.toISOString(), endDate:endDate.toISOString() }
+  }
+
+  const fetchData = async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams()
-      if (cat) params.append('category', cat)
-      if (sd)  params.append('startDate', sd)
-      if (ed)  params.append('endDate', ed)
+      const { startDate, endDate } = getDateRange()
+      const params = new URLSearchParams({ startDate, endDate })
 
       const [expRes, sumRes] = await Promise.all([
         API.get(`/api/expenses?${params}`),
@@ -66,12 +86,6 @@ export default function ExpensesPage() {
       setGrandTotal(sumRes.data.grandTotal)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
-  }
-
-  const applyFilter = () => fetchData(filterCategory, filterStart, filterEnd)
-  const clearFilter = () => {
-    setFilterCategory(''); setFilterStart(''); setFilterEnd('')
-    fetchData()
   }
 
   const showMsg = (text, err=false) => {
@@ -107,7 +121,7 @@ export default function ExpensesPage() {
       if (editData) await API.put(`/api/expenses/${editData._id}`, form)
       else          await API.post('/api/expenses', form)
       setModal(false)
-      fetchData(filterCategory, filterStart, filterEnd)
+      fetchData()
       showMsg(editData ? 'Expense updated!' : 'Expense added!')
     } catch (e) {
       showMsg(e.response?.data?.message || 'Failed', true)
@@ -118,9 +132,15 @@ export default function ExpensesPage() {
     if (!confirm(`Delete "${title}"?`)) return
     try {
       await API.delete(`/api/expenses/${id}`)
-      fetchData(filterCategory, filterStart, filterEnd)
+      fetchData()
       showMsg('Deleted')
     } catch (e) { showMsg('Failed', true) }
+  }
+
+  const periodHint = {
+    daily:   `Today — ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}`,
+    weekly:  'This week (Mon–today)',
+    monthly: `${new Date().toLocaleDateString('en-IN',{month:'long',year:'numeric'})}`,
   }
 
   const inputStyle = {
@@ -144,11 +164,32 @@ export default function ExpensesPage() {
             <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>Track all shop expenditures</p>
           </div>
         </div>
-        <button onClick={openAdd} className="btn-primary"
-          style={{ padding:'9px 18px', fontSize:'0.82rem', display:'flex', alignItems:'center', gap:6 }}>
-          <Plus size={15}/> Add Expense
-        </button>
+        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+          {/* Period filter */}
+          <div style={{ display:'flex', gap:5, background:'rgba(79,70,229,0.06)', padding:4, borderRadius:10 }}>
+            {['daily','weekly','monthly'].map(p => (
+              <button key={p} onClick={() => setPeriod(p)}
+                style={{ padding:'7px 14px', borderRadius:8, border:'none', cursor:'pointer',
+                  fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.78rem',
+                  background: period===p ? 'white' : 'transparent',
+                  color:      period===p ? '#4F46E5' : '#6B7280',
+                  boxShadow:  period===p ? '0 2px 6px rgba(79,70,229,0.15)' : 'none',
+                  textTransform:'capitalize', transition:'all 0.2s' }}>
+                {p}
+              </button>
+            ))}
+          </div>
+          <button onClick={openAdd} className="btn-primary"
+            style={{ padding:'9px 18px', fontSize:'0.82rem', display:'flex', alignItems:'center', gap:6 }}>
+            <Plus size={15}/> Add Expense
+          </button>
+        </div>
       </div>
+
+      {/* Period hint */}
+      <p style={{ fontSize:'0.75rem', color:'#9CA3AF', marginBottom:16 }}>
+        📅 {periodHint[period]}
+      </p>
 
       {msg.text && (
         <div style={{ padding:'11px 16px', marginBottom:16, borderRadius:10,
@@ -160,17 +201,24 @@ export default function ExpensesPage() {
       )}
 
       {/* Summary cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:14, marginBottom:20 }}>
-        <div className="glass" style={{ padding:18, background:'rgba(239,68,68,0.05)', border:'1.5px solid rgba(239,68,68,0.15)' }}>
-          <p style={{ fontSize:'0.7rem', color:'#6B7280', fontWeight:600, marginBottom:4 }}>TOTAL EXPENSES</p>
-          <p style={{ fontSize:'1.5rem', fontWeight:800, color:'#DC2626' }}>₹{grandTotal.toLocaleString('en-IN')}</p>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:14, marginBottom:20 }}>
+        <div className="glass" style={{ padding:18, background:'rgba(239,68,68,0.05)', border:'1.5px solid rgba(239,68,68,0.12)' }}>
+          <p style={{ fontSize:'0.7rem', color:'#6B7280', fontWeight:600, marginBottom:4 }}>
+            {period === 'daily' ? "TODAY'S" : period === 'weekly' ? "THIS WEEK'S" : "THIS MONTH'S"} EXPENSES
+          </p>
+          <p style={{ fontSize:'1.5rem', fontWeight:800, color:'#DC2626' }}>
+            ₹{grandTotal.toLocaleString('en-IN')}
+          </p>
+          <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:4 }}>
+            {expenses.length} entries
+          </p>
         </div>
         {summary.slice(0,4).map((s,i) => (
           <div key={i} className="glass" style={{ padding:18 }}>
             <p style={{ fontSize:'0.7rem', color:'#6B7280', fontWeight:600, marginBottom:4 }}>
               {CAT_ICONS[s._id]} {s._id}
             </p>
-            <p style={{ fontSize:'1.3rem', fontWeight:800, color:CAT_COLORS[s._id]||'#4F46E5' }}>
+            <p style={{ fontSize:'1.2rem', fontWeight:800, color:CAT_COLORS[s._id]||'#4F46E5' }}>
               ₹{s.total.toLocaleString('en-IN')}
             </p>
             <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:2 }}>{s.count} entries</p>
@@ -178,39 +226,16 @@ export default function ExpensesPage() {
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="glass" style={{ padding:'16px 20px', marginBottom:20, display:'flex', alignItems:'flex-end', gap:12, flexWrap:'wrap' }}>
-        <Filter size={16} color="#9CA3AF" style={{ marginBottom:9 }}/>
-        <div>
-          <label className="input-label">CATEGORY</label>
-          <select value={filterCategory} onChange={e=>setFilterCategory(e.target.value)}
-            style={{ ...inputStyle, width:160 }}>
-            <option value="">All Categories</option>
-            {CATEGORIES.map(c => <option key={c} value={c}>{CAT_ICONS[c]} {c}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="input-label">FROM</label>
-          <input type="date" value={filterStart} onChange={e=>setFilterStart(e.target.value)} style={{ ...inputStyle, width:160 }} />
-        </div>
-        <div>
-          <label className="input-label">TO</label>
-          <input type="date" value={filterEnd} onChange={e=>setFilterEnd(e.target.value)} style={{ ...inputStyle, width:160 }} />
-        </div>
-        <button onClick={applyFilter} className="btn-primary" style={{ padding:'9px 18px', fontSize:'0.82rem' }}>Apply</button>
-        {(filterCategory||filterStart||filterEnd) && (
-          <button onClick={clearFilter} className="btn-ghost" style={{ padding:'9px 14px', fontSize:'0.82rem' }}>Clear</button>
-        )}
-      </div>
-
       {/* Category breakdown bar */}
       {summary.length > 0 && grandTotal > 0 && (
         <div className="glass" style={{ padding:20, marginBottom:20 }}>
-          <p style={{ fontSize:'0.78rem', fontWeight:700, color:'#1E1B4B', marginBottom:12 }}>Breakdown by Category</p>
-          <div style={{ display:'flex', height:12, borderRadius:999, overflow:'hidden', marginBottom:12 }}>
+          <p style={{ fontSize:'0.78rem', fontWeight:700, color:'#1E1B4B', marginBottom:12 }}>
+            Breakdown by Category
+          </p>
+          <div style={{ display:'flex', height:10, borderRadius:999, overflow:'hidden', marginBottom:10 }}>
             {summary.map((s,i) => (
               <div key={i}
-                style={{ width:`${(s.total/grandTotal)*100}%`, background:CAT_COLORS[s._id]||'#9CA3AF', transition:'width 0.4s' }}
+                style={{ width:`${(s.total/grandTotal)*100}%`, background:CAT_COLORS[s._id]||'#9CA3AF' }}
                 title={`${s._id}: ₹${s.total}`}
               />
             ))}
@@ -218,7 +243,7 @@ export default function ExpensesPage() {
           <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
             {summary.map((s,i) => (
               <span key={i} style={{ fontSize:'0.74rem', display:'flex', alignItems:'center', gap:4 }}>
-                <span style={{ width:10, height:10, borderRadius:'50%', background:CAT_COLORS[s._id]||'#9CA3AF', display:'inline-block' }}/>
+                <span style={{ width:8, height:8, borderRadius:'50%', background:CAT_COLORS[s._id]||'#9CA3AF', display:'inline-block', flexShrink:0 }}/>
                 {s._id}: ₹{s.total.toLocaleString('en-IN')} ({Math.round((s.total/grandTotal)*100)}%)
               </span>
             ))}
@@ -232,35 +257,39 @@ export default function ExpensesPage() {
       ) : expenses.length === 0 ? (
         <div className="glass" style={{ textAlign:'center', padding:48 }}>
           <p style={{ fontSize:'2.5rem', marginBottom:12 }}>💸</p>
-          <p style={{ color:'#6B7280', marginBottom:16 }}>No expenses recorded yet.</p>
-          <button onClick={openAdd} className="btn-primary" style={{ padding:'10px 24px' }}>+ Add First Expense</button>
+          <p style={{ color:'#6B7280', marginBottom:6 }}>
+            No expenses for {period === 'daily' ? 'today' : period === 'weekly' ? 'this week' : 'this month'}.
+          </p>
+          <button onClick={openAdd} className="btn-primary" style={{ padding:'10px 24px', marginTop:10 }}>
+            + Add Expense
+          </button>
         </div>
       ) : (
         <div style={{ display:'grid', gap:10 }}>
           {expenses.map(exp => (
-            <div key={exp._id} className="glass" style={{ padding:'14px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-                <div style={{ width:42, height:42, borderRadius:12, background:`${CAT_COLORS[exp.category]}18`, border:`1.5px solid ${CAT_COLORS[exp.category]}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.3rem', flexShrink:0 }}>
+            <div key={exp._id} className="glass" style={{ padding:'14px 18px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                <div style={{ width:42, height:42, borderRadius:12, background:`${CAT_COLORS[exp.category]}15`, border:`1.5px solid ${CAT_COLORS[exp.category]}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.2rem', flexShrink:0 }}>
                   {CAT_ICONS[exp.category]||'📦'}
                 </div>
                 <div>
-                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
-                    <p style={{ fontWeight:700, color:'#1E1B4B', fontSize:'0.92rem' }}>{exp.title}</p>
-                    <span style={{ fontSize:'0.68rem', padding:'2px 8px', borderRadius:999, background:`${CAT_COLORS[exp.category]}18`, color:CAT_COLORS[exp.category], fontWeight:600 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3, flexWrap:'wrap' }}>
+                    <p style={{ fontWeight:700, color:'#1E1B4B', fontSize:'0.9rem' }}>{exp.title}</p>
+                    <span style={{ fontSize:'0.68rem', padding:'2px 8px', borderRadius:999, background:`${CAT_COLORS[exp.category]}15`, color:CAT_COLORS[exp.category], fontWeight:600 }}>
                       {exp.category}
                     </span>
                     {exp.isRecurring && (
-                      <span style={{ fontSize:'0.65rem', padding:'2px 7px', borderRadius:999, background:'rgba(79,70,229,0.08)', color:'#4F46E5', fontWeight:600 }}>🔄 Recurring</span>
+                      <span style={{ fontSize:'0.65px', padding:'2px 7px', borderRadius:999, background:'rgba(79,70,229,0.08)', color:'#4F46E5', fontWeight:600 }}>🔄 Recurring</span>
                     )}
                   </div>
                   <p style={{ fontSize:'0.75rem', color:'#6B7280' }}>
-                    {new Date(exp.date).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}
+                    {new Date(exp.date).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})}
                     {exp.notes && ` · ${exp.notes}`}
                   </p>
                 </div>
               </div>
-              <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-                <p style={{ fontSize:'1.15rem', fontWeight:800, color:'#DC2626' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                <p style={{ fontSize:'1.1rem', fontWeight:800, color:'#DC2626' }}>
                   ₹{exp.amount.toLocaleString('en-IN')}
                 </p>
                 <div style={{ display:'flex', gap:6 }}>
@@ -283,7 +312,7 @@ export default function ExpensesPage() {
       {modal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(30,27,75,0.3)', backdropFilter:'blur(8px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:20 }}>
           <div className="glass" style={{ width:'100%', maxWidth:480, padding:28, maxHeight:'90vh', overflowY:'auto' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:22 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
               <h2 style={{ fontWeight:700, color:'#1E1B4B', fontSize:'1.05rem' }}>
                 {editData ? 'Edit Expense' : 'Add New Expense'}
               </h2>
@@ -314,7 +343,6 @@ export default function ExpensesPage() {
                 <label className="input-label">AMOUNT (₹) *</label>
                 <NumInput prefix="₹" value={form.amount}
                   onChange={val=>setForm({...form,amount:val})}
-                  placeholder="0"
                   style={{ border:'1.5px solid rgba(239,68,68,0.25)' }} />
               </div>
 
@@ -334,14 +362,14 @@ export default function ExpensesPage() {
               <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
                 <input type="checkbox" checked={form.isRecurring}
                   onChange={e=>setForm({...form,isRecurring:e.target.checked})}
-                  style={{ width:16, height:16 }} />
+                  style={{ width:16, height:16, cursor:'pointer' }} />
                 <span style={{ fontSize:'0.85rem', color:'#4B5563', fontWeight:500 }}>
                   🔄 Recurring expense (monthly)
                 </span>
               </label>
             </div>
 
-            <div style={{ display:'flex', gap:10, marginTop:22 }}>
+            <div style={{ display:'flex', gap:10, marginTop:20 }}>
               <button onClick={()=>setModal(false)} className="btn-ghost" style={{ flex:1 }}>Cancel</button>
               <button onClick={handleSave} disabled={saving} className="btn-primary"
                 style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
