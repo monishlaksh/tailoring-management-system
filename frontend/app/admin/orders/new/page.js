@@ -214,14 +214,8 @@ const fetchCustomerMeasurements = async (customerID) => {
         measurements: res.data.measurements,
         updatedAt:    res.data.measurementsUpdatedAt,
       })
-      // Auto-apply saved measurements immediately
-      setForm(f => ({
-        ...f,
-        measurements: {
-          ...f.measurements,
-          ...res.data.measurements,
-        },
-      }))
+      // DO NOT auto-apply here — cloth type not selected yet
+      // measurements will be applied when cloth type is selected
     }
   } catch (e) {
     console.error('Failed to fetch measurements:', e)
@@ -257,6 +251,20 @@ const fetchCustomerMeasurements = async (customerID) => {
       alteration: { required:false, selectedOptions:[], notes:'', extraCost:0 },
     }))
   }, [selectedClothType])
+
+  // Auto-apply saved measurements whenever cloth type is selected
+// and saved measurements exist
+useEffect(() => {
+  if (savedMeasurements && selectedClothType) {
+    setForm(f => ({
+      ...f,
+      measurements: {
+        ...f.measurements,
+        ...savedMeasurements.measurements,
+      },
+    }))
+  }
+}, [savedMeasurements, selectedClothType])
 
   // ── Delivery date check ─────────────────────────────────────
   const checkDelivery = async (date) => {
@@ -451,12 +459,13 @@ const fetchCustomerMeasurements = async (customerID) => {
                 {filteredCust.map(c => (
                   <div key={c._id}
                     onClick={() => {
-                        setSelected(c)
-                        setCustSearch('')
-                        setShowNewCustomer(false)
-                        setForm(f => ({ ...f, measurements:{} }))  // ← clear old measurements first
-                        fetchCustomerMeasurements(c.customerID)    // ← then fetch this customer's saved ones
-                      }}
+                    setSelected(c)
+                    setCustSearch('')
+                    setShowNewCustomer(false)
+                    // Clear measurements first, fetchCustomerMeasurements will set new ones
+                    setForm(f => ({ ...f, measurements:{} }))
+                    fetchCustomerMeasurements(c.customerID)
+                  }}
                     style={{ padding:'11px 16px',
                       background:'rgba(255,255,255,0.6)',
                       border:'1px solid rgba(79,70,229,0.1)',
@@ -491,9 +500,20 @@ const fetchCustomerMeasurements = async (customerID) => {
                     alignItems:'center', marginBottom:14 }}>
                     <p style={{ fontWeight:700, color:'#059669',
                       fontSize:'0.9rem' }}>👤 New Customer</p>
-                    <button onClick={() => {
-                      setShowNewCustomer(false); setNewCustError('')
-                    }}
+                    <button // When X is clicked to deselect customer
+                        onClick={() => {
+                          setSelected(null)
+                          setSavedMeasurements(null)
+                          setSelectedClothType(null)
+                          setSelectedType(null)
+                          setSelectedSubtype(null)
+                          setForm(f => ({
+                            ...f,
+                            measurements: {},
+                            alteration:   { required:false, selectedOptions:[], notes:'', extraCost:0 },
+                            unitCost:     0,
+                          }))
+                        }}
                       style={{ background:'none', border:'none',
                         cursor:'pointer', color:'#9CA3AF', display:'flex' }}>
                       <X size={16}/>
@@ -542,6 +562,63 @@ const fetchCustomerMeasurements = async (customerID) => {
             </>
           )}
         </div>
+
+        {/* Saved measurements banner */}
+        {savedMeasurements && (
+          <div style={{ padding:'12px 16px',
+            background:'rgba(16,185,129,0.06)',
+            border:'1.5px solid rgba(16,185,129,0.25)',
+            borderRadius:12, marginBottom:16 }}>
+            <div style={{ display:'flex', alignItems:'center',
+              justifyContent:'space-between', flexWrap:'wrap', gap:8 }}>
+              <div>
+                <p style={{ fontSize:'0.85rem', fontWeight:700,
+                  color:'#059669', marginBottom:2 }}>
+                  📐 Saved measurements found for {selected?.name}
+                </p>
+                <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
+                  {savedMeasurements.updatedAt
+                    ? `Last updated: ${new Date(savedMeasurements.updatedAt)
+                        .toLocaleDateString('en-IN',{ day:'numeric', month:'long', year:'numeric' })}`
+                    : 'Previously saved'}
+                  {!selectedClothType && ' — Select a cloth type to auto-fill'}
+                </p>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop:6 }}>
+                  {Object.entries(savedMeasurements.measurements)
+                    .filter(([,v]) => v)
+                    .map(([k,v]) => (
+                      <span key={k} style={{ fontSize:'0.7rem', padding:'2px 8px',
+                        borderRadius:999, background:'rgba(16,185,129,0.1)',
+                        color:'#059669', fontWeight:600 }}>
+                        {k}: {v}"
+                      </span>
+                    ))}
+                </div>
+              </div>
+              {selectedClothType && (
+                <button type="button"
+                  onClick={() => {
+                    setForm(f => ({
+                      ...f,
+                      measurements: {
+                        ...f.measurements,
+                        ...savedMeasurements.measurements,
+                      },
+                    }))
+                  }}
+                  style={{ padding:'8px 16px',
+                    background:'linear-gradient(135deg,#10B981,#059669)',
+                    color:'white', border:'none', borderRadius:8,
+                    fontFamily:'Poppins,sans-serif', fontWeight:600,
+                    fontSize:'0.8rem', cursor:'pointer',
+                    display:'flex', alignItems:'center', gap:5,
+                    whiteSpace:'nowrap' }}>
+                  ↺ Re-apply
+                </button>
+              )}
+            </div>
+          </div>
+        )}
           
         
         {/* ② Cloth Type → Type → Subtype → Alteration (all in one card) */}
@@ -566,19 +643,18 @@ const fetchCustomerMeasurements = async (customerID) => {
                 {clothTypes.filter(ct => ct.isActive).map(ct => (
                   <button key={ct._id}
                     // In the cloth type click handler:
+                    // Cloth type click
                     onClick={() => {
                       setSelectedClothType(ct)
                       setSelectedType(null)
                       setSelectedSubtype(null)
-                      fetchCustomerMeasurements(c.customerID) 
-                      // Reset measurements to empty object
-                      // New fields will show based on cloth type's measurement config
                       setForm(f => ({
                         ...f,
-                        unitCost:     0,
-                        alteration:   { required:false, selectedOptions:[], notes:'', extraCost:0 },
+                        unitCost:   0,
+                        alteration: { required:false, selectedOptions:[], notes:'', extraCost:0 },
+                        // DO NOT touch measurements here
                       }))
-                      
+                      // savedMeasurements useEffect will auto-apply after selectedClothType changes
                     }}
                     style={{ padding:'8px 16px', borderRadius:999,
                       cursor:'pointer', fontFamily:'Poppins,sans-serif',
