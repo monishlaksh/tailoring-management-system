@@ -84,6 +84,41 @@ router.get('/:customerID', protectAdminOrEmployee, async (req, res) => {
   }
 })
 
+// GET customer measurements
+router.get('/:customerID/measurements', protectAdminOrEmployee, async (req, res) => {
+  try {
+    const customer = await Customer.findOne({
+      customerID: req.params.customerID,
+      isActive:   true,
+    }).lean() // ← use .lean() to get plain object
+
+    if (!customer)
+      return res.status(404).json({ success:false, message:'Customer not found' })
+
+    // Handle both Map and plain object
+    let measurements = {}
+    if (customer.measurements) {
+      if (customer.measurements instanceof Map) {
+        measurements = Object.fromEntries(customer.measurements)
+      } else {
+        measurements = customer.measurements
+      }
+    }
+
+    const hasMeasurements = Object.values(measurements).some(v => v && v.trim?.() !== '')
+
+    res.json({
+      success:              true,
+      measurements,
+      measurementsUpdatedAt: customer.measurementsUpdatedAt || null,
+      hasMeasurements,
+    })
+  } catch (e) {
+    console.error('[MEASUREMENTS]', e.message)
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
+
 // GET payment detail — admin only
 router.get('/:customerID/payment', protect, async (req, res) => {
   try {
