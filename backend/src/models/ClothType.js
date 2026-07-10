@@ -1,11 +1,20 @@
 const mongoose = require('mongoose')
 
-// Measurement field definition
 const subtypeSchema = new mongoose.Schema({
   name:     { type:String, required:true, trim:true },
   nameTa:   { type:String, default:'' },
   cost:     { type:Number, default:0 },
-  image:    { type:String, default:'' }, // ← Cloudinary URL
+  isActive: { type:Boolean, default:true },
+  // image removed from subtype
+}, { _id:true })
+
+const typeSchema = new mongoose.Schema({
+  name:     { type:String, required:true, trim:true },
+  nameTa:   { type:String, default:'' },
+  cost:     { type:Number, default:0 },
+  empCost:  { type:Number, default:0 },
+  image:    { type:String, default:'' }, // ← image here on TYPE
+  subtypes: [subtypeSchema],
   isActive: { type:Boolean, default:true },
 }, { _id:true })
 
@@ -17,14 +26,6 @@ const measurementFieldSchema = new mongoose.Schema({
   image:    { type:String, default:'' }, // ← guide image for this measurement
 }, { _id:false })
 
-const typeSchema = new mongoose.Schema({
-  name:        { type:String, required:true, trim:true },
-  nameTa:      { type:String, default:'' },
-  cost:        { type:Number, default:0 },  // type-level cost
-  empCost:     { type:Number, default:0 },  // employee rate for this type
-  subtypes:    [subtypeSchema],
-  isActive:    { type:Boolean, default:true },
-}, { _id:true })
 
 const clothTypeSchema = new mongoose.Schema({
   name:         { type:String, required:true, unique:true, trim:true },

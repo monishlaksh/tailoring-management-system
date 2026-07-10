@@ -189,16 +189,19 @@ router.post('/:id/types', protect, async (req, res) => {
 // PUT update type
 router.put('/:id/types/:typeId', protect, async (req, res) => {
   try {
-    const { name, nameTa, cost, empCost, isActive } = req.body
+    const { name, nameTa, cost, empCost, isActive, image } = req.body
     const ct = await ClothType.findById(req.params.id)
     if (!ct) return res.status(404).json({ success:false, message:'Not found' })
     const type = ct.types.id(req.params.typeId)
     if (!type) return res.status(404).json({ success:false, message:'Type not found' })
-    if (name)                          type.name     = name.trim()
-    if (nameTa !== undefined)          type.nameTa   = nameTa
-    if (cost !== undefined)            type.cost     = parseFloat(cost)    || 0
-    if (empCost !== undefined)         type.empCost  = parseFloat(empCost) || 0
-    if (typeof isActive === 'boolean') type.isActive = isActive
+
+    if (name)                          type.name    = name.trim()
+    if (nameTa !== undefined)          type.nameTa  = nameTa
+    if (cost !== undefined)            type.cost    = parseFloat(cost)    || 0
+    if (empCost !== undefined)         type.empCost = parseFloat(empCost) || 0
+    if (typeof isActive === 'boolean') type.isActive= isActive
+    if (image !== undefined)           type.image   = image  // ← save URL
+
     await ct.save()
     res.json({ success:true, clothType:ct })
   } catch (e) {

@@ -44,45 +44,63 @@ if (ctDoc?.measurements) {
 }
 
 // Add before building response:
-let subtypeImage = ''
-const parts = (order.clothType || '').split(' - ')
-if (ctDoc && parts[1] && parts[2]) {
+// Get type image (not subtype)
+let typeImage = ''
+const parts    = (order.clothType || '').split(' - ')
+if (ctDoc && parts[1]) {
   const typeDoc = ctDoc.types?.find(t => t.name === parts[1]?.trim())
-  const subDoc  = typeDoc?.subtypes?.find(s => s.name === parts[2]?.trim())
-  subtypeImage  = subDoc?.image || ''
+  typeImage     = typeDoc?.image || ''
 }
 
+
+
 const response = {
-  success:           true,
-  orderID:           order.orderID,
-  clothType:         order.clothType,
-  clothTypeTa:       ctDoc?.nameTa || '',
-  subtypeImage:      subtypeImage || '',  // ← subtype image
-  quantity:          order.quantity,
-  measurements:      measurements,
-  measurementImages,                      // ← guide images per key
-      fabricNotes:  order.fabricNotes  || '',
-      voiceNote:    order.voiceNote    || { data:'', mimeType:'audio/webm', duration:0 },
-      stage,
-      stageInfo: (allotment && stage !== 'general' && allotment[stage])
-        ? {
-            status:     allotment[stage].status     || 'not_assigned',
-            employeeID: allotment[stage].employeeID || '',
-            notes:      allotment[stage].notes      || '',
-          }
-        : { status: 'not_assigned', employeeID: '', notes: '' },
-      allStages: allotment
-        ? {
-            cutting:   { status: allotment.cutting?.status   || 'not_assigned' },
-            stitching: { status: allotment.stitching?.status || 'not_assigned' },
-            finishing: { status: allotment.finishing?.status || 'not_assigned' },
-          }
-        : {
-            cutting:   { status: 'not_assigned' },
-            stitching: { status: 'not_assigned' },
-            finishing: { status: 'not_assigned' },
-          },
-    }
+  success: true,
+  orderID: order.orderID,
+  clothType: order.clothType,
+  clothTypeTa: ctDoc?.nameTa || '',
+
+  typeImage,
+
+  quantity: order.quantity,
+
+  measurements: order.measurements || {},
+
+  measurementImages,
+
+  fabricNotes: order.fabricNotes || '',
+  voiceNote: order.voiceNote || {
+    data:'',
+    mimeType:'audio/webm',
+    duration:0
+  },
+
+  stage,
+
+  stageInfo: (allotment && stage !== 'general')
+    ? {
+        status: allotment[stage].status || 'not_assigned',
+        employeeID: allotment[stage].employeeID || '',
+        notes: allotment[stage].notes || '',
+      }
+    : {
+        status:'not_assigned',
+        employeeID:'',
+        notes:''
+      },
+
+  allStages: allotment
+    ? {
+        cutting:   { status: allotment.cutting?.status || 'not_assigned' },
+        stitching: { status: allotment.stitching?.status || 'not_assigned' },
+        finishing: { status: allotment.finishing?.status || 'not_assigned' },
+      }
+    : {
+        cutting:   { status:'not_assigned' },
+        stitching: { status:'not_assigned' },
+        finishing: { status:'not_assigned' },
+      }
+}
 
     if (stage === 'stitching') {
       response.alteration = order.alteration || { required: false }

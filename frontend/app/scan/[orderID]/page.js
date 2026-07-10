@@ -376,18 +376,21 @@ const fetchData = async () => {
               ))}
 
               {/* Subtype image */}
-              {data.subtypeImage && (
-                <div style={{ background:'white', borderRadius:16, padding:'18px',
-                  marginBottom:14, boxShadow:'0 2px 12px rgba(79,70,229,0.08)' }}>
-                  <p style={{ fontSize:'0.72rem', color:'#9CA3AF', fontWeight:700,
-                    textTransform:'uppercase', marginBottom:10 }}>
-                    📸 Style Reference
-                  </p>
-                  <img src={data.subtypeImage} alt="style reference"
-                    style={{ width:'100%', borderRadius:10, maxHeight:200, objectFit:'cover' }}
-                  />
-                </div>
-              )}
+              {data.typeImage && (
+              <div style={{ background:'white', borderRadius:16, padding:'18px',
+                marginBottom:14, boxShadow:'0 2px 12px rgba(79,70,229,0.08)' }}>
+                <p style={{ fontSize:'0.72rem', color:'#9CA3AF', fontWeight:700,
+                  textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:10 }}>
+                  📸 Style Reference — {data.clothType?.split(' - ')[1] || ''}
+                </p>
+                <img
+                  src={data.typeImage}
+                  alt="style reference"
+                  style={{ width:'100%', borderRadius:10,
+                    maxHeight:220, objectFit:'cover' }}
+                />
+              </div>
+            )}
             </div>
           )}
         </div>

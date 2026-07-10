@@ -44,12 +44,14 @@ export default function ClothTypesPage() {
 
   // Edit type
   const [editingType, setEditingType] = useState(null)
-  const [editType, setEditType]       = useState({ name:'', nameTa:'', cost:0, empCost:0 })
+  // Update editType state to include image
+const [editType, setEditType] = useState({ name:'', nameTa:'', cost:0, empCost:0, image:'' })
 
   // New subtype
   const [newSub, setNewSub]         = useState({})
   const [savingSub, setSavingSub]   = useState(null)
   const [editingSub, setEditingSub] = useState(null)
+  
 
   // Edit subtype
 const [editSub, setEditSub] = useState({
@@ -734,60 +736,104 @@ const MEASUREMENT_PRESETS = {
                       {/* Type header */}
                       <div style={{ padding:'10px 14px', background:'rgba(79,70,229,0.04)', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8 }}>
                         {editingType?.id === type._id ? (
-                          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 100px 100px auto', gap:8, alignItems:'center', flex:1 }}>
-                            <input value={editType.name} onChange={e=>setEditType(p=>({...p,name:e.target.value}))}
-                              style={input({ padding:'7px 10px', fontSize:'0.82rem' })} placeholder="English" />
-                            <input value={editType.nameTa} onChange={e=>setEditType(p=>({...p,nameTa:e.target.value}))}
-                              style={input({ padding:'7px 10px', fontSize:'0.82rem' })} placeholder="Tamil" />
-                            <div style={{ position:'relative' }}>
-                              <span style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', color:'#9CA3AF', fontSize:'0.8rem' }}>₹</span>
-                              <input type="number" value={editType.cost} onChange={e=>setEditType(p=>({...p,cost:parseFloat(e.target.value)||0}))}
-                                style={input({ padding:'7px 10px 7px 20px', fontSize:'0.82rem' })} placeholder="Cost" />
+                        <div style={{ padding:'14px', background:'rgba(79,70,229,0.03)', borderRadius:10 }}>
+                          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+                            <div>
+                              <label className="input-label">TYPE NAME</label>
+                              <input value={editType.name}
+                                onChange={e => setEditType(p=>({...p, name:e.target.value}))}
+                                style={input({ width:'100%' })} placeholder="English" />
                             </div>
-                            <div style={{ position:'relative' }}>
-                              <span style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', color:'#9CA3AF', fontSize:'0.8rem' }}>₹</span>
-                              <input type="number" value={editType.empCost} onChange={e=>setEditType(p=>({...p,empCost:parseFloat(e.target.value)||0}))}
-                                style={input({ padding:'7px 10px 7px 20px', fontSize:'0.82rem' })} placeholder="Emp Rate" />
+                            <div>
+                              <label className="input-label">TAMIL NAME</label>
+                              <input value={editType.nameTa}
+                                onChange={e => setEditType(p=>({...p, nameTa:e.target.value}))}
+                                style={input({ width:'100%' })} placeholder="Tamil" />
                             </div>
-                            <div style={{ display:'flex', gap:6 }}>
-                              <button onClick={()=>updateType(ct._id, type._id)}
-                                style={{ background:'none', border:'none', cursor:'pointer', color:'#059669' }}><Check size={16}/></button>
-                              <button onClick={()=>setEditingType(null)}
-                                style={{ background:'none', border:'none', cursor:'pointer', color:'#9CA3AF' }}><X size={16}/></button>
+                            <div>
+                              <label className="input-label">COST (₹)</label>
+                              <NumInput prefix="₹" value={editType.cost}
+                                onChange={val => setEditType(p=>({...p, cost:val}))}
+                                style={{ border:'1.5px solid rgba(79,70,229,0.2)' }} />
+                            </div>
+                            <div>
+                              <label className="input-label">EMP RATE (₹)</label>
+                              <NumInput prefix="₹" value={editType.empCost}
+                                onChange={val => setEditType(p=>({...p, empCost:val}))}
+                                style={{ border:'1.5px solid rgba(16,185,129,0.2)' }} />
                             </div>
                           </div>
-                        ) : (
-                          <>
-                            <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
-                              <span style={{ fontWeight:600, color:'#4F46E5', fontSize:'0.88rem' }}>
-                                📌 {type.name}
-                              </span>
-                              {type.nameTa && (
-                                <span style={{ fontSize:'0.78rem', color:'#6B7280' }}>{type.nameTa}</span>
-                              )}
-                              <span style={{ fontSize:'0.72rem', padding:'2px 8px', borderRadius:999, background:'rgba(79,70,229,0.08)', color:'#4F46E5', fontWeight:600 }}>
-                                ₹{type.cost||0} cost
-                              </span>
-                              <span style={{ fontSize:'0.72rem', padding:'2px 8px', borderRadius:999, background:'rgba(16,185,129,0.08)', color:'#059669', fontWeight:600 }}>
-                                ₹{type.empCost||0} emp rate
-                              </span>
-                            </div>
-                            <div style={{ display:'flex', gap:5 }}>
-                              <button onClick={()=>{ setEditingType({ id:type._id }); setEditType({ name:type.name, nameTa:type.nameTa||'', cost:type.cost||0, empCost:type.empCost||0 }) }}
-                                style={{ background:'none', border:'none', cursor:'pointer', color:'#4F46E5', display:'flex' }}>
-                                <Edit2 size={14}/>
-                              </button>
-                              <button onClick={()=>deleteType(ct._id, type._id, type.name)}
-                                style={{ background:'none', border:'none', cursor:'pointer', color:'#DC2626', display:'flex' }}>
-                                <Trash2 size={14}/>
-                              </button>
-                              <button onClick={()=>setExpandedType(expandedType===type._id?null:type._id)}
-                                style={{ background:'none', border:'none', cursor:'pointer', color:'#6B7280', display:'flex' }}>
-                                {expandedType===type._id?<ChevronUp size={14}/>:<ChevronDown size={14}/>}
-                              </button>
-                            </div>
-                          </>
-                        )}
+
+                          {/* Image upload for type */}
+                          <div style={{ marginBottom:12 }}>
+                            <label className="input-label">
+                              TYPE IMAGE (shown to employees on scan page)
+                            </label>
+                            <ImageUpload
+                              value={editType.image}
+                              onChange={url => setEditType(p => ({...p, image:url}))}
+                              folder="tailoring/types"
+                              label="Upload type reference image"
+                              size="normal"
+                            />
+                          </div>
+
+                          <div style={{ display:'flex', gap:8 }}>
+                            <button onClick={() => updateType(ct._id, type._id)}
+                              style={{ padding:'8px 18px', background:'linear-gradient(135deg,#10B981,#059669)', color:'white', border:'none', borderRadius:10, fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.82rem', cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}>
+                              <Check size={13}/> Save
+                            </button>
+                            <button onClick={() => setEditingType(null)}
+                              className="btn-ghost" style={{ padding:'8px 14px' }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        // View mode — show type info + image thumbnail
+                        <>
+                          <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+                            {type.image && (
+                              <img src={type.image} alt={type.name}
+                                style={{ width:40, height:40, borderRadius:8,
+                                  objectFit:'cover', border:'1.5px solid rgba(79,70,229,0.15)',
+                                  flexShrink:0 }}
+                              />
+                            )}
+                            <span style={{ fontWeight:600, color:'#4F46E5', fontSize:'0.88rem' }}>
+                              📌 {type.name}
+                            </span>
+                            {type.nameTa && (
+                              <span style={{ fontSize:'0.78rem', color:'#6B7280' }}>{type.nameTa}</span>
+                            )}
+                            <span style={{ fontSize:'0.72rem', padding:'2px 8px', borderRadius:999,
+                              background:'rgba(79,70,229,0.08)', color:'#4F46E5', fontWeight:600 }}>
+                              ₹{type.cost||0} cost
+                            </span>
+                            <span style={{ fontSize:'0.72rem', padding:'2px 8px', borderRadius:999,
+                              background:'rgba(16,185,129,0.08)', color:'#059669', fontWeight:600 }}>
+                              ₹{type.empCost||0} emp rate
+                            </span>
+                            {!type.image && (
+                              <span style={{ fontSize:'0.65rem', color:'#D97706' }}>📷 No image</span>
+                            )}
+                          </div>
+                          <div style={{ display:'flex', gap:5 }}>
+                            <button onClick={() => { setEditingType({id:type._id}); setEditType({name:type.name,nameTa:type.nameTa||'',cost:type.cost||0,empCost:type.empCost||0,image:type.image||''}) }}
+                              style={{ background:'none', border:'none', cursor:'pointer', color:'#4F46E5', display:'flex' }}>
+                              <Edit2 size={14}/>
+                            </button>
+                            <button onClick={() => deleteType(ct._id, type._id, type.name)}
+                              style={{ background:'none', border:'none', cursor:'pointer', color:'#DC2626', display:'flex' }}>
+                              <Trash2 size={14}/>
+                            </button>
+                            <button onClick={() => setExpandedType(expandedType===type._id?null:type._id)}
+                              style={{ background:'none', border:'none', cursor:'pointer', color:'#6B7280', display:'flex' }}>
+                              {expandedType===type._id ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
+                            </button>
+                          </div>
+                        </>
+                      )}
                       </div>
 
                       {/* Subtypes */}
