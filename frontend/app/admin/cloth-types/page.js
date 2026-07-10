@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Plus, Edit2, Trash2, X, Check, ChevronDown, ChevronUp } from 'lucide-react'
 import { adminAPI as API } from '../../../lib/api'
 import NumInput from '../../../components/NumInput'
+import ImageUpload from '../../../components/ImageUpload'
 
 const COMMON_MEASUREMENTS = [
   { key:'length',   label:'Length',   labelTa:'நீளம்'      },
@@ -48,10 +49,15 @@ export default function ClothTypesPage() {
   // New subtype
   const [newSub, setNewSub]         = useState({})
   const [savingSub, setSavingSub]   = useState(null)
+  const [editingSub, setEditingSub] = useState(null)
 
   // Edit subtype
-  const [editingSub, setEditingSub] = useState(null)
-  const [editSub, setEditSub]       = useState({ name:'', nameTa:'', cost:0 })
+const [editSub, setEditSub] = useState({
+  name:'',
+  nameTa:'',
+  cost:0,
+  image:''
+})
 
   const [copied, setCopied] = useState(null)
 
@@ -523,37 +529,44 @@ const MEASUREMENT_PRESETS = {
                         </div>
 
                         {/* Toggle required/optional for selected fields */}
+                        {/* In the measurement edit panel — after the required/optional toggles */}
                         {(ct.measurements||[]).length > 0 && (
-                          <>
-                            <p style={{ fontSize:'0.72rem', color:'#6B7280',
-                              fontWeight:700, marginBottom:8 }}>
-                              MARK REQUIRED / OPTIONAL
+                          <div style={{ marginTop:12 }}>
+                            <p style={{ fontSize:'0.72rem', color:'#6B7280', fontWeight:700, marginBottom:8 }}>
+                              📸 MEASUREMENT GUIDE IMAGES
                             </p>
-                            <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:14 }}>
+                            <p style={{ fontSize:'0.68rem', color:'#9CA3AF', marginBottom:10 }}>
+                              Upload a guide image to show employees how to take each measurement.
+                            </p>
+                            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:12 }}>
                               {(ct.measurements||[]).map(m => (
-                                <button key={m.key} type="button"
-                                  onClick={async () => {
-                                    const updated = (ct.measurements||[]).map(x =>
-                                      x.key === m.key ? { ...x, required:!x.required } : x
-                                    )
-                                    try {
-                                      await API.put(`/api/cloth-types/${ct._id}`, { measurements:updated })
-                                      fetchData()
-                                    } catch(e) { showMsg('Failed', true) }
-                                  }}
-                                  style={{ padding:'5px 12px', borderRadius:999, cursor:'pointer',
-                                    fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.75rem',
-                                    border:    m.required
-                                      ? '2px solid #DC2626' : '1.5px solid rgba(156,163,175,0.4)',
-                                    background: m.required
-                                      ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.8)',
-                                    color:      m.required ? '#DC2626' : '#6B7280',
-                                    transition:'all 0.15s' }}>
-                                  {m.label} {m.required ? '✓ Required' : '→ Optional'}
-                                </button>
+                                <div key={m.key} style={{ textAlign:'center' }}>
+                                  <p style={{ fontSize:'0.72rem', fontWeight:600, color:'#4F46E5', marginBottom:6 }}>
+                                    {m.label}
+                                    {m.labelTa && <span style={{ color:'#9CA3AF', marginLeft:4, fontSize:'0.65rem' }}>
+                                      {m.labelTa}
+                                    </span>}
+                                  </p>
+                                  <ImageUpload
+                                    value={m.image || ''}
+                                    onChange={async (url) => {
+                                      const updated = (ct.measurements||[]).map(x =>
+                                        x.key === m.key ? { ...x, image:url } : x
+                                      )
+                                      try {
+                                        await API.put(`/api/cloth-types/${ct._id}`, { measurements:updated })
+                                        fetchData()
+                                        showMsg(`Image updated for ${m.label}!`)
+                                      } catch(e) { showMsg('Failed', true) }
+                                    }}
+                                    size="small"
+                                    folder="tailoring/measurements"
+                                    label={m.label}
+                                  />
+                                </div>
                               ))}
                             </div>
-                          </>
+                          </div>
                         )}
 
                         {/* Add Custom Measurement */}
@@ -781,7 +794,16 @@ const MEASUREMENT_PRESETS = {
                       {expandedType === type._id && (
                         <div style={{ padding:'12px 14px' }}>
                           {(type.subtypes||[]).map(sub => (
-                            <div key={sub._id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 10px', marginBottom:6, background:'rgba(255,255,255,0.6)', borderRadius:8, border:'1px solid rgba(79,70,229,0.08)', flexWrap:'wrap', gap:8 }}>
+                            
+                            <div
+                                style={{
+                                  display:'flex',
+                                  gap:8,
+                                  alignItems:'flex-start',
+                                  flexWrap:'wrap',
+                                  flex:1
+                                }}
+                              >
                               {editingSub?.subId===sub._id ? (
                                 <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', flex:1 }}>
                                   <input value={editSub.name} onChange={e=>setEditSub(p=>({...p,name:e.target.value}))}
@@ -791,6 +813,20 @@ const MEASUREMENT_PRESETS = {
                                   <NumInput prefix="₹" value={editSub.cost}
                                     onChange={val=>setEditSub(p=>({...p,cost:val}))}
                                     style={{ width:100, border:'1.5px solid rgba(79,70,229,0.2)', padding:'6px 10px 6px 22px', fontSize:'0.82rem' }} />
+                                    
+                                  {/* Image upload for subtype */}
+                                   <div style={{ minWidth:90 }}>
+                                    <p style={{ fontSize:'0.65rem', color:'#9CA3AF', fontWeight:600, marginBottom:4 }}>
+                                      IMAGE
+                                    </p>
+                                    <ImageUpload
+                                      value={editSub.image || ''}
+                                      onChange={url => setEditSub(p => ({...p, image:url}))}
+                                      size="small"
+                                      folder="tailoring/subtypes"
+                                      label="Subtype image"
+                                    />
+                                  </div>
                                   <button onClick={()=>updateSub(ct._id,type._id,sub._id)}
                                     style={{ padding:'6px 12px', background:'linear-gradient(135deg,#10B981,#059669)', color:'white', border:'none', borderRadius:8, cursor:'pointer', fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.78rem', display:'flex', alignItems:'center', gap:3 }}>
                                     <Check size={12}/> Save
@@ -800,9 +836,22 @@ const MEASUREMENT_PRESETS = {
                                     <X size={14}/>
                                   </button>
                                 </div>
-                              ) : (
+                              ) : ( 
                                 <>
                                   <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                                    {sub.image && (
+                                      <img
+                                        src={sub.image}
+                                        alt={sub.name}
+                                        style={{
+                                          width:32,
+                                          height:32,
+                                          borderRadius:6,
+                                          objectFit:'cover',
+                                          border:'1px solid rgba(79,70,229,0.15)'
+                                        }}
+                                      />
+                                    )}
                                     <div style={{ width:7, height:7, borderRadius:'50%', background:sub.isActive?'#10B981':'#EF4444', flexShrink:0 }}/>
                                     <span style={{ fontWeight:600, fontSize:'0.88rem', color:'#1E1B4B' }}>{sub.name}</span>
                                     {sub.nameTa && <span style={{ fontSize:'0.78rem', color:'#6B7280' }}>{sub.nameTa}</span>}
@@ -811,7 +860,11 @@ const MEASUREMENT_PRESETS = {
                                     </span>
                                   </div>
                                   <div style={{ display:'flex', gap:5 }}>
-                                    <button onClick={()=>{ setEditingSub({ subId:sub._id }); setEditSub({ name:sub.name, nameTa:sub.nameTa||'', cost:sub.cost||0 }) }}
+                                    <button onClick={()=>{ setEditingSub({ subId:sub._id }); setEditSub({name:sub.name,
+                                        nameTa:sub.nameTa || '',
+                                        cost:sub.cost || 0,
+                                        image:sub.image || ''
+                                      }) }}
                                       style={{ padding:'4px 8px', background:'rgba(79,70,229,0.08)', border:'1px solid rgba(79,70,229,0.2)', borderRadius:6, color:'#4F46E5', fontSize:'0.72rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif', display:'flex', alignItems:'center', gap:2 }}>
                                       <Edit2 size={10}/> Edit
                                     </button>

@@ -158,22 +158,6 @@ router.post('/', protect, async (req, res) => {
   }
 })
 
-// PUT update cloth type
-router.put('/:id', protect, async (req, res) => {
-  try {
-    const { name, nameTa, isActive, measurements } = req.body
-    const ct = await ClothType.findById(req.params.id)
-    if (!ct) return res.status(404).json({ success:false, message:'Not found' })
-    if (name)                          ct.name     = name.trim()
-    if (nameTa !== undefined)          ct.nameTa   = nameTa
-    if (typeof isActive === 'boolean') ct.isActive = isActive
-    if (measurements !== undefined)    ct.measurements = measurements
-    await ct.save()
-    res.json({ success:true, clothType:ct })
-  } catch (e) {
-    res.status(500).json({ success:false, message:e.message })
-  }
-})
 
 // ── TYPE routes ──────────────────────────────────────────────
 
@@ -259,19 +243,40 @@ router.post('/:id/types/:typeId/subtypes', protect, async (req, res) => {
 })
 
 // PUT update subtype
+// PUT update subtype — already accepts req.body spread
 router.put('/:id/types/:typeId/subtypes/:subId', protect, async (req, res) => {
   try {
-    const { name, nameTa, cost, isActive } = req.body
+    const { name, nameTa, cost, isActive, image } = req.body
     const ct = await ClothType.findById(req.params.id)
     if (!ct) return res.status(404).json({ success:false, message:'Not found' })
     const type = ct.types.id(req.params.typeId)
     if (!type) return res.status(404).json({ success:false, message:'Type not found' })
     const sub = type.subtypes.id(req.params.subId)
     if (!sub) return res.status(404).json({ success:false, message:'Subtype not found' })
+
     if (name)                          sub.name     = name.trim()
     if (nameTa !== undefined)          sub.nameTa   = nameTa
     if (cost !== undefined)            sub.cost     = parseFloat(cost)||0
     if (typeof isActive === 'boolean') sub.isActive = isActive
+    if (image !== undefined)           sub.image    = image  // ← save URL
+
+    await ct.save()
+    res.json({ success:true, clothType:ct })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
+
+// PUT update measurement fields — accept image per field
+router.put('/:id', protect, async (req, res) => {
+  try {
+    const { name, nameTa, isActive, measurements } = req.body
+    const ct = await ClothType.findById(req.params.id)
+    if (!ct) return res.status(404).json({ success:false, message:'Not found' })
+    if (name)                          ct.name         = name.trim()
+    if (nameTa !== undefined)          ct.nameTa       = nameTa
+    if (typeof isActive === 'boolean') ct.isActive     = isActive
+    if (measurements !== undefined)    ct.measurements = measurements // includes image field
     await ct.save()
     res.json({ success:true, clothType:ct })
   } catch (e) {

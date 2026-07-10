@@ -1,19 +1,21 @@
 const mongoose = require('mongoose')
 
 // Measurement field definition
-const measurementFieldSchema = new mongoose.Schema({
-  key:      { type:String, required:true }, // e.g. 'chest', 'hip'
-  label:    { type:String, required:true }, // e.g. 'Chest', 'Hip'
-  labelTa:  { type:String, default:'' },   // Tamil label
-  required: { type:Boolean, default:false },
-}, { _id:false })
-
 const subtypeSchema = new mongoose.Schema({
-  name:    { type:String, required:true, trim:true },
-  nameTa:  { type:String, default:'' },
-  cost:    { type:Number, default:0 },
-  isActive:{ type:Boolean, default:true },
+  name:     { type:String, required:true, trim:true },
+  nameTa:   { type:String, default:'' },
+  cost:     { type:Number, default:0 },
+  image:    { type:String, default:'' }, // ← Cloudinary URL
+  isActive: { type:Boolean, default:true },
 }, { _id:true })
+
+const measurementFieldSchema = new mongoose.Schema({
+  key:      { type:String, required:true },
+  label:    { type:String, required:true },
+  labelTa:  { type:String, default:'' },
+  required: { type:Boolean, default:false },
+  image:    { type:String, default:'' }, // ← guide image for this measurement
+}, { _id:false })
 
 const typeSchema = new mongoose.Schema({
   name:        { type:String, required:true, trim:true },

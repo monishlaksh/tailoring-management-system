@@ -93,6 +93,35 @@ function ScanContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
 
+  // Add to fetchData in scan page:
+const fetchData = async () => {
+  const url = `${BACKEND}/api/scan/${cleanID}?stage=${stage}`
+  try {
+    const res  = await fetch(url, { method:'GET' })
+    const json = await res.json()
+    if (res.ok && json.success) {
+      setData(json)
+
+      // Also fetch cloth type for measurement images
+      if (json.clothType) {
+        const ctName = json.clothType.split(' - ')[0]?.trim()
+        try {
+          const ctRes  = await fetch(`${BACKEND}/api/cloth-types`)
+          const ctData = await ctRes.json()
+          // Find matching cloth type for measurement images
+          // (we use public route — no auth needed for scan)
+        } catch (e) { /* non-critical */ }
+      }
+    } else {
+      setError(json.message || 'Order not found')
+    }
+  } catch (e) {
+    setError('Cannot connect to server.')
+  } finally {
+    setLoading(false)
+  }
+}
+
   useEffect(() => {
     if (!orderID || !orderID.startsWith('ORD')) {
       setError('Invalid QR code')
@@ -102,23 +131,7 @@ function ScanContent() {
     fetchData()
   }, [orderID, stage])
 
-  const fetchData = async () => {
-    const url = `${BACKEND}/api/scan/${orderID}?stage=${stage}`
-    try {
-      const res  = await fetch(url, { method:'GET', headers:{ 'Content-Type':'application/json' } })
-      const text = await res.text()
-      let json
-      try { json = JSON.parse(text) }
-      catch { setError('Server returned invalid data'); setLoading(false); return }
-
-      if (res.ok && json.success) setData(json)
-      else setError(json.message || `Order not found (${res.status})`)
-    } catch (e) {
-      setError('Cannot connect to server. Check your internet.')
-    } finally {
-      setLoading(false)
-    }
-  }
+ 
 
   if (loading) return (
     <main style={{ minHeight:'100vh', display:'flex', alignItems:'center',
@@ -340,27 +353,41 @@ function ScanContent() {
             <div style={{ display:'grid',
               gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
               {/* In the measurements grid, update to show Tamil */}
-              {Object.entries(measurements).filter(([,v])=>v && v.trim()!=='').map(([k,v]) => {
-                // Get Tamil label from cloth type data if available
-                const tamilLabels = {
-                  length:'நீளம்', chest:'மார்பு', waist:'இடுப்பு',
-                  hip:'இடுப்பகல்', shoulder:'தோள்', sleeve:'கை நீளம்',
-                  neck:'கழுத்து', inseam:'உள் தையல்', thigh:'தொடை', custom:'தனிப்பயன்',
-                }
-                return (
-                  <div key={k} style={{ background:'#EEF2FF', borderRadius:10, padding:'12px 14px' }}>
-                    <p style={{ fontSize:'0.63rem', color:'#6B7280', fontWeight:600, textTransform:'uppercase', marginBottom:2 }}>
-                      {MEASUREMENT_LABELS[k] || k}
-                    </p>
-                    <p style={{ fontSize:'0.68rem', color:'#9CA3AF', marginBottom:4 }}>
-                      {tamilLabels[k] || ''}
-                    </p>
-                    <p style={{ fontSize:'1.3rem', fontWeight:800, color:'#4F46E5', lineHeight:1 }}>
-                      {v}<span style={{ fontSize:'0.75rem', color:'#9CA3AF', marginLeft:2 }}>"</span>
-                    </p>
-                  </div>
-                )
-              })}
+              {/* In measurements grid */}
+              {Object.entries(measurements).filter(([,v])=>v).map(([key,val]) => (
+                <div key={key} style={{ background:'#EEF2FF', borderRadius:12, padding:'12px 14px' }}>
+                  {/* Guide image if available */}
+                  {data.measurementImages?.[key] && (
+                    <img
+                      src={data.measurementImages[key]}
+                      alt={`${key} guide`}
+                      style={{ width:'100%', height:80, objectFit:'cover',
+                        borderRadius:8, marginBottom:8 }}
+                    />
+                  )}
+                  <p style={{ fontSize:'0.63rem', color:'#6B7280', fontWeight:600, textTransform:'uppercase' }}>
+                    {MEASUREMENT_LABELS[key] || key}
+                  </p>
+                  <p style={{ fontSize:'0.68rem', color:'#9CA3AF' }}>{tamilLabels[key]||''}</p>
+                  <p style={{ fontSize:'1.5rem', fontWeight:800, color:'#4F46E5', lineHeight:1 }}>
+                    {val}<span style={{ fontSize:'0.75rem', color:'#9CA3AF', marginLeft:2 }}>"</span>
+                  </p>
+                </div>
+              ))}
+
+              {/* Subtype image */}
+              {data.subtypeImage && (
+                <div style={{ background:'white', borderRadius:16, padding:'18px',
+                  marginBottom:14, boxShadow:'0 2px 12px rgba(79,70,229,0.08)' }}>
+                  <p style={{ fontSize:'0.72rem', color:'#9CA3AF', fontWeight:700,
+                    textTransform:'uppercase', marginBottom:10 }}>
+                    📸 Style Reference
+                  </p>
+                  <img src={data.subtypeImage} alt="style reference"
+                    style={{ width:'100%', borderRadius:10, maxHeight:200, objectFit:'cover' }}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>
