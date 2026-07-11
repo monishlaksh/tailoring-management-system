@@ -280,5 +280,20 @@ router.patch('/:employeeID/bonus', protect, async (req, res) => {
     res.status(500).json({ success:false, message:e.message })
   }
 })
+// One-time migration — set accessRole for existing employees
+router.post('/migrate-roles', protect, async (req, res) => {
+  try {
+    const result = await Employee.updateMany(
+      { accessRole:{ $exists:false } },
+      { $set:{ accessRole:'employee' } }
+    )
+    res.json({
+      success: true,
+      message: `Updated ${result.modifiedCount} employees with default accessRole`,
+    })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
 
 module.exports = router

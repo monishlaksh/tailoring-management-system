@@ -106,15 +106,19 @@ router.post('/employee/login', async (req, res) => {
     if (!match)
       return res.status(401).json({ success:false, message:'Invalid username or password' })
 
-    // ALL fields needed by frontend must be in token AND response
+    // Safely handle accessRole — default to 'employee' if not set
+    const accessRole    = employee.accessRole || 'employee'
+    const hasFullAccess = employee.hasFullAccess === true || accessRole === 'manager'
+
     const token = jwt.sign(
       {
         employeeId:    employee._id.toString(),
         employeeID:    employee.employeeID,
         name:          employee.name,
         role:          'employee',
-        employeeRole:  employee.role,
-        hasFullAccess: employee.hasFullAccess === true,
+        employeeRole:  employee.role          || 'all',
+        accessRole,
+        hasFullAccess,
       },
       process.env.JWT_SECRET,
       { expiresIn:'7d' }
@@ -128,15 +132,16 @@ router.post('/employee/login', async (req, res) => {
         name:          employee.name,
         username:      employee.username,
         role:          'employee',
-        employeeRole:  employee.role,          // cutting/stitching/finishing/all
-        hasFullAccess: employee.hasFullAccess === true, // TRUE or FALSE
+        employeeRole:  employee.role          || 'all',
+        accessRole,
+        hasFullAccess,
       },
     })
   } catch (e) {
+    console.error('[EMP LOGIN]', e.message)
     res.status(500).json({ success:false, message:e.message })
   }
 })
-
 // ── Customer login ───────────────────────────────────────────
 router.post('/customer/login', async (req, res) => {
   try {
@@ -153,10 +158,15 @@ router.post('/customer/login', async (req, res) => {
       return res.status(401).json({ success:false, message:'Invalid Customer ID or Phone number' })
 
     const token = jwt.sign(
-      { customerID:customer.customerID, customerId:customer._id, role:'customer' },
+      {
+        customerID: customer.customerID,
+        customerId: customer._id,
+        role:       'customer',
+      },
       process.env.JWT_SECRET,
       { expiresIn:'7d' }
     )
+
     res.json({
       success:  true,
       token,
@@ -167,6 +177,7 @@ router.post('/customer/login', async (req, res) => {
       },
     })
   } catch (e) {
+    console.error('[CUST LOGIN]', e.message)
     res.status(500).json({ success:false, message:e.message })
   }
 })

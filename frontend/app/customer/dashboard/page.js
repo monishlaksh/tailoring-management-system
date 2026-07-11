@@ -22,10 +22,35 @@ export default function CustomerDashboard() {
   const [error, setError]       = useState('')
 
   useEffect(() => {
-    const token = localStorage.getItem('customerToken')
-    if (!token) { router.push('/customer/login'); return }
-    fetchFreshData()
-  }, [])
+  const token = localStorage.getItem('customerToken')
+  if (!token) {
+    router.push('/customer/login')
+    return
+  }
+  // Clear bad tokens and retry
+  fetchData()
+}, [])
+
+const fetchData = async () => {
+  setLoading(true)
+  setError('')
+  try {
+    const res = await API.get('/api/auth/customer/me')
+    setCustomer(res.data.customer)
+    const ordersRes = await API.get('/api/orders/my-orders')
+    setOrders(ordersRes.data.orders || [])
+  } catch (e) {
+    if (e.response?.status === 401) {
+      // Token expired — force re-login
+      localStorage.removeItem('customerToken')
+      router.push('/customer/login')
+    } else {
+      setError('Failed to load your data. Please try again.')
+    }
+  } finally {
+    setLoading(false)
+  }
+}
 
   const fetchFreshData = async () => {
     setError('')
