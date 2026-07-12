@@ -68,7 +68,7 @@ export default function EmployeeAdminPage() {
             style={{ padding:'8px 14px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}>
             📱 Scan QR
           </button>
-          <button onClick={() => router.push('/admin/orders/new')} className="btn-primary"
+          <button onClick={() => router.push('/employee/orders/new')} className="btn-primary"
             style={{ padding:'8px 16px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}>
             <Plus size={14} /> New Order
           </button>

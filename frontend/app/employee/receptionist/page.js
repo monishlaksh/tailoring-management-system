@@ -74,7 +74,7 @@ export default function ReceptionistPage() {
           </div>
         </div>
         <div style={{ display:'flex', gap:8 }}>
-          <button onClick={() => router.push('/admin/orders/new')}
+          <button onClick={() => router.push('/employee/orders/new')}
             style={{ display:'flex', alignItems:'center', gap:5, padding:'8px 14px', background:'linear-gradient(135deg,#4F46E5,#6366F1)', color:'white', border:'none', borderRadius:8, fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.8rem', cursor:'pointer' }}>
             <Plus size={14}/> New Order
           </button>
