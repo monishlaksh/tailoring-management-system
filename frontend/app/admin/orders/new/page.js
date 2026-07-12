@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Search, UserPlus, X, Check } from 'lucide-react'
-import { adminAPI, employeeAPI } from '../../../../lib/api'
+import { adminAPI as API } from '../../../../lib/api'
 import NumInput from '../../../../components/NumInput'
 import VoiceRecorder from '../../../../components/VoiceRecorder'
 
@@ -180,22 +180,17 @@ export default function NewOrder() {
 
     const fetchInitialData = async () => {
   try {
-    const isAdmin = !!localStorage.getItem('adminToken')
-
-    // Use admin API if admin, employee API if receptionist/manager
-    const fetcher = isAdmin ? adminAPI : employeeAPI
-
     const [custRes, clothRes] = await Promise.all([
-      fetcher.get('/api/customers'),
-      fetcher.get('/api/cloth-types'),
+      API.get('/api/customers'),
+      API.get('/api/cloth-types'), // already returns measurements
     ])
     setCustomers(custRes.data.customers || [])
     setClothTypes(clothRes.data.clothTypes || [])
   } catch (e) {
     console.error('Failed to load:', e)
     if (e.response?.status === 401) {
-      const isAdmin = !!localStorage.getItem('adminToken')
-      router.push(isAdmin ? '/admin/login' : '/employee/login')
+      localStorage.removeItem('adminToken')
+      router.push('/admin/login')
     }
   } finally {
     setLoadingPage(false)
@@ -204,28 +199,10 @@ export default function NewOrder() {
 
   // ── Load initial data ───────────────────────────────────────
   useEffect(() => {
-  // Check both adminToken AND employeeToken (for manager/receptionist)
-  const adminToken    = localStorage.getItem('adminToken')
-  const employeeToken = localStorage.getItem('employeeToken')
-  const employeeUser  = localStorage.getItem('employeeUser')
-
-  if (!adminToken && !employeeToken) {
-    router.push('/admin/login')
-    return
-  }
-
-  // If employee, verify they have permission
-  if (!adminToken && employeeToken && employeeUser) {
-    const emp = JSON.parse(employeeUser)
-    const role = emp.accessRole || 'employee'
-    if (role !== 'manager' && role !== 'receptionist' && !emp.hasFullAccess) {
-      router.push('/employee/dashboard')
-      return
-    }
-  }
-
-  fetchInitialData()
-}, [])
+    const token = localStorage.getItem('adminToken')
+    if (!token) { router.push('/admin/login'); return }
+    fetchInitialData()
+  }, [])
 
 
 
@@ -293,33 +270,31 @@ export default function NewOrder() {
 
   // ── Submit order ────────────────────────────────────────────
   const handleSubmit = async () => {
-  if (!selected)          { setError('Please select a customer'); return }
-  if (!selectedClothType) { setError('Please select a cloth type'); return }
-  if (!selectedType)      { setError('Please select a type'); return }
-  if (!selectedSubtype)   { setError('Please select a subtype'); return }
-  if (!form.deliveryDate) { setError('Please set a delivery date'); return }
+    if (!selected)         { setError('Please select a customer'); return }
+    if (!selectedClothType){ setError('Please select a cloth type'); return }
+    if (!selectedType)     { setError('Please select a type'); return }
+    if (!selectedSubtype)  { setError('Please select a subtype'); return }
+    if (!form.deliveryDate){ setError('Please set a delivery date'); return }
 
-  setSaving(true); setError('')
-  try {
-    const isAdmin  = !!localStorage.getItem('adminToken')
-    const fetcher  = isAdmin ? adminAPI : employeeAPI
-    const clothTypeName = `${selectedClothType.name} - ${selectedType.name} - ${selectedSubtype.name}`
-
-    const res = await fetcher.post('/api/orders', {
-      ...form,
-      customerID: selected.customerID,
-      clothType:  clothTypeName,
-      unitCost:   form.unitCost,
-      voiceNote,
-    })
-    router.push(`/admin/allotment/${res.data.order.orderID}`)
-  } catch (e) {
-    setError(e.response?.data?.message || 'Failed to create order')
-    if (e.response?.status === 401) {
-      router.push(localStorage.getItem('adminToken') ? '/admin/login' : '/employee/login')
-    }
-  } finally { setSaving(false) }
-}
+    setSaving(true); setError('')
+    try {
+      const clothTypeName = `${selectedClothType.name} - ${selectedType.name} - ${selectedSubtype.name}`
+      const res = await API.post('/api/orders', {
+        ...form,
+        customerID: selected.customerID,
+        clothType:  clothTypeName,
+        unitCost:   form.unitCost,
+        voiceNote,   // ← ADD THIS
+      })
+      router.push(`/admin/allotment/${res.data.order.orderID}`)
+    } catch (e) {
+      setError(e.response?.data?.message || 'Failed to create order')
+      if (e.response?.status === 401) {
+        localStorage.removeItem('adminToken')
+        router.push('/admin/login')
+      }
+    } finally { setSaving(false) }
+  }
 
   const filteredCust = customers.filter(c =>
     c.name?.toLowerCase().includes(custSearch.toLowerCase()) ||
