@@ -10,8 +10,6 @@ const { protect } = require('../middleware/auth')
 const router       = express.Router()
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 
-const router       = express.Router()
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 
 // ── Admin login ──────────────────────────────────────────────
 router.post('/admin/login', async (req, res) => {
