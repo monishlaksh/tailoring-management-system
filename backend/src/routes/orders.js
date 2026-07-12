@@ -139,6 +139,11 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
       voiceNote,
     } = req.body
 
+    // In POST create order route:
+const createdByRole = req.role || 'admin'
+const createdByName = req.employee?.name || req.admin?.username || 'Admin'
+const createdByID   = req.employee?.employeeID || ''
+
     if (!customerID)
       return res.status(400).json({ success:false, message:'Customer ID required' })
     if (!clothType)
@@ -167,11 +172,12 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
         deliveryDate,
         voiceNote:           voiceNote   || { data:'', mimeType:'audio/webm', duration:0 },
         createdBy: {
-          role:       req.role === 'employee_admin' ? 'employee' : 'admin',
-          employeeID: req.employee?.employeeID || '',
-          name:       req.employee?.name || 'Admin',
-        },
-      })
+    role:       createdByRole,
+    employeeID: createdByID,
+    name:       createdByName,  // ← this will now show "Jesudoss" etc
+  },
+})
+
 
       // Save measurements to customer profile
       if (measurements && Object.values(measurements).some(v => v?.trim?.())) {
