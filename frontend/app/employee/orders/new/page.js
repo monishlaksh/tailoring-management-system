@@ -171,7 +171,7 @@ export default function EmployeeNewOrder() {
         clothType:  clothTypeName,
         voiceNote,
       })
-      router.push(`/admin/allotment/${res.data.order.orderID}`)
+      router.push(`/employee/allotment/${res.data.order.orderID}`)
     } catch (e) {
       setError(e.response?.data?.message || 'Failed to create order')
     } finally { setSaving(false) }

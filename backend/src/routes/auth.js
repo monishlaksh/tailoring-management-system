@@ -1,11 +1,14 @@
-const express        = require('express')
-const jwt            = require('jsonwebtoken')
-const bcrypt         = require('bcryptjs')
+const express    = require('express')
+const jwt        = require('jsonwebtoken')
+const bcrypt     = require('bcryptjs')
 const { OAuth2Client } = require('google-auth-library')
-const Customer       = require('../models/Customer')
-const Employee       = require('../models/Employee')
-const Order          = require('../models/Order')
-const { protect }    = require('../middleware/auth')
+const Customer   = require('../models/Customer')
+const Employee   = require('../models/Employee')
+const Order      = require('../models/Order')         // ← TOP LEVEL
+const { protect } = require('../middleware/auth')
+
+const router       = express.Router()
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 
 const router       = express.Router()
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
@@ -186,7 +189,7 @@ router.post('/customer/login', async (req, res) => {
 router.get('/customer/me', async (req, res) => {
   try {
     const authHeader = req.headers.authorization
-    if (!authHeader || !authHeader.startsWith('Bearer '))
+    if (!authHeader?.startsWith('Bearer '))
       return res.status(401).json({ success:false, message:'No token' })
 
     const token   = authHeader.split(' ')[1]
@@ -203,12 +206,10 @@ router.get('/customer/me', async (req, res) => {
     if (!customer)
       return res.status(404).json({ success:false, message:'Customer not found' })
 
-    // Get orders for payment summary
-    const Order        = require('../models/Order')
+    // Order is already imported at top — no require() needed
     const orders       = await Order.find({ customerID:decoded.customerID }).lean()
     const totalCost    = orders.reduce((s,o) => s+(o.unitCost||0), 0)
     const totalSettled = orders.reduce((s,o) => s+(o.amountSettled||0), 0)
-    const balance      = Math.max(totalCost - totalSettled, 0)
 
     res.json({
       success:  true,
@@ -220,13 +221,13 @@ router.get('/customer/me', async (req, res) => {
         payment: {
           totalCost,
           amountSettled: totalSettled,
-          balance,
+          balance:       Math.max(totalCost-totalSettled, 0),
         },
       },
     })
   } catch (e) {
-    console.error('[CUSTOMER ME]', e.message)
-    if (e.name === 'JsonWebTokenError' || e.name === 'TokenExpiredError') {
+    console.error('[CUSTOMER/ME]', e.message)
+    if (e.name==='JsonWebTokenError'||e.name==='TokenExpiredError') {
       return res.status(401).json({ success:false, message:'Token invalid or expired' })
     }
     res.status(500).json({ success:false, message:e.message })
