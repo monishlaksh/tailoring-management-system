@@ -83,6 +83,7 @@ const protectAdminOrFullAccess = async (req, res, next) => {
     if (decoded.role === 'admin') {
       req.admin = decoded; req.role = 'admin'; return next()
     }
+
     if (decoded.role === 'employee') {
       const employee = await Employee.findById(decoded.employeeId).lean()
       if (!employee || !employee.isActive)
@@ -90,8 +91,7 @@ const protectAdminOrFullAccess = async (req, res, next) => {
 
       const accessRole = employee.accessRole || 'employee'
 
-      // Manager = full admin access
-      // Receptionist = can create orders/customers only
+      // Allow manager, receptionist, and hasFullAccess employees
       if (accessRole === 'manager' || accessRole === 'receptionist' || employee.hasFullAccess) {
         req.employee = {
           employeeId:    decoded.employeeId,
@@ -102,10 +102,10 @@ const protectAdminOrFullAccess = async (req, res, next) => {
           accessRole,
           hasFullAccess: employee.hasFullAccess || accessRole === 'manager',
         }
-        req.role = accessRole === 'manager' ? 'employee_admin' : 'employee_receptionist'
+        req.role = accessRole
         return next()
       }
-      return res.status(403).json({ success:false, message:'Insufficient access. Contact admin.' })
+      return res.status(403).json({ success:false, message:'Insufficient access' })
     }
     return res.status(403).json({ success:false, message:'Access denied' })
   } catch (e) {

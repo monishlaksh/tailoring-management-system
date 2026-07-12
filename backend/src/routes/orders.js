@@ -61,7 +61,8 @@ const serializeOrder = (order) => {
 }
 
 // GET all orders
-router.get('/', protect, async (req, res) => {
+// GET all orders — admin, manager, receptionist
+router.get('/', protectAdminOrFullAccess, async (req, res) => {
   try {
     const { search, status, customerID } = req.query
     let query = {}
@@ -79,7 +80,6 @@ router.get('/', protect, async (req, res) => {
       .sort({ createdAt:-1 })
       .lean()
 
-    // Convert Map to plain object for each order
     const serialized = orders.map(o => ({
       ...o,
       measurements: o.measurements instanceof Map

@@ -27,17 +27,27 @@ export default function ReceptionistPage() {
     fetchData()
   }, [])
 
+  
+
   const fetchData = async () => {
-    try {
-      const [ordRes, custRes] = await Promise.all([
-        API.get('/api/orders'),
-        API.get('/api/customers'),
-      ])
-      setOrders(ordRes.data.orders || [])
-      setCustomers(custRes.data.customers || [])
-    } catch (e) { console.error(e) }
-    finally { setLoading(false) }
-  }
+  setLoading(true)
+  try {
+    const [ordRes, custRes] = await Promise.all([
+      API.get('/api/orders'),      // employeeAPI sends employeeToken ✓
+      API.get('/api/customers'),   // employeeAPI sends employeeToken ✓
+    ])
+    setOrders(ordRes.data.orders || [])
+    setCustomers(custRes.data.customers || [])
+  } catch (e) {
+    console.error('Fetch error:', e.response?.status, e.response?.data)
+    if (e.response?.status === 401) {
+      localStorage.removeItem('employeeToken')
+      localStorage.removeItem('employeeUser')
+      router.push('/employee/login')
+    }
+  } finally {
+    setLoading(false) }
+}
 
   const handleLogout = () => {
     localStorage.removeItem('employeeToken')

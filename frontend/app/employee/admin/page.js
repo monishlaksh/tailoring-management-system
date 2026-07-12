@@ -24,12 +24,19 @@ export default function EmployeeAdminPage() {
   }, [])
 
   const fetchOrders = async () => {
-    try {
-      const res = await API.get('/api/orders')
-      setOrders(res.data.orders || [])
-    } catch (e) { console.error(e) }
-    finally { setLoading(false) }
+  try {
+    const res = await API.get('/api/orders')
+    setOrders(res.data.orders || [])
+  } catch (e) {
+    console.error('Orders fetch:', e.response?.status, e.response?.data)
+    if (e.response?.status === 401) {
+      localStorage.removeItem('employeeToken')
+      router.push('/employee/login')
+    }
+  } finally {
+    setLoading(false)
   }
+}
 
   const handleLogout = () => {
     localStorage.removeItem('employeeToken')
