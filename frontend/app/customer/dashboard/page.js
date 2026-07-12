@@ -5,7 +5,7 @@ import {
   Scissors, LogOut, User, Phone, CreditCard,
   Package, Clock, CheckCircle, Calendar, ChevronRight,
 } from 'lucide-react'
-import { customerAPI as API } from '../../../lib/api'
+import { customerAPI as API } from '../../lib/api'
 
 const STAGES      = ['Booking','Cutting','Stitching','Finishing','Ready For Delivery']
 const STAGE_ICONS = {
@@ -23,11 +23,7 @@ export default function CustomerDashboard() {
 
   useEffect(() => {
   const token = localStorage.getItem('customerToken')
-  if (!token) {
-    router.push('/customer/login')
-    return
-  }
-  // Clear bad tokens and retry
+  if (!token) { router.push('/customer/login'); return }
   fetchData()
 }, [])
 
@@ -35,13 +31,14 @@ const fetchData = async () => {
   setLoading(true)
   setError('')
   try {
-    const res = await API.get('/api/auth/customer/me')
-    setCustomer(res.data.customer)
-    const ordersRes = await API.get('/api/orders/my-orders')
+    const [meRes, ordersRes] = await Promise.all([
+      API.get('/api/auth/customer/me'),
+      API.get('/api/orders/my-orders'),
+    ])
+    setCustomer(meRes.data.customer)
     setOrders(ordersRes.data.orders || [])
   } catch (e) {
     if (e.response?.status === 401) {
-      // Token expired — force re-login
       localStorage.removeItem('customerToken')
       router.push('/customer/login')
     } else {

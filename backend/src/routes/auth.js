@@ -198,13 +198,16 @@ router.get('/customer/me', async (req, res) => {
     const customer = await Customer.findOne({
       customerID: decoded.customerID,
       isActive:   true,
-    })
+    }).lean()
+
     if (!customer)
       return res.status(404).json({ success:false, message:'Customer not found' })
 
+    // Get orders for payment summary
+    const Order        = require('../models/Order')
     const orders       = await Order.find({ customerID:decoded.customerID }).lean()
-    const totalCost    = orders.reduce((s,o) => s+(o.unitCost      ||0), 0)
-    const totalSettled = orders.reduce((s,o) => s+(o.amountSettled ||0), 0)
+    const totalCost    = orders.reduce((s,o) => s+(o.unitCost||0), 0)
+    const totalSettled = orders.reduce((s,o) => s+(o.amountSettled||0), 0)
     const balance      = Math.max(totalCost - totalSettled, 0)
 
     res.json({
@@ -213,12 +216,20 @@ router.get('/customer/me', async (req, res) => {
         customerID: customer.customerID,
         name:       customer.name,
         phone:      customer.phone,
-        address:    customer.address,
-        payment:    { totalCost, amountSettled:totalSettled, balance },
+        address:    customer.address || '',
+        payment: {
+          totalCost,
+          amountSettled: totalSettled,
+          balance,
+        },
       },
     })
   } catch (e) {
-    res.status(401).json({ success:false, message:'Token invalid or expired' })
+    console.error('[CUSTOMER ME]', e.message)
+    if (e.name === 'JsonWebTokenError' || e.name === 'TokenExpiredError') {
+      return res.status(401).json({ success:false, message:'Token invalid or expired' })
+    }
+    res.status(500).json({ success:false, message:e.message })
   }
 })
 
