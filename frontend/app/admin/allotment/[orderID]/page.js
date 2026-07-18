@@ -660,79 +660,21 @@ const handleUndoDeliver = async () => {
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
 
         {/* Left — Order details + QR */}
+        {/* Replace the grid wrapper */}
         <div style={{ display:'grid', gap:20 }}>
 
-          {/* Order Info */}
-          <div className="glass" style={{ padding:24 }}>
-            <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>📋 Order Details</h2>
-            <div style={{ display:'grid', gap:10 }}>
-              {[
-                { label:'Order ID',     value:order.orderID },
-                { label:'Cloth Type',   value:order.clothType },
-                { label:'Quantity',     value:order.quantity },
-                { label:'Delivery',     value:order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('en-IN') : '—' },
-                { label:'Status',       value:order.status },
-              ].map((item,i) => (
-                <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'8px 12px', background:'rgba(255,255,255,0.6)', borderRadius:8 }}>
-                  <span style={{ fontSize:'0.78rem', color:'#9CA3AF', fontWeight:600 }}>{item.label}</span>
-                  <span style={{ fontSize:'0.82rem', color:'#1E1B4B', fontWeight:600 }}>{item.value}</span>
-                </div>
-              ))}
-            </div>
+          {/* Order info section — full width */}
+          <div style={{ display:'grid', gap:16 }}>
+            {/* Order Details card */}
+            {/* Measurements card */}
+            {/* Alteration card */}
+            {/* QR Code card */}
           </div>
 
-          {/* Measurements */}
-          {order.measurements && Object.values(order.measurements).some(v => v) && (
-            <div className="glass" style={{ padding:24 }}>
-              <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:14, fontSize:'0.95rem' }}>📏 Measurements</h2>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
-                {Object.entries(order.measurements).filter(([,v]) => v).map(([k,v]) => (
-                  <div key={k} style={{ background:'rgba(79,70,229,0.05)', borderRadius:8, padding:'8px 12px' }}>
-                    <p style={{ fontSize:'0.65rem', color:'#9CA3AF', textTransform:'uppercase', fontWeight:600 }}>{k}</p>
-                    <p style={{ fontSize:'0.95rem', color:'#1E1B4B', fontWeight:700 }}>{v}"</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Alteration */}
-          {order.alteration?.required && (
-            <div className="glass" style={{ padding:24, background:'rgba(245,158,11,0.03)', border:'1.5px solid rgba(245,158,11,0.2)' }}>
-              <h2 style={{ fontWeight:700, color:'#D97706', marginBottom:12, fontSize:'0.95rem' }}>⚠️ Alterations Required</h2>
-              {(order.alteration.selectedOptions||[]).length > 0 && (
-                <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:10 }}>
-                  {order.alteration.selectedOptions.map((opt,i) => (
-                    <span key={i} style={{ padding:'4px 10px', background:'rgba(245,158,11,0.1)', border:'1px solid rgba(245,158,11,0.2)', borderRadius:999, fontSize:'0.78rem', fontWeight:600, color:'#D97706' }}>
-                      {opt}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {order.alteration.notes && (
-                <p style={{ fontSize:'0.83rem', color:'#4B5563' }}>{order.alteration.notes}</p>
-              )}
-            </div>
-          )}
-
-          {/* QR Code */}
-          <div className="glass" style={{ padding:24, textAlign:'center' }}>
-            <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:6, fontSize:'0.95rem' }}>📱 QR Code</h2>
-            <p style={{ fontSize:'0.78rem', color:'#6B7280', marginBottom:16 }}>
-              Print and attach this to the material. Admin scans to open this page.
-            </p>
-            {allotment.qrCode ? (
-              <div>
-                <img src={allotment.qrCode} alt="QR Code" style={{ width:180, height:180, border:'4px solid #EEF2FF', borderRadius:12 }} />
-                <p style={{ fontSize:'0.72rem', color:'#9CA3AF', marginTop:10 }}>{orderID}</p>
-                <a href={allotment.qrCode} download={`QR-${orderID}.png`}
-                  style={{ display:'inline-block', marginTop:12, padding:'8px 20px', background:'linear-gradient(135deg,#4F46E5,#6366F1)', color:'white', borderRadius:8, fontSize:'0.82rem', fontWeight:600, textDecoration:'none' }}>
-                  ⬇ Download QR
-                </a>
-              </div>
-            ) : (
-              <p style={{ color:'#9CA3AF' }}>Generating QR...</p>
-            )}
+          {/* Stages section — full width, stacked */}
+          <div style={{ display:'grid', gap:14 }}>
+            {/* Stage cards */}
+            {/* Delivery card */}
           </div>
 
         </div>

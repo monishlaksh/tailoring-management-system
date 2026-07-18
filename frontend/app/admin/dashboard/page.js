@@ -198,32 +198,44 @@ let filtered = orders.filter(o =>
         <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
           {/* Replace multiple buttons with dropdown */}
           {/* Menu dropdown — wrap BOTH button and menu in ref div */}
+          {/* Replace the dropdown menu section */}
           <div ref={menuRef} style={{ position:'relative' }}>
             <button
-              onClick={() => setShowNavMenu(prev => !prev)}
-              style={{
-                display:'flex', alignItems:'center', gap:6,
+              onClick={e => { e.stopPropagation(); setShowNavMenu(prev => !prev) }}
+              style={{ display:'flex', alignItems:'center', gap:6,
                 padding:'9px 16px',
-                background: showNavMenu
-                  ? 'rgba(79,70,229,0.15)'
-                  : 'rgba(79,70,229,0.08)',
+                background: showNavMenu ? 'rgba(79,70,229,0.15)' : 'rgba(79,70,229,0.08)',
                 border:'1.5px solid rgba(79,70,229,0.2)',
                 borderRadius:10, color:'#4F46E5',
                 fontSize:'0.85rem', fontWeight:600,
                 cursor:'pointer', fontFamily:'Poppins,sans-serif',
-                transition:'all 0.2s',
-              }}>
+                transition:'all 0.2s' }}>
               ☰ Menu {showNavMenu ? '▲' : '▼'}
             </button>
 
             {showNavMenu && (
               <div style={{
-                position:'absolute', right:0, top:'110%',
-                background:'white', borderRadius:14,
-                boxShadow:'0 8px 32px rgba(79,70,229,0.18)',
+                position:'fixed',           // ← fixed instead of absolute
+                top: 'auto',
+                left: '50%',
+                transform: 'translateX(-50%)',  // ← center on screen
+                background:'white',
+                borderRadius:16,
+                boxShadow:'0 8px 40px rgba(79,70,229,0.2)',
                 border:'1.5px solid rgba(79,70,229,0.12)',
-                zIndex:200, minWidth:210, overflow:'hidden',
+                zIndex:9999,
+                width: 'min(280px, 90vw)',  // ← responsive width
+                overflow:'hidden',
               }}>
+                {/* Menu header */}
+                <div style={{ padding:'12px 18px', background:'rgba(79,70,229,0.05)',
+                  borderBottom:'1px solid rgba(79,70,229,0.1)' }}>
+                  <p style={{ fontSize:'0.75rem', fontWeight:700, color:'#4F46E5',
+                    textTransform:'uppercase', letterSpacing:'0.5px' }}>
+                    ☰ Quick Navigation
+                  </p>
+                </div>
+
                 {[
                   { icon:'👥', label:'Customers',          path:'/admin/customers'          },
                   { icon:'👷', label:'Employees',           path:'/admin/employees'          },
@@ -231,32 +243,30 @@ let filtered = orders.filter(o =>
                   { icon:'🪡', label:'Alteration Options',  path:'/admin/alteration-options' },
                   { icon:'💬', label:'Offers & Messages',   path:'/admin/offers'             },
                   { icon:'📱', label:'Scan QR',             path:'/admin/scan'               },
-                  { icon:'💰', label:'Employee Salary', path:'/admin/salary' },
-                  { icon:'📊', label:'View Sales',      path:'/admin/sales'  },
-                  { icon:'💸', label:'Expenses', path:'/admin/expenses' },
+                  { icon:'💰', label:'Employee Salary',     path:'/admin/salary'             },
+                  { icon:'📊', label:'View Sales',          path:'/admin/sales'              },
+                  { icon:'💸', label:'Expenses',            path:'/admin/expenses'           },
+                  { icon:'📦', label:'Products',            path:'/admin/products'           },
                 ].map((item, i, arr) => (
                   <button key={i}
-                    onClick={() => {
-                      router.push(item.path)
-                      setShowNavMenu(false)
-                    }}
+                    onClick={() => { router.push(item.path); setShowNavMenu(false) }}
                     style={{
                       width:'100%', padding:'13px 18px',
                       background:'none', border:'none',
                       cursor:'pointer',
-                      display:'flex', alignItems:'center', gap:12,
+                      display:'flex', alignItems:'center', gap:14,
                       fontFamily:'Poppins,sans-serif',
-                      fontSize:'0.88rem', fontWeight:600,
+                      fontSize:'0.9rem', fontWeight:600,
                       color:'#1E1B4B', textAlign:'left',
-                      borderBottom: i < arr.length - 1
-                        ? '1px solid rgba(79,70,229,0.07)'
-                        : 'none',
+                      borderBottom: i < arr.length-1 ? '1px solid rgba(79,70,229,0.06)' : 'none',
+                      transition:'background 0.15s',
                     }}
-                    onMouseEnter={e =>
-                      e.currentTarget.style.background = 'rgba(79,70,229,0.05)'}
-                    onMouseLeave={e =>
-                      e.currentTarget.style.background = 'none'}>
-                    <span style={{ fontSize:'1rem', width:22 }}>{item.icon}</span>
+                    onMouseEnter={e => e.currentTarget.style.background='rgba(79,70,229,0.05)'}
+                    onMouseLeave={e => e.currentTarget.style.background='none'}>
+                    <span style={{ fontSize:'1.1rem', width:26, textAlign:'center',
+                      flexShrink:0 }}>
+                      {item.icon}
+                    </span>
                     {item.label}
                   </button>
                 ))}
