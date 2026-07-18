@@ -3,7 +3,7 @@ const Allotment   = require('../models/Allotment')
 const Order       = require('../models/Order')
 const Employee    = require('../models/Employee')   // ← TOP LEVEL
 const ClothType   = require('../models/ClothType')  // ← TOP LEVEL
-const { protect } = require('../middleware/auth')
+const { protect, protectAdminOrFullAccess } = require('../middleware/auth')
 const QRCode      = require('qrcode')
 const router      = express.Router()
 
@@ -25,7 +25,7 @@ const generateQR = async (orderID) => {
 }
 
 // GET all allotments
-router.get('/', protect, async (req, res) => {
+router.get('/', protectAdminOrFullAccess, async (req, res) => {
   try {
     const allotments = await Allotment.find()
       .sort({ createdAt:-1 }).lean()
@@ -89,7 +89,7 @@ router.get('/scan/:orderID', async (req, res) => {
 })
 
 // GET allotment for order (create if not exists)
-router.get('/:orderID', protect, async (req, res) => {
+router.get('/:orderID', protectAdminOrFullAccess, async (req, res) => {
   try {
     const { orderID } = req.params
 

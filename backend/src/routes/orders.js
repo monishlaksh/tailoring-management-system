@@ -116,11 +116,23 @@ router.get('/:orderID', protect, async (req, res) => {
 })
 
 // GET customer orders
+// GET customer's own orders
 router.get('/my-orders', protectCustomer, async (req, res) => {
   try {
-    const orders = await Order.find({ customerID:req.customer.customerID })
+    const orders = await Order.find({
+      customerID: req.customer.customerID
+    })
       .sort({ createdAt:-1 })
-    res.json({ success:true, count:orders.length, orders })
+      .lean()
+
+    const serialized = orders.map(o => ({
+      ...o,
+      measurements: o.measurements instanceof Map
+        ? Object.fromEntries(o.measurements)
+        : (o.measurements || {}),
+    }))
+
+    res.json({ success:true, count:serialized.length, orders:serialized })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }

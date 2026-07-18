@@ -1,11 +1,12 @@
 import axios from 'axios'
 
-const BASE_URL = 'https://tailoring-management-apwh.onrender.com'
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
+  'https://tailoring-management-apwh.onrender.com'
 
-// ── Admin API — always uses adminToken ──────────────────────
+// ── Admin API ─────────────────────────────────────────────────
 export const adminAPI = axios.create({
   baseURL: BASE_URL,
-  withCredentials: true,
+  headers: { 'Content-Type':'application/json' },
 })
 
 adminAPI.interceptors.request.use((config) => {
@@ -16,10 +17,10 @@ adminAPI.interceptors.request.use((config) => {
   return config
 })
 
-// ── Employee API — always uses employeeToken ─────────────────
+// ── Employee API ──────────────────────────────────────────────
 export const employeeAPI = axios.create({
   baseURL: BASE_URL,
-  withCredentials: true,
+  headers: { 'Content-Type':'application/json' },
 })
 
 employeeAPI.interceptors.request.use((config) => {
@@ -30,19 +31,18 @@ employeeAPI.interceptors.request.use((config) => {
   return config
 })
 
-// ── Customer API — always uses customerToken ─────────────────
-// In lib/api.js — verify customerAPI exists:
+// ── Customer API ──────────────────────────────────────────────
 export const customerAPI = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://tailoring-management-apwh.onrender.com',
-  headers: { 'Content-Type': 'application/json' },
+  baseURL: BASE_URL,
+  headers: { 'Content-Type':'application/json' },
 })
 
 customerAPI.interceptors.request.use((config) => {
-  const token = localStorage.getItem('customerToken')
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('customerToken')
+    if (token) config.headers.Authorization = `Bearer ${token}`
+  }
   return config
 })
-// ── Default export for backward compatibility ────────────────
-// Only used by pages that haven't been updated yet
-const API = adminAPI
-export default API
+
+export default adminAPI
