@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { customerAPI as API } from '../../lib/api'
+import { customerAPI as API } from '../../../lib/api'
 
 export default function CustomerDashboard() {
   const router = useRouter()
