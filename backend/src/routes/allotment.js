@@ -3,7 +3,13 @@ const Allotment   = require('../models/Allotment')
 const Order       = require('../models/Order')
 const Employee    = require('../models/Employee')   // ← TOP LEVEL
 const ClothType   = require('../models/ClothType')  // ← TOP LEVEL
-const { protect, protectAdminOrFullAccess } = require('../middleware/auth')
+const {
+  protect,
+  protectEmployee,
+  protectAdminOrEmployee,
+  protectAdminOrFullAccess,
+} = require('../middleware/auth')
+
 const QRCode      = require('qrcode')
 const router      = express.Router()
 
@@ -88,25 +94,55 @@ router.get('/scan/:orderID', async (req, res) => {
   }
 })
 
-// GET allotment for order (create if not exists)
-router.get('/:orderID', protectAdminOrFullAccess, async (req, res) => {
+// GET single allotment — allow ANY employee to read (they need it for scan/view)
+router.get('/:orderID', protectAdminOrEmployee, async (req, res) => {
   try {
     const { orderID } = req.params
 
     const order = await Order.findOne({ orderID })
       .populate('customerRef', 'name phone customerID address')
+      .lean()
+
     if (!order)
       return res.status(404).json({ success:false, message:'Order not found' })
 
     let allotment = await Allotment.findOne({ orderID })
+
     if (!allotment) {
+      // Auto-create allotment if it doesn't exist
       const qrCode = await generateQR(orderID)
       allotment = await Allotment.create({
         orderID,
         customerID: order.customerID,
         qrCode,
+        delivery: { status:'pending' },
       })
     }
+
+    // Ensure delivery field exists
+    if (!allotment.delivery) {
+      allotment.delivery = { status:'pending', deliveredAt:null, acknowledgedBy:'', notes:'' }
+      await allotment.save()
+    }
+
+    // Serialize measurements Map
+    const serializedOrder = {
+      ...order,
+      measurements: order.measurements instanceof Map
+        ? Object.fromEntries(order.measurements)
+        : (order.measurements || {}),
+    }
+
+    res.json({
+      success:   true,
+      allotment: allotment.toObject(),
+      order:     serializedOrder,
+    })
+  } catch (e) {
+    console.error('[ALLOTMENT GET]', e.message)
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
 
     const enrichStage = async (stage) => {
       if (!stage.employeeID) return stage

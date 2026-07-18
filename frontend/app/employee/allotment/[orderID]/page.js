@@ -54,19 +54,32 @@ export default function EmployeeAllotmentPage() {
   }, [orderID])
 
   const fetchData = async () => {
-    try {
-      const [allotRes, empRes] = await Promise.all([
-        API.get(`/api/allotment/${orderID}`),
-        API.get('/api/employees'),
-      ])
-      setAllotment(allotRes.data.allotment)
-      setOrder(allotRes.data.order)
-      setEmployees(empRes.data.employees?.filter(e => e.isActive) || [])
-    } catch (e) {
-      setError('Failed to load allotment')
-      console.error(e)
-    } finally { setLoading(false) }
+  try {
+    const [allotRes, empRes] = await Promise.all([
+      API.get(`/api/allotment/${orderID}`),
+      API.get('/api/employees'),
+    ])
+    setAllotment(allotRes.data.allotment)
+    setOrder(allotRes.data.order)
+    setEmployees(empRes.data.employees?.filter(e => e.isActive) || [])
+  } catch (e) {
+    const status = e.response?.status
+    const msg    = e.response?.data?.message || e.message
+
+    if (status === 401 || status === 403) {
+      // Token issue — re-login
+      localStorage.removeItem('employeeToken')
+      localStorage.removeItem('employeeUser')
+      router.push('/employee/login')
+      return
+    }
+
+    setError(`${msg} (${status || 'network error'})`)
+    console.error('[EMPLOYEE ALLOTMENT]', status, msg)
+  } finally {
+    setLoading(false)
   }
+}
 
   const showMsg = (msg, isErr=false) => {
     if (isErr) { setError(msg); setTimeout(()=>setError(''),4000) }
@@ -170,7 +183,32 @@ export default function EmployeeAllotmentPage() {
         </div>
       </div>
 
-      {error   && <div style={{ background:'rgba(239,68,68,0.08)', border:'1.5px solid rgba(239,68,68,0.2)', borderRadius:10, padding:'11px 16px', marginBottom:12, color:'#DC2626', fontSize:'0.87rem' }}>{error}</div>}
+      if (error && (!allotment || !order)) return (
+  <main style={{ padding:24, fontFamily:'Poppins,sans-serif', minHeight:'100vh' }}>
+    <button onClick={()=>router.back()}
+      style={{ display:'flex', alignItems:'center', gap:6, background:'none',
+        border:'none', cursor:'pointer', color:'#4F46E5',
+        fontSize:'0.9rem', marginBottom:16 }}>
+      <ArrowLeft size={18}/> Back
+    </button>
+    <div style={{ background:'rgba(239,68,68,0.08)',
+      border:'1.5px solid rgba(239,68,68,0.2)',
+      borderRadius:12, padding:'20px 24px' }}>
+      <p style={{ color:'#DC2626', fontWeight:600, marginBottom:4 }}>
+        Failed to load allotment
+      </p>
+      <p style={{ color:'#EF4444', fontSize:'0.85rem', marginBottom:14 }}>
+        {error}
+      </p>
+      <button onClick={fetchData}
+        style={{ padding:'8px 20px', background:'#4F46E5', color:'white',
+          border:'none', borderRadius:8, cursor:'pointer',
+          fontFamily:'Poppins,sans-serif', fontWeight:600 }}>
+        Retry
+      </button>
+    </div>
+  </main>
+)
       {success && <div style={{ background:'rgba(16,185,129,0.08)', border:'1.5px solid rgba(16,185,129,0.2)', borderRadius:10, padding:'11px 16px', marginBottom:12, color:'#059669', fontSize:'0.87rem' }}>{success}</div>}
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))', gap:16 }}>
