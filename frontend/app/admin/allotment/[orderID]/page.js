@@ -660,461 +660,82 @@ const handleUndoDeliver = async () => {
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
 
         {/* Left — Order details + QR */}
-        <div style={{ display:'grid', gap:16 }}>
+        <div style={{ display:'grid', gap:20 }}>
 
-  {/* ── Order Details ── */}
-  <div className="glass" style={{ padding:20 }}>
-    <h2 style={{ fontWeight:700, color:'#1E1B4B',
-      marginBottom:14, fontSize:'0.95rem' }}>
-      📋 Order Details
-    </h2>
-    <div style={{ display:'grid', gap:6 }}>
-      {[
-        { label:'Order ID',   value:order.orderID },
-        { label:'Cloth Type', value:order.clothType },
-        { label:'Quantity',   value:order.quantity ?? '—' },
-        { label:'Delivery',   value:order.deliveryDate
-          ? new Date(order.deliveryDate).toLocaleDateString('en-IN')
-          : '—' },
-        { label:'Status',     value:order.status },
-      ].map((item,i) => (
-        <div key={i} style={{ display:'flex', justifyContent:'space-between',
-          padding:'8px 12px',
-          background:i%2===0?'rgba(79,70,229,0.04)':'transparent',
-          borderRadius:8 }}>
-          <span style={{ fontSize:'0.78rem', color:'#9CA3AF', fontWeight:600 }}>
-            {item.label}
-          </span>
-          <span style={{ fontSize:'0.82rem', color:'#1E1B4B', fontWeight:600,
-            textAlign:'right', maxWidth:'60%' }}>
-            {item.value}
-          </span>
-        </div>
-      ))}
-    </div>
-  </div>
-
-  {/* ── Measurements ── */}
-  {order.measurements && Object.values(order.measurements).some(v=>v) && (
-    <div className="glass" style={{ padding:20 }}>
-      <p style={{ fontSize:'0.75rem', color:'#9CA3AF', fontWeight:700,
-        textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:12 }}>
-        📏 Measurements (inches)
-      </p>
-      <div style={{ display:'grid',
-        gridTemplateColumns:'repeat(auto-fill,minmax(100px,1fr))', gap:8 }}>
-        {Object.entries(order.measurements).filter(([,v])=>v).map(([k,v])=>(
-          <div key={k} style={{ background:'#EEF2FF', borderRadius:10, padding:'10px 12px' }}>
-            <p style={{ fontSize:'0.62rem', color:'#6B7280', fontWeight:600,
-              textTransform:'uppercase', marginBottom:3 }}>
-              {k}
-            </p>
-            <p style={{ fontSize:'1.2rem', fontWeight:800, color:'#4F46E5', lineHeight:1 }}>
-              {v}<span style={{ fontSize:'0.7rem', color:'#9CA3AF', marginLeft:1 }}>"</span>
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  )}
-
-  {/* ── Alteration ── */}
-  {order.alteration?.required && (
-    <div className="glass" style={{ padding:20,
-      border:'1.5px solid rgba(245,158,11,0.2)' }}>
-      <p style={{ fontSize:'0.75rem', color:'#D97706', fontWeight:700,
-        textTransform:'uppercase', marginBottom:10 }}>
-        ⚠️ Alterations Required
-      </p>
-      <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:6 }}>
-        {(order.alteration.selectedOptions||[]).map((opt,i)=>(
-          <span key={i} style={{ padding:'4px 10px',
-            background:'rgba(245,158,11,0.1)',
-            border:'1px solid rgba(245,158,11,0.2)',
-            borderRadius:999, fontSize:'0.78rem',
-            fontWeight:600, color:'#D97706' }}>
-            {opt}
-          </span>
-        ))}
-      </div>
-      {order.alteration.notes && (
-        <p style={{ fontSize:'0.82rem', color:'#4B5563', fontStyle:'italic' }}>
-          {order.alteration.notes}
-        </p>
-      )}
-    </div>
-  )}
-
-  {/* ── Stage Cards — full width, stacked ── */}
-  {STAGES.map((stage, idx) => {
-    const info      = STAGE_INFO[stage]
-    const stageData = allotment[stage]
-    const badge     = STATUS_BADGE[stageData.status] || STATUS_BADGE.not_assigned
-    const eligible  = getEligibleEmployees(stage)
-    const locked    = !canAssign(stage) && stageData.status==='not_assigned'
-
-    return (
-      <div key={stage} className="glass" style={{
-        padding:0, overflow:'hidden',
-        border:`1.5px solid ${stageData.status==='completed'
-          ? 'rgba(16,185,129,0.3)' : info.border}`,
-        opacity:locked?0.6:1,
-      }}>
-        {/* Stage header */}
-        <div style={{ padding:'14px 18px', background:info.bg,
-          display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            <span style={{ fontSize:'1.3rem' }}>{info.icon}</span>
-            <div>
-              <p style={{ fontWeight:700, color:info.color, fontSize:'0.95rem' }}>
-                {info.label}
-              </p>
-              {locked && (
-                <p style={{ fontSize:'0.7rem', color:'#9CA3AF' }}>
-                  Complete {STAGES[idx-1]} first
-                </p>
-              )}
+          {/* Order Info */}
+          <div className="glass" style={{ padding:24 }}>
+            <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:16, fontSize:'0.95rem' }}>📋 Order Details</h2>
+            <div style={{ display:'grid', gap:10 }}>
+              {[
+                { label:'Order ID',     value:order.orderID },
+                { label:'Cloth Type',   value:order.clothType },
+                { label:'Quantity',     value:order.quantity },
+                { label:'Delivery',     value:order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('en-IN') : '—' },
+                { label:'Status',       value:order.status },
+              ].map((item,i) => (
+                <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'8px 12px', background:'rgba(255,255,255,0.6)', borderRadius:8 }}>
+                  <span style={{ fontSize:'0.78rem', color:'#9CA3AF', fontWeight:600 }}>{item.label}</span>
+                  <span style={{ fontSize:'0.82rem', color:'#1E1B4B', fontWeight:600 }}>{item.value}</span>
+                </div>
+              ))}
             </div>
           </div>
-          <span style={{ fontSize:'0.75rem', fontWeight:600,
-            padding:'4px 12px', borderRadius:999,
-            background:badge.bg, color:badge.color,
-            flexShrink:0 }}>
-            {badge.label}
-          </span>
-        </div>
 
-        <div style={{ padding:'16px 18px' }}>
+          {/* Measurements */}
+          {order.measurements && Object.values(order.measurements).some(v => v) && (
+            <div className="glass" style={{ padding:24 }}>
+              <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:14, fontSize:'0.95rem' }}>📏 Measurements</h2>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
+                {Object.entries(order.measurements).filter(([,v]) => v).map(([k,v]) => (
+                  <div key={k} style={{ background:'rgba(79,70,229,0.05)', borderRadius:8, padding:'8px 12px' }}>
+                    <p style={{ fontSize:'0.65rem', color:'#9CA3AF', textTransform:'uppercase', fontWeight:600 }}>{k}</p>
+                    <p style={{ fontSize:'0.95rem', color:'#1E1B4B', fontWeight:700 }}>{v}"</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-          {/* NOT ASSIGNED */}
-          {stageData.status==='not_assigned' && !locked && (
-            <div>
-              <label className="input-label">ASSIGN EMPLOYEE</label>
-              {eligible.length===0 ? (
-                <p style={{ fontSize:'0.82rem', color:'#EF4444', marginBottom:10 }}>
-                  No employees for {stage}.
-                </p>
-              ) : (
-                <select value={selectedEmp[stage]}
-                  onChange={e=>setSelectedEmp(p=>({...p,[stage]:e.target.value}))}
-                  style={{ width:'100%', padding:'12px 14px',
-                    background:'rgba(255,255,255,0.9)',
-                    border:'1.5px solid rgba(79,70,229,0.2)',
-                    borderRadius:10, fontFamily:'Poppins,sans-serif',
-                    fontSize:'0.9rem', color:'#1E1B4B',
-                    outline:'none', marginBottom:10 }}>
-                  <option value="">Select employee...</option>
-                  {eligible.map(e=>(
-                    <option key={e._id} value={e.employeeID}>
-                      {e.name} · {e.role}
-                    </option>
+          {/* Alteration */}
+          {order.alteration?.required && (
+            <div className="glass" style={{ padding:24, background:'rgba(245,158,11,0.03)', border:'1.5px solid rgba(245,158,11,0.2)' }}>
+              <h2 style={{ fontWeight:700, color:'#D97706', marginBottom:12, fontSize:'0.95rem' }}>⚠️ Alterations Required</h2>
+              {(order.alteration.selectedOptions||[]).length > 0 && (
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:10 }}>
+                  {order.alteration.selectedOptions.map((opt,i) => (
+                    <span key={i} style={{ padding:'4px 10px', background:'rgba(245,158,11,0.1)', border:'1px solid rgba(245,158,11,0.2)', borderRadius:999, fontSize:'0.78rem', fontWeight:600, color:'#D97706' }}>
+                      {opt}
+                    </span>
                   ))}
-                </select>
+                </div>
               )}
-
-              <textarea value={stageNotes[stage]}
-                onChange={e=>setStageNotes(p=>({...p,[stage]:e.target.value}))}
-                placeholder="Instructions for employee..." rows={2}
-                style={{ width:'100%', padding:'10px 14px',
-                  background:'rgba(255,255,255,0.9)',
-                  border:'1.5px solid rgba(79,70,229,0.2)',
-                  borderRadius:10, fontFamily:'Poppins,sans-serif',
-                  fontSize:'0.88rem', color:'#1E1B4B',
-                  outline:'none', resize:'none', marginBottom:12 }}
-              />
-
-              <button onClick={()=>handleAssign(stage)}
-                disabled={assigning===stage||!selectedEmp[stage]}
-                style={{ width:'100%', padding:'13px',
-                  background:selectedEmp[stage]
-                    ? `linear-gradient(135deg,${info.color},${info.color}cc)`
-                    : '#E5E7EB',
-                  color:selectedEmp[stage]?'white':'#9CA3AF',
-                  border:'none', borderRadius:12,
-                  fontFamily:'Poppins,sans-serif', fontWeight:700,
-                  fontSize:'0.9rem',
-                  cursor:selectedEmp[stage]?'pointer':'not-allowed',
-                  display:'flex', alignItems:'center',
-                  justifyContent:'center', gap:8 }}>
-                {assigning===stage
-                  ? <><div style={{ width:18,height:18,
-                      border:'2px solid rgba(255,255,255,0.3)',
-                      borderTopColor:'white',borderRadius:'50%',
-                      animation:'spin 0.8s linear infinite' }}/>
-                      Assigning...</>
-                  : `Assign ${info.label}`}
-              </button>
+              {order.alteration.notes && (
+                <p style={{ fontSize:'0.83rem', color:'#4B5563' }}>{order.alteration.notes}</p>
+              )}
             </div>
           )}
 
-          {/* PENDING */}
-          {stageData.status==='pending' && (
-            <div>
-              <div style={{ padding:'14px', background:info.bg,
-                borderRadius:12, border:`1px solid ${info.border}`,
-                marginBottom:14 }}>
-                <div style={{ display:'flex', alignItems:'center',
-                  gap:10, marginBottom: stageData.notes?8:0 }}>
-                  <div style={{ width:38, height:38, borderRadius:10,
-                    background:info.color, display:'flex',
-                    alignItems:'center', justifyContent:'center',
-                    fontSize:'1.1rem', flexShrink:0 }}>
-                    {info.icon}
-                  </div>
-                  <div>
-                    <p style={{ fontWeight:700, color:info.color,
-                      fontSize:'0.9rem', marginBottom:2 }}>
-                      {stageData.employeeName}
-                    </p>
-                    <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
-                      {stageData.employeeID} · Assigned{' '}
-                      {stageData.assignedAt
-                        ? new Date(stageData.assignedAt).toLocaleDateString('en-IN')
-                        : ''}
-                    </p>
-                  </div>
-                </div>
-                {stageData.notes && (
-                  <p style={{ fontSize:'0.78rem', color:'#4B5563',
-                    marginTop:8, padding:'8px 10px',
-                    background:'rgba(255,255,255,0.6)',
-                    borderRadius:8, fontStyle:'italic' }}>
-                    "{stageData.notes}"
-                  </p>
-                )}
-              </div>
-
-              <div style={{ padding:'12px 14px',
-                background:'rgba(16,185,129,0.06)',
-                border:'1.5px solid rgba(16,185,129,0.2)',
-                borderRadius:12, marginBottom:14,
-                display:'flex', alignItems:'center',
-                justifyContent:'space-between' }}>
-                <div>
-                  <p style={{ fontSize:'0.68rem', color:'#059669',
-                    fontWeight:700, textTransform:'uppercase', marginBottom:2 }}>
-                    Will Be Awarded
-                  </p>
-                  <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
-                    Emp rate + bonus
-                  </p>
-                </div>
-                <p style={{ fontSize:'1.4rem', fontWeight:800,
-                  color:'#059669' }}>
-                  ₹{((empRates[stage]||0)+(empBonuses[stage]||0)).toLocaleString('en-IN')}
-                </p>
-              </div>
-
-              <div style={{ display:'grid',
-                gridTemplateColumns:'1fr auto', gap:10 }}>
-                <button onClick={()=>handleApprove(stage)}
-                  disabled={approving===stage}
-                  style={{ padding:'13px',
-                    background:'linear-gradient(135deg,#10B981,#059669)',
-                    color:'white', border:'none', borderRadius:12,
-                    fontFamily:'Poppins,sans-serif', fontWeight:700,
-                    fontSize:'0.9rem', cursor:'pointer',
-                    display:'flex', alignItems:'center',
-                    justifyContent:'center', gap:8 }}>
-                  {approving===stage
-                    ? <><div style={{ width:18,height:18,
-                        border:'2px solid rgba(255,255,255,0.3)',
-                        borderTopColor:'white',borderRadius:'50%',
-                        animation:'spin 0.8s linear infinite' }}/>
-                        Approving...</>
-                    : <>✅ Approve</>}
-                </button>
-                <button onClick={()=>handleUnassign(stage)}
-                  style={{ width:48, height:48,
-                    background:'#FEF2F2',
-                    border:'1.5px solid #FECACA',
-                    borderRadius:12, cursor:'pointer',
-                    display:'flex', alignItems:'center',
-                    justifyContent:'center', color:'#DC2626' }}>
-                  <X size={18}/>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* COMPLETED */}
-          {stageData.status==='completed' && (
-            <div>
-              <div style={{ padding:'14px', background:'#F0FDF4',
-                borderRadius:12, border:'1px solid #D1FAE5',
-                marginBottom:stage==='finishing'&&waURL?10:0 }}>
-                <div style={{ display:'flex', justifyContent:'space-between',
-                  alignItems:'center' }}>
-                  <div>
-                    <p style={{ fontSize:'0.88rem', color:'#059669',
-                      fontWeight:700, marginBottom:4 }}>
-                      ✅ {stageData.employeeName}
-                    </p>
-                    <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
-                      {stageData.completedAt
-                        ? new Date(stageData.completedAt).toLocaleDateString('en-IN')
-                        : ''}
-                    </p>
-                  </div>
-                  {(stageData.award||0)>0 && (
-                    <div style={{ background:'#DCFCE7',
-                      padding:'8px 12px', borderRadius:10, textAlign:'right' }}>
-                      <p style={{ fontSize:'0.65rem', color:'#059669',
-                        fontWeight:600, marginBottom:2 }}>
-                        AWARDED
-                      </p>
-                      <p style={{ fontSize:'1.1rem', fontWeight:800,
-                        color:'#059669', lineHeight:1 }}>
-                        ₹{stageData.award.toLocaleString('en-IN')}
-                      </p>
-                      <p style={{ fontSize:'0.62rem', color:'#6B7280', marginTop:2 }}>
-                        incl. bonus
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {stage==='finishing' && waURL && (
-                <a href={waURL} target="_blank" rel="noopener noreferrer"
-                  style={{ display:'flex', alignItems:'center',
-                    justifyContent:'center', gap:8, padding:'12px',
-                    marginTop:10,
-                    background:'linear-gradient(135deg,#25D366,#128C7E)',
-                    color:'white', borderRadius:10, textDecoration:'none',
-                    fontFamily:'Poppins,sans-serif', fontWeight:700,
-                    fontSize:'0.88rem' }}>
-                  <span style={{ fontSize:'1.1rem' }}>💬</span>
-                  Notify Customer on WhatsApp
+          {/* QR Code */}
+          <div className="glass" style={{ padding:24, textAlign:'center' }}>
+            <h2 style={{ fontWeight:700, color:'#1E1B4B', marginBottom:6, fontSize:'0.95rem' }}>📱 QR Code</h2>
+            <p style={{ fontSize:'0.78rem', color:'#6B7280', marginBottom:16 }}>
+              Print and attach this to the material. Admin scans to open this page.
+            </p>
+            {allotment.qrCode ? (
+              <div>
+                <img src={allotment.qrCode} alt="QR Code" style={{ width:180, height:180, border:'4px solid #EEF2FF', borderRadius:12 }} />
+                <p style={{ fontSize:'0.72rem', color:'#9CA3AF', marginTop:10 }}>{orderID}</p>
+                <a href={allotment.qrCode} download={`QR-${orderID}.png`}
+                  style={{ display:'inline-block', marginTop:12, padding:'8px 20px', background:'linear-gradient(135deg,#4F46E5,#6366F1)', color:'white', borderRadius:8, fontSize:'0.82rem', fontWeight:600, textDecoration:'none' }}>
+                  ⬇ Download QR
                 </a>
-              )}
-            </div>
-          )}
-
-          {/* LOCKED */}
-          {locked && (
-            <div style={{ textAlign:'center', padding:'16px 0', color:'#9CA3AF' }}>
-              <p style={{ fontSize:'0.82rem' }}>
-                🔒 Complete {idx>0?STAGE_INFO[STAGES[idx-1]].label:''} first
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  })}
-
-  {/* ── Delivery Stage ── */}
-  <div className="glass" style={{ padding:0, overflow:'hidden',
-    border:allotment.delivery?.status==='delivered'
-      ? '2px solid #10B981' : '1.5px solid #E5E7EB' }}>
-    <div style={{ padding:'14px 18px',
-      background:allotment.delivery?.status==='delivered' ? '#F0FDF4' : '#F9FAFB',
-      display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-        <span style={{ fontSize:'1.3rem' }}>🚚</span>
-        <div>
-          <p style={{ fontWeight:700, color:'#059669', fontSize:'0.95rem' }}>
-            Delivery
-          </p>
-          <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
-            {allotment.delivery?.status==='delivered'
-              ? 'Order delivered to customer'
-              : allotment.finishing?.status!=='completed'
-                ? 'Complete finishing first'
-                : 'Ready to mark as delivered'}
-          </p>
-        </div>
-      </div>
-      <span style={{ fontSize:'0.75rem', fontWeight:700,
-        padding:'4px 12px', borderRadius:999, flexShrink:0,
-        background:allotment.delivery?.status==='delivered'
-          ? 'rgba(16,185,129,0.15)' : 'rgba(156,163,175,0.15)',
-        color:allotment.delivery?.status==='delivered' ? '#059669' : '#6B7280' }}>
-        {allotment.delivery?.status==='delivered' ? '✅ Delivered' : 'Pending'}
-      </span>
-    </div>
-
-    <div style={{ padding:'16px 18px' }}>
-      {allotment.delivery?.status==='delivered' ? (
-        <div>
-          <div style={{ padding:'12px 14px', background:'#F0FDF4',
-            borderRadius:12, border:'1px solid #D1FAE5', marginBottom:10 }}>
-            <p style={{ fontSize:'0.85rem', fontWeight:700, color:'#059669', marginBottom:4 }}>
-              ✅ Delivered on{' '}
-              {new Date(allotment.delivery.deliveredAt).toLocaleDateString('en-IN',{
-                weekday:'short', day:'numeric', month:'long', year:'numeric'
-              })}
-            </p>
-            <p style={{ fontSize:'0.75rem', color:'#6B7280' }}>
-              By: {allotment.delivery.acknowledgedBy}
-            </p>
-            {allotment.delivery.notes && (
-              <p style={{ fontSize:'0.78rem', color:'#4B5563', marginTop:6, fontStyle:'italic' }}>
-                "{allotment.delivery.notes}"
-              </p>
+              </div>
+            ) : (
+              <p style={{ color:'#9CA3AF' }}>Generating QR...</p>
             )}
           </div>
-          <button onClick={handleUndoDeliver}
-            style={{ width:'100%', padding:'9px',
-              background:'rgba(239,68,68,0.06)',
-              border:'1.5px solid rgba(239,68,68,0.2)',
-              borderRadius:10, color:'#DC2626',
-              fontFamily:'Poppins,sans-serif', fontWeight:600,
-              fontSize:'0.8rem', cursor:'pointer' }}>
-            ↩ Undo Delivery
-          </button>
+
         </div>
-      ) : allotment.finishing?.status!=='completed' ? (
-        <p style={{ textAlign:'center', color:'#9CA3AF', fontSize:'0.82rem' }}>
-          🔒 Complete all 3 stages before delivery
-        </p>
-      ) : (
-        <button onClick={()=>setDeliveryModal(true)}
-          style={{ width:'100%', padding:'14px',
-            background:'linear-gradient(135deg,#059669,#10B981)',
-            color:'white', border:'none', borderRadius:12,
-            fontFamily:'Poppins,sans-serif', fontWeight:700,
-            fontSize:'0.9rem', cursor:'pointer',
-            display:'flex', alignItems:'center',
-            justifyContent:'center', gap:8 }}>
-          🚚 Mark as Delivered to Customer
-        </button>
-      )}
-    </div>
-  </div>
-
-  {/* ── QR Code ── */}
-  <div className="glass" style={{ padding:20, textAlign:'center' }}>
-    <p style={{ fontSize:'0.75rem', color:'#9CA3AF', fontWeight:700,
-      textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:8 }}>
-      📱 QR Code
-    </p>
-    <p style={{ fontSize:'0.78rem', color:'#6B7280', marginBottom:14 }}>
-      Print and attach to material. Admin scans to open this page.
-    </p>
-    {allotment.qrCode ? (
-      <>
-        <img src={allotment.qrCode} alt="QR"
-          style={{ width:180, height:180, border:'4px solid #EEF2FF',
-            borderRadius:12, display:'block', margin:'0 auto 12px' }}/>
-        <p style={{ fontSize:'0.72rem', color:'#9CA3AF', marginBottom:12 }}>
-          {orderID}
-        </p>
-        <a href={allotment.qrCode} download={`QR-${orderID}.png`}
-          style={{ display:'inline-flex', alignItems:'center', gap:6,
-            padding:'10px 24px',
-            background:'linear-gradient(135deg,#4F46E5,#6366F1)',
-            color:'white', borderRadius:10, fontSize:'0.85rem',
-            fontWeight:700, textDecoration:'none',
-            fontFamily:'Poppins,sans-serif' }}>
-          ⬇ Download QR
-        </a>
-      </>
-    ) : <p style={{ color:'#9CA3AF' }}>Generating QR...</p>}
-  </div>
-
-</div>
 
         {/* Right — Stage Allotment */}
         <div style={{ display:'grid', gap:16, alignContent:'start' }}>
