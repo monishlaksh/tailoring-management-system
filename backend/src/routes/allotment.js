@@ -94,6 +94,7 @@ router.get('/scan/:orderID', async (req, res) => {
   }
 })
 
+
 // GET single allotment — allow ANY employee to read (they need it for scan/view)
 router.get('/:orderID', protectAdminOrEmployee, async (req, res) => {
   try {
@@ -140,55 +141,6 @@ router.get('/:orderID', protectAdminOrEmployee, async (req, res) => {
     })
   } catch (e) {
     console.error('[ALLOTMENT GET]', e.message)
-    res.status(500).json({ success:false, message:e.message })
-  }
-})
-
-    const enrichStage = async (stage) => {
-      if (!stage.employeeID) return stage
-      const emp = await Employee.findOne({ employeeID:stage.employeeID })
-        .select('name employeeID role').lean()
-      return { ...stage, employeeDetails: emp || null }
-    }
-
-    const cutting   = await enrichStage(allotment.cutting.toObject())
-    const stitching = await enrichStage(allotment.stitching.toObject())
-    const finishing = await enrichStage(allotment.finishing.toObject())
-
-    // Return full order object — all fields
-    res.json({
-      success:   true,
-      allotment: {
-        ...allotment.toObject(),
-        cutting,
-        stitching,
-        finishing,
-      },
-      order: {
-        orderID:             order.orderID,
-        customerID:          order.customerID,
-        clothType:           order.clothType,
-        quantity:            order.quantity,        // ← explicit
-        unitCost:            order.unitCost,
-        amountSettled:       order.amountSettled,
-        fabricNotes:         order.fabricNotes,
-        specialInstructions: order.specialInstructions,
-        measurements:        order.measurements,
-        alteration:          order.alteration,
-        deliveryDate:        order.deliveryDate,
-        status:              order.status,
-        voiceNote:           order.voiceNote,
-        customerRef:         order.customerRef,
-      },
-    })
-
-    // Ensure delivery field exists on old allotments
-    if (!allotment.delivery) {
-      allotment.delivery = { status:'pending', deliveredAt:null, acknowledgedBy:'', notes:'' }
-      await allotment.save()
-    }
-
-  } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
 })
