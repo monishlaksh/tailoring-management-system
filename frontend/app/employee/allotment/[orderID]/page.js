@@ -265,32 +265,6 @@ if (error || !allotment || !order) return (
         </div>
       </div>
 
-      if (error && (!allotment || !order)) return (
-  <main style={{ padding:24, fontFamily:'Poppins,sans-serif', minHeight:'100vh' }}>
-    <button onClick={()=>router.back()}
-      style={{ display:'flex', alignItems:'center', gap:6, background:'none',
-        border:'none', cursor:'pointer', color:'#4F46E5',
-        fontSize:'0.9rem', marginBottom:16 }}>
-      <ArrowLeft size={18}/> Back
-    </button>
-    <div style={{ background:'rgba(239,68,68,0.08)',
-      border:'1.5px solid rgba(239,68,68,0.2)',
-      borderRadius:12, padding:'20px 24px' }}>
-      <p style={{ color:'#DC2626', fontWeight:600, marginBottom:4 }}>
-        Failed to load allotment
-      </p>
-      <p style={{ color:'#EF4444', fontSize:'0.85rem', marginBottom:14 }}>
-        {error}
-      </p>
-      <button onClick={fetchData}
-        style={{ padding:'8px 20px', background:'#4F46E5', color:'white',
-          border:'none', borderRadius:8, cursor:'pointer',
-          fontFamily:'Poppins,sans-serif', fontWeight:600 }}>
-        Retry
-      </button>
-    </div>
-  </main>
-)
       {success && <div style={{ background:'rgba(16,185,129,0.08)', border:'1.5px solid rgba(16,185,129,0.2)', borderRadius:10, padding:'11px 16px', marginBottom:12, color:'#059669', fontSize:'0.87rem' }}>{success}</div>}
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))', gap:16 }}>
