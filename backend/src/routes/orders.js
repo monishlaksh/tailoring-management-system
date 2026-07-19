@@ -155,6 +155,10 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
 const createdByRole = req.role || 'admin'
 const createdByName = req.employee?.name || req.admin?.username || 'Admin'
 const createdByID   = req.employee?.employeeID || ''
+ const Allotment = require('../models/Allotment')
+      const QRCode    = require('qrcode')
+
+     
 
     if (!customerID)
       return res.status(400).json({ success:false, message:'Customer ID required' })
@@ -199,11 +203,7 @@ const createdByID   = req.employee?.employeeID || ''
         )
       }
 
-      const Allotment = require('../models/Allotment')
-      const QRCode    = require('qrcode')
-
-      // In POST create order, after Order.create():
-      const order = await Order.create({ ... })
+     
 
       // ── Immediately create allotment so redirect doesn't fail ──
       try {
