@@ -38,65 +38,92 @@ export default function EmployeeAllotmentPage() {
   const [deliveryModal, setDeliveryModal] = useState(false)
   const [deliveryNote, setDeliveryNote]   = useState('')
 
-  
+  const fetchData = async () => {
+  setLoading(true)
+  setError('')
 
-  const fetchDataWithRetry = async (retries = 3, delay = 1000) => {
-  for (let i = 0; i < retries; i++) {
+  // Small delay to let backend finish creating allotment
+  await new Promise(r => setTimeout(r, 500))
+
+  let lastError = ''
+  for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const [allotRes, empRes] = await Promise.all([
-        API.get(`/api/allotment/${orderID}`),
-        API.get('/api/employees'),
-      ])
+      console.log(`[EMPLOYEE ALLOTMENT] Attempt ${attempt} for ${orderID}`)
+
+      const allotRes = await API.get(`/api/allotment/${orderID}`)
+
+      console.log('[EMPLOYEE ALLOTMENT] Success:', allotRes.data)
+
       setAllotment(allotRes.data.allotment)
       setOrder(allotRes.data.order)
-      setEmployees(empRes.data.employees?.filter(e => e.isActive) || [])
-      return // success — stop retrying
+
+      // Fetch employees separately — non-blocking
+      try {
+        const empRes = await API.get('/api/employees')
+        setEmployees(empRes.data.employees?.filter(e => e.isActive) || [])
+      } catch (empErr) {
+        console.warn('[EMPLOYEES] Failed to fetch:', empErr.message)
+        setEmployees([]) // non-critical — continue without employee list
+      }
+
+      setLoading(false)
+      return // ← success, exit loop
+
     } catch (e) {
+      lastError = e.response?.data?.message || e.message || 'Network error'
       const status = e.response?.status
-      const msg    = e.response?.data?.message || e.message
 
-      console.error(`[ALLOTMENT] Attempt ${i+1} failed:`, status, msg)
+      console.error(`[EMPLOYEE ALLOTMENT] Attempt ${attempt} failed:`, status, lastError)
 
-      // Only redirect on actual auth failure
+      // Only hard-redirect on true auth failure
       if (status === 401) {
         localStorage.removeItem('employeeToken')
         localStorage.removeItem('employeeUser')
+        setLoading(false)
         router.push('/employee/login')
         return
       }
 
-      // On last retry — show error
-      if (i === retries - 1) {
-        setError(msg || 'Failed to load allotment')
-        setLoading(false)
-        return
+      // Wait before next attempt (not on last attempt)
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, 1000))
       }
-
-      // Wait before retrying
-      await new Promise(resolve => setTimeout(resolve, delay))
     }
   }
-  setLoading(false)
+
+  // All 3 attempts failed
+  setError(lastError || 'Failed to load allotment')
+  setLoading(false) // ← ALWAYS called
 }
 
-// Replace fetchData call in useEffect:
 useEffect(() => {
   const token = localStorage.getItem('employeeToken')
   const user  = localStorage.getItem('employeeUser')
-  if (!token) { router.push('/employee/login'); return }
-  if (user) {
-    const emp = JSON.parse(user)
-    const role = emp.accessRole || 'employee'
-    if (role !== 'manager' && role !== 'receptionist' && !emp.hasFullAccess) {
-      router.push('/employee/dashboard'); return
-    }
-    setEmployee(emp)
+
+  if (!token) {
+    router.push('/employee/login')
+    return
   }
+
+  if (user) {
+    try {
+      const emp  = JSON.parse(user)
+      const role = emp.accessRole || 'employee'
+      if (role !== 'manager' && role !== 'receptionist' && !emp.hasFullAccess) {
+        router.push('/employee/dashboard')
+        return
+      }
+      setEmployee(emp)
+    } catch (e) {
+      router.push('/employee/login')
+      return
+    }
+  }
+
   if (orderID && orderID !== 'undefined') {
-    fetchDataWithRetry(3, 800) // 3 retries, 800ms apart
+    fetchData()
   }
 }, [orderID])
-
   const showMsg = (msg, isErr=false) => {
     if (isErr) { setError(msg); setTimeout(()=>setError(''),4000) }
     else { setSuccess(msg); setTimeout(()=>setSuccess(''),3000) }
@@ -152,21 +179,60 @@ useEffect(() => {
   const getEligible = (stage) =>
     employees.filter(e => e.role===stage || e.role==='all')
 
-  if (loading) return (
-    <main style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ width:40, height:40, border:'3px solid rgba(79,70,229,0.2)', borderTopColor:'#4F46E5', borderRadius:'50%', animation:'spin 0.8s linear infinite' }}/>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-    </main>
-  )
+  // Loading state
+// Loading state
+if (loading) return (
+  <main style={{ minHeight:'100vh', display:'flex', alignItems:'center',
+    justifyContent:'center', fontFamily:'Poppins,sans-serif' }}>
+    <div style={{ textAlign:'center' }}>
+      <div style={{ width:44, height:44,
+        border:'3px solid rgba(79,70,229,0.15)',
+        borderTopColor:'#4F46E5', borderRadius:'50%',
+        animation:'spin 0.8s linear infinite',
+        margin:'0 auto 14px' }}/>
+      <p style={{ color:'#6B7280', fontSize:'0.9rem' }}>
+        Loading allotment...
+      </p>
+    </div>
+    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+  </main>
+)
 
-  if (!allotment || !order) return (
-    <main style={{ padding:24, fontFamily:'Poppins,sans-serif' }}>
-      <button onClick={()=>router.back()} style={{ background:'none', border:'none', cursor:'pointer', color:'#4F46E5', marginBottom:16, display:'flex', alignItems:'center', gap:6 }}>
-        <ArrowLeft size={18} /> Back
-      </button>
-      <p style={{ color:'#EF4444' }}>Allotment not found for {orderID}</p>
-    </main>
-  )
+// Error state — show error with retry, NOT a blank/crash screen
+if (error || !allotment || !order) return (
+  <main style={{ minHeight:'100vh', padding:24,
+    fontFamily:'Poppins,sans-serif',
+    display:'flex', alignItems:'center', justifyContent:'center' }}>
+    <div style={{ maxWidth:400, width:'100%', textAlign:'center' }}>
+      <p style={{ fontSize:'2rem', marginBottom:12 }}>⚠️</p>
+      <p style={{ fontWeight:700, color:'#1E1B4B', marginBottom:6 }}>
+        Could not load allotment
+      </p>
+      <p style={{ fontSize:'0.85rem', color:'#6B7280', marginBottom:20 }}>
+        {error || 'Order or allotment not found'}
+      </p>
+      <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
+        <button onClick={() => { setLoading(true); setError(''); fetchData() }}
+          style={{ padding:'10px 24px',
+            background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+            color:'white', border:'none', borderRadius:10,
+            fontFamily:'Poppins,sans-serif', fontWeight:700,
+            fontSize:'0.9rem', cursor:'pointer' }}>
+          🔄 Retry
+        </button>
+        <button onClick={() => router.back()}
+          style={{ padding:'10px 24px',
+            background:'rgba(79,70,229,0.08)',
+            color:'#4F46E5', border:'1.5px solid rgba(79,70,229,0.2)',
+            borderRadius:10, fontFamily:'Poppins,sans-serif',
+            fontWeight:600, fontSize:'0.9rem', cursor:'pointer' }}>
+          ← Back
+        </button>
+      </div>
+    </div>
+    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+  </main>
+)
 
   const stagesCompleted = ['cutting','stitching','finishing'].filter(s=>allotment[s].status==='completed').length
   const progressPct     = Math.round((stagesCompleted/3)*100)
