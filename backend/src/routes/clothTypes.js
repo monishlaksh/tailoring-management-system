@@ -1,6 +1,6 @@
 const express   = require('express')
 const ClothType = require('../models/ClothType')
-const { protect, protectAdminOrEmployee } = require('../middleware/auth')
+const { protect, protectAdminOrEmployee,protectAdminOrFullAccess  } = require('../middleware/auth')
 const router    = express.Router()
 
 // GET active cloth types
