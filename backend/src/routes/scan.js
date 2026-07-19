@@ -4,111 +4,93 @@ const Allotment  = require('../models/Allotment')
 const ClothType  = require('../models/ClothType')
 const router     = express.Router()
 
+// PUBLIC — no auth required
 router.get('/:orderID', async (req, res) => {
   try {
     const cleanID = req.params.orderID.trim().toUpperCase()
-    const stage   = (req.query.stage || 'general').trim().toLowerCase()
+    console.log('[SCAN] Looking up:', cleanID)
 
-    console.log(`[SCAN] orderID=${cleanID} stage=${stage}`)
-
-    let order = await Order.findOne({ orderID: cleanID }).lean()
-
+    // Find order
+    const order = await Order.findOne({ orderID: cleanID }).lean()
     if (!order) {
-      order = await Order.findOne({
-        orderID: { $regex: new RegExp(`^${cleanID}$`, 'i') }
-      }).lean()
-    }
-
-    if (!order) {
-      console.log(`[SCAN] Not found: "${cleanID}"`)
+      console.log('[SCAN] Not found:', cleanID)
       return res.status(404).json({
         success: false,
         message: `Order "${cleanID}" not found`,
       })
     }
 
-    console.log(`[SCAN] Found: ${order.orderID}`)
+    // Find allotment
+    const allotment = await Allotment.findOne({ orderID: cleanID }).lean()
 
-    const allotment = await Allotment.findOne({ orderID: order.orderID }).lean()
+    // Get cloth type Tamil names + measurement images
+    const parts         = (order.clothType || '').split(' - ')
+    const clothTypeName = parts[0]?.trim() || ''
+    let clothTypeTa     = ''
+    let typeImage       = ''
+    let measurementImages  = {}
+    let measurementLabels  = {}
 
-    // Get Tamil name for cloth type
-    const clothTypeName = (order.clothType || '').split(' - ')[0].trim()
-    const ctDoc = await ClothType.findOne({ name: clothTypeName }).lean()
+    if (clothTypeName) {
+      const ctDoc = await ClothType.findOne({ name: clothTypeName }).lean()
+      if (ctDoc) {
+        clothTypeTa = ctDoc.nameTa || ''
 
-    // After fetching ctDoc, include measurement images in response:
-const measurementImages = {}
-if (ctDoc?.measurements) {
-  ctDoc.measurements.forEach(m => {
-    if (m.image) measurementImages[m.key] = m.image
-  })
-}
+        // Measurement labels + images
+        ;(ctDoc.measurements || []).forEach(m => {
+          measurementImages[m.key] = m.image || ''
+          measurementLabels[m.key] = {
+            label:   m.label,
+            labelTa: m.labelTa || '',
+          }
+        })
 
-// Add before building response:
-// Get type image (not subtype)
-let typeImage = ''
-const parts    = (order.clothType || '').split(' - ')
-if (ctDoc && parts[1]) {
-  const typeDoc = ctDoc.types?.find(t => t.name === parts[1]?.trim())
-  typeImage     = typeDoc?.image || ''
-}
-
-
-
-const response = {
-  success: true,
-  orderID: order.orderID,
-  clothType: order.clothType,
-  clothTypeTa: ctDoc?.nameTa || '',
-
-  typeImage,
-
-  quantity: order.quantity,
-
-  measurements: order.measurements || {},
-
-  measurementImages,
-
-  fabricNotes: order.fabricNotes || '',
-  voiceNote: order.voiceNote || {
-    data:'',
-    mimeType:'audio/webm',
-    duration:0
-  },
-
-  stage,
-
-  stageInfo: (allotment && stage !== 'general')
-    ? {
-        status: allotment[stage].status || 'not_assigned',
-        employeeID: allotment[stage].employeeID || '',
-        notes: allotment[stage].notes || '',
+        // Type image
+        const typeName = parts[1]?.trim()
+        if (typeName) {
+          const typeDoc = ctDoc.types?.find(
+            t => t.name.toLowerCase() === typeName.toLowerCase()
+          )
+          typeImage = typeDoc?.image || ''
+        }
       }
-    : {
-        status:'not_assigned',
-        employeeID:'',
-        notes:''
-      },
-
-  allStages: allotment
-    ? {
-        cutting:   { status: allotment.cutting?.status || 'not_assigned' },
-        stitching: { status: allotment.stitching?.status || 'not_assigned' },
-        finishing: { status: allotment.finishing?.status || 'not_assigned' },
-      }
-    : {
-        cutting:   { status:'not_assigned' },
-        stitching: { status:'not_assigned' },
-        finishing: { status:'not_assigned' },
-      }
-}
-
-    if (stage === 'stitching') {
-      response.alteration = order.alteration || { required: false }
     }
 
-    res.json(response)
+    // Serialize measurements Map → plain object
+    const measurements = order.measurements instanceof Map
+      ? Object.fromEntries(order.measurements)
+      : (order.measurements || {})
+
+    // Build allStages
+    const allStages = allotment
+      ? {
+          cutting:   { status: allotment.cutting?.status   || 'not_assigned' },
+          stitching: { status: allotment.stitching?.status || 'not_assigned' },
+          finishing: { status: allotment.finishing?.status || 'not_assigned' },
+        }
+      : {
+          cutting:   { status: 'not_assigned' },
+          stitching: { status: 'not_assigned' },
+          finishing: { status: 'not_assigned' },
+        }
+
+    res.json({
+      success:          true,
+      orderID:          order.orderID,
+      clothType:        order.clothType,
+      clothTypeTa,
+      typeImage,
+      quantity:         order.quantity   || 1,
+      measurements,
+      measurementImages,
+      measurementLabels,
+      fabricNotes:      order.fabricNotes || '',
+      alteration:       order.alteration  || { required: false },
+      voiceNote:        order.voiceNote   || { data: '', mimeType: 'audio/webm', duration: 0 },
+      allStages,
+    })
   } catch (e) {
-    console.error('[SCAN] Error:', e.message)
+    console.error('[SCAN]', e.message)
     res.status(500).json({ success: false, message: e.message })
   }
 })
