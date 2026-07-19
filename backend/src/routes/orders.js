@@ -199,6 +199,32 @@ const createdByID   = req.employee?.employeeID || ''
         )
       }
 
+      const Allotment = require('../models/Allotment')
+      const QRCode    = require('qrcode')
+
+      // In POST create order, after Order.create():
+      const order = await Order.create({ ... })
+
+      // ── Immediately create allotment so redirect doesn't fail ──
+      try {
+        const qrData  = `${process.env.FRONTEND_URL}/scan/${order.orderID}`
+        const qrCode  = await QRCode.toDataURL(qrData, {
+          width:300, margin:2,
+          color:{ dark:'#1E1B4B', light:'#FFFFFF' },
+        })
+        await Allotment.create({
+          orderID:    order.orderID,
+          customerID: order.customerID,
+          qrCode,
+          delivery:   { status:'pending' },
+        })
+      } catch (allotErr) {
+        // Non-critical — allotment will be auto-created on first GET
+        console.error('[ALLOTMENT CREATE]', allotErr.message)
+      }
+
+      // Save measurements to customer...
+
       // Return serialized
       const serialized = order.toObject()
       if (serialized.measurements instanceof Map) {

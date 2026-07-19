@@ -38,48 +38,63 @@ export default function EmployeeAllotmentPage() {
   const [deliveryModal, setDeliveryModal] = useState(false)
   const [deliveryNote, setDeliveryNote]   = useState('')
 
-  useEffect(() => {
-    const token = localStorage.getItem('employeeToken')
-    const user  = localStorage.getItem('employeeUser')
-    if (!token) { router.push('/employee/login'); return }
-    if (user) {
-      const emp = JSON.parse(user)
-      const role = emp.accessRole || 'employee'
-      if (role !== 'manager' && role !== 'receptionist' && !emp.hasFullAccess) {
-        router.push('/employee/dashboard'); return
+  
+  const fetchDataWithRetry = async (retries = 3, delay = 1000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const [allotRes, empRes] = await Promise.all([
+        API.get(`/api/allotment/${orderID}`),
+        API.get('/api/employees'),
+      ])
+      setAllotment(allotRes.data.allotment)
+      setOrder(allotRes.data.order)
+      setEmployees(empRes.data.employees?.filter(e => e.isActive) || [])
+      return // success — stop retrying
+    } catch (e) {
+      const status = e.response?.status
+      const msg    = e.response?.data?.message || e.message
+
+      console.error(`[ALLOTMENT] Attempt ${i+1} failed:`, status, msg)
+
+      // Only redirect on actual auth failure
+      if (status === 401) {
+        localStorage.removeItem('employeeToken')
+        localStorage.removeItem('employeeUser')
+        router.push('/employee/login')
+        return
       }
-      setEmployee(emp)
+
+      // On last retry — show error
+      if (i === retries - 1) {
+        setError(msg || 'Failed to load allotment')
+        setLoading(false)
+        return
+      }
+
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, delay))
     }
-    if (orderID && orderID !== 'undefined') fetchData()
-  }, [orderID])
-
-  const fetchData = async () => {
-  try {
-    const [allotRes, empRes] = await Promise.all([
-      API.get(`/api/allotment/${orderID}`),
-      API.get('/api/employees'),
-    ])
-    setAllotment(allotRes.data.allotment)
-    setOrder(allotRes.data.order)
-    setEmployees(empRes.data.employees?.filter(e => e.isActive) || [])
-  } catch (e) {
-    const status = e.response?.status
-    const msg    = e.response?.data?.message || e.message
-
-    if (status === 401 || status === 403) {
-      // Token issue — re-login
-      localStorage.removeItem('employeeToken')
-      localStorage.removeItem('employeeUser')
-      router.push('/employee/login')
-      return
-    }
-
-    setError(`${msg} (${status || 'network error'})`)
-    console.error('[EMPLOYEE ALLOTMENT]', status, msg)
-  } finally {
-    setLoading(false)
   }
+  setLoading(false)
 }
+
+// Replace fetchData call in useEffect:
+useEffect(() => {
+  const token = localStorage.getItem('employeeToken')
+  const user  = localStorage.getItem('employeeUser')
+  if (!token) { router.push('/employee/login'); return }
+  if (user) {
+    const emp = JSON.parse(user)
+    const role = emp.accessRole || 'employee'
+    if (role !== 'manager' && role !== 'receptionist' && !emp.hasFullAccess) {
+      router.push('/employee/dashboard'); return
+    }
+    setEmployee(emp)
+  }
+  if (orderID && orderID !== 'undefined') {
+    fetchDataWithRetry(3, 800) // 3 retries, 800ms apart
+  }
+}, [orderID])
 
   const showMsg = (msg, isErr=false) => {
     if (isErr) { setError(msg); setTimeout(()=>setError(''),4000) }
