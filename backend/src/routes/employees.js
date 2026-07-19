@@ -2,7 +2,7 @@ const express  = require('express')
 const bcrypt   = require('bcryptjs')
 const Employee = require('../models/Employee')
 const Allotment = require('../models/Allotment')
-const { protect } = require('../middleware/auth')
+const { protect, protectAdminOrEmployee, protectAdminOrFullAccess } = require('../middleware/auth')
 const router = express.Router()
 
 const getNextEmployeeID = async () => {
@@ -22,13 +22,13 @@ const getNextEmployeeID = async () => {
   return newID
 }
 
-// GET all employees
-router.get('/', protect, async (req, res) => {
+// GET all employees — allow manager/receptionist to view
+router.get('/', protectAdminOrFullAccess, async (req, res) => {
   try {
-    const employees = await Employee.find()
+    const employees = await Employee.find({ isActive:true })
       .select('-password')
-      .sort({ createdAt:-1 })
-    res.json({ success:true, count:employees.length, employees })
+      .lean()
+    res.json({ success:true, employees })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }

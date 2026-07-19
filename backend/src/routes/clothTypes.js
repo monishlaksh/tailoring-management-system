@@ -14,7 +14,7 @@ router.get('/', protectAdminOrEmployee, async (req, res) => {
 })
 
 // GET all including inactive
-router.get('/all', protect, async (req, res) => {
+router.get('/all', protectAdminOrEmployee, async (req, res) => {
   try {
     const clothTypes = await ClothType.find().sort({ name:1 })
     res.json({ success:true, clothTypes })
@@ -138,7 +138,7 @@ router.post('/reset-seed', protect, async (req, res) => {
   }
 })
 // POST create cloth type
-router.post('/', protect, async (req, res) => {
+router.post('/', protectAdminOrFullAccess, async (req, res) => {
   try {
     const { name, nameTa, measurements } = req.body
     if (!name?.trim())

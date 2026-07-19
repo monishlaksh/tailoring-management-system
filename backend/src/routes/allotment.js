@@ -146,7 +146,7 @@ router.get('/:orderID', protectAdminOrEmployee, async (req, res) => {
 })
 
 // POST assign employee to stage
-router.post('/:orderID/assign', protect, async (req, res) => {
+router.post('/:orderID/assign', protectAdminOrFullAccess, async (req, res) => {
   try {
     const { orderID }              = req.params
     const { stage, employeeID, notes } = req.body
@@ -217,7 +217,7 @@ router.post('/:orderID/assign', protect, async (req, res) => {
 
 // POST approve stage — sends WhatsApp on finishing
 // POST approve stage — auto award = empCost + employee.bonus
-router.post('/:orderID/approve', protect, async (req, res) => {
+router.post('/:orderID/approve', protectAdminOrFullAccess, async (req, res) => {
   try {
     const { orderID } = req.params
     const { stage }   = req.body
@@ -317,7 +317,7 @@ router.post('/:orderID/approve', protect, async (req, res) => {
     res.status(500).json({ success:false, message:e.message })
   }
 })// POST unassign stage
-router.post('/:orderID/unassign', protect, async (req, res) => {
+router.post('/:orderID/unassign', protectAdminOrFullAccess, async (req, res) => {
   try {
     const { orderID } = req.params
     const { stage }   = req.body
@@ -351,7 +351,7 @@ router.post('/:orderID/unassign', protect, async (req, res) => {
 })
 
 // POST mark as delivered — no employee needed
-router.post('/:orderID/deliver', protect, async (req, res) => {
+router.post('/:orderID/deliver', protectAdminOrFullAccess, async (req, res) => {
   try {
     const { orderID }                  = req.params
     const { notes, acknowledgedBy }    = req.body
@@ -390,7 +390,7 @@ router.post('/:orderID/deliver', protect, async (req, res) => {
 })
 
 // POST undo delivery
-router.post('/:orderID/undo-deliver', protect, async (req, res) => {
+router.post('/:orderID/undo-deliver', protectAdminOrFullAccess, async (req, res) => {
   try {
     const { orderID } = req.params
 
