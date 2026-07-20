@@ -90,9 +90,10 @@ export default function ScanPage() {
     setLoading(true)
     setError('')
     try {
+      console.log(BACKEND)
       const url = `${BACKEND}/api/scan/${orderID}`
+      console.log(url)
       console.log('[SCAN] Fetching:', url)
-
       const res  = await fetch(url, {
         method:  'GET',
         headers: { 'Content-Type':'application/json' },
