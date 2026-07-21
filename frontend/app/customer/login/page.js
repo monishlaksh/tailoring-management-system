@@ -26,7 +26,7 @@ export default function CustomerLogin() {
       if (res.data.success) {
         localStorage.setItem('customerToken', res.data.token)
         localStorage.setItem('customerUser', JSON.stringify(res.data.customer))
-        router.push('/customer/dashboard')
+        router.replace('/customer/dashboard')
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid Customer ID or Phone')
