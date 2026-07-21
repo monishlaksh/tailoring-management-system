@@ -87,34 +87,44 @@ export default function ScanPage() {
   }, [orderID])
 
   const fetchOrder = async () => {
-    setLoading(true)
-    setError('')
+  setLoading(true)
+  setError('')
+
+  const BACKEND = 'https://tailoring-management-apwh.onrender.com'
+  const url     = `${BACKEND}/api/scan/${orderID}`
+
+  try {
+    const res  = await fetch(url, { method:'GET' })
+    const text = await res.text() // always read as text first
+
+    // Try to parse as JSON
+    let json
     try {
-      console.log(BACKEND)
-      const url = `${BACKEND}/api/scan/${orderID}`
-      console.log(url)
-      console.log('[SCAN] Fetching:', url)
-      const res  = await fetch(url, {
-        method:  'GET',
-        headers: { 'Content-Type':'application/json' },
-      })
-
-      const json = await res.json()
-      console.log('[SCAN] Response:', json)
-
-      if (!res.ok || !json.success) {
-        setError(json.message || `Order "${orderID}" not found`)
-        return
-      }
-
-      setData(json)
-    } catch (e) {
-      console.error('[SCAN] Error:', e)
-      setError(`Cannot reach server. Check connection. (${e.message})`)
-    } finally {
-      setLoading(false)
+      json = JSON.parse(text)
+    } catch (parseErr) {
+      // Response was HTML — backend crashed or route missing
+      console.error('[SCAN] HTML response received:', text.slice(0, 300))
+      setError(
+        res.status === 404
+          ? `Scan route not found on server (404). Check backend deployment.`
+          : `Server returned an error page (${res.status}). Backend may be restarting — wait 30 seconds and retry.`
+      )
+      return
     }
+
+    if (!json.success) {
+      setError(json.message || `Order "${orderID}" not found`)
+      return
+    }
+
+    setData(json)
+  } catch (e) {
+    console.error('[SCAN] Fetch failed:', e)
+    setError(`Cannot reach server. Backend may be sleeping — wait 30 seconds and retry.`)
+  } finally {
+    setLoading(false)
   }
+}
 
   if (loading) return (
     <main style={{ minHeight:'100vh', display:'flex',
