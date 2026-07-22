@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { ArrowLeft, Save, Trash2, ChevronRight } from 'lucide-react'
 import { adminAPI as API } from '../../../../lib/api'
 import NumInput from '../../../../components/NumInput'
+import VoicePlayer from '../../../components/VoicePlayer'
 
 const STAGES      = ['Booking','Cutting','Stitching','Finishing','Ready For Delivery','Delivered']
 const STAGE_ICONS = { 'Booking':'📘','Cutting':'✂️','Stitching':'🧵','Finishing':'🚩','Ready For Delivery':'✅','Delivered':'🚚' }
@@ -243,6 +244,16 @@ export default function OrderDetail() {
             ))}
           </div>
         </div>
+
+        {order.voiceNote?.data && (
+          <div className="glass" style={{ padding:20, marginTop:16 }}>
+            <h3 style={{ fontSize:'0.85rem', fontWeight:700,
+              color:'#1E1B4B', marginBottom:12 }}>
+              🎙 Voice Note
+            </h3>
+            <VoicePlayer voiceNote={order.voiceNote}/>
+          </div>
+        )}
 
         {/* Alteration */}
         <div className="glass fade-up-3" style={{ padding:24 }}>

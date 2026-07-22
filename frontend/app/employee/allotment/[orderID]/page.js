@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { employeeAPI as API } from '../../../../lib/api'
+import VoicePlayer from '../../../../components/VoicePlayer'
 
 const STAGE_INFO = {
   cutting:   { icon:'✂️', label:'Cutting',   color:'#D97706', bg:'rgba(245,158,11,0.08)'  },
@@ -301,6 +302,17 @@ if (error || !allotment || !order) return (
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Voice Note */}
+          {order.voiceNote?.data && (
+            <div style={{ marginTop:14 }}>
+              <p style={{ fontSize:'0.75rem', color:'#9CA3AF', fontWeight:700,
+                textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:8 }}>
+                🎙 Voice Note
+              </p>
+              <VoicePlayer voiceNote={order.voiceNote}/>
             </div>
           )}
 
