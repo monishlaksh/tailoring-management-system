@@ -23,17 +23,120 @@ const getNextEmployeeID = async () => {
 }
 
 // GET all employees — allow manager/receptionist to view
+// GET all employees
 router.get('/', protectAdminOrFullAccess, async (req, res) => {
   try {
-    const employees = await Employee.find({ isActive:true })
+    const employees = await Employee.find({ isActive: true })
+      .select('-password') // only remove hashed password, keep plainPassword
+      .lean()
+    res.json({ success: true, employees })
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message })
+  }
+})
+
+// GET single employee
+router.get('/:id', protect, async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.params.id)
       .select('-password')
       .lean()
-    res.json({ success:true, employees })
+    if (!employee)
+      return res.status(404).json({ success: false, message: 'Not found' })
+    res.json({ success: true, employee })
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message })
+  }
+})
+// PATCH update password
+router.patch('/:id/password', protect, async (req, res) => {
+  try {
+    const { password } = req.body
+    if (!password || password.trim().length < 4)
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 4 characters',
+      })
+
+    const hashed = await bcrypt.hash(password.trim(), 10)
+
+    const employee = await Employee.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: {
+          password:      hashed,
+          plainPassword: password.trim(), // ← save plain text too
+        },
+      },
+      { new: true }
+    ).select('-password').lean()
+
+    if (!employee)
+      return res.status(404).json({ success: false, message: 'Employee not found' })
+
+    res.json({ success: true, message: 'Password updated', employee })
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message })
+  }
+})
+
+// POST create employee
+router.post('/', protect, async (req, res) => {
+  try {
+    const {
+      name, username, password, phone,
+      role, accessRole, bonus,
+    } = req.body
+
+    if (!name || !username || !password)
+      return res.status(400).json({
+        success: false,
+        message: 'Name, username and password required',
+      })
+
+    const exists = await Employee.findOne({ username: username.trim() })
+    if (exists)
+      return res.status(400).json({
+        success: false,
+        message: 'Username already taken',
+      })
+
+    const hashed = await bcrypt.hash(password.trim(), 10)
+
+    const employee = await Employee.create({
+      name:          name.trim(),
+      username:      username.trim(),
+      password:      hashed,
+      plainPassword: password.trim(), // ← always save plain
+      phone:         phone            || '',
+      role:          role             || 'all',
+      accessRole:    accessRole       || 'employee',
+      bonus:         bonus            || 0,
+      isActive:      true,
+    })
+
+    const { password: _, ...emp } = employee.toObject()
+    res.status(201).json({ success: true, employee: emp })
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message })
+  }
+})
+// One-time migration — mark employees with no plainPassword
+router.post('/migrate-passwords', protect, async (req, res) => {
+  try {
+    // Just mark them so the UI shows the warning correctly
+    const result = await Employee.updateMany(
+      { plainPassword:{ $exists:false } },
+      { $set:{ plainPassword:'' } }
+    )
+    res.json({
+      success: true,
+      message: `Migrated ${result.modifiedCount} employees`,
+    })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
 })
-
 // GET current password — admin only
 router.get('/:employeeID/password', protect, async (req, res) => {
   try {

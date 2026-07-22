@@ -1,716 +1,308 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import {
-  ArrowLeft, Plus, Edit2, Trash2,
-  X, Check, Users, Eye, EyeOff
-} from 'lucide-react'
-import { adminAPI as API } from '../../../lib/api'
+import { useRouter, usePathname } from 'next/navigation'
+import { adminAPI as API } from '../../../../lib/api'
+import { Eye, EyeOff, Save, ArrowLeft, RefreshCw } from 'lucide-react'
 
-const ROLES = [
-  { value:'cutting',   label:'✂️ Cutting',   color:'#D97706', bg:'rgba(245,158,11,0.1)'  },
-  { value:'stitching', label:'🧵 Stitching',  color:'#2563EB', bg:'rgba(59,130,246,0.1)'  },
-  { value:'finishing', label:'🚩 Finishing',  color:'#9333EA', bg:'rgba(168,85,247,0.1)'  },
-  { value:'all',       label:'⭐ All Stages', color:'#059669', bg:'rgba(16,185,129,0.1)'  },
-]
+export default function EmployeeEditPage() {
+  const router   = useRouter()
+  const pathname = usePathname()
+  const empID    = pathname?.split('/').pop()
 
-const getRoleBadge = (role) => {
-  const r = ROLES.find(x => x.value === role) || ROLES[3]
-  return (
-    <span style={{
-      fontSize:'0.73rem', fontWeight:600,
-      padding:'3px 10px', borderRadius:999,
-      background:r.bg, color:r.color,
-    }}>
-      {r.label}
-    </span>
-  )
-}
-
-export default function EmployeesPage() {
-  const router = useRouter()
-  const [employees, setEmployees] = useState([])
+  const [emp, setEmp]             = useState(null)
   const [loading, setLoading]     = useState(true)
-  const [modal, setModal]         = useState(false)
-  const [editData, setEditData]   = useState(null)
-  const [showPass, setShowPass]   = useState(false)
   const [saving, setSaving]       = useState(false)
-  const [togglingAccess, setTogglingAccess] = useState(null)
-  const [error, setError]         = useState('')
-  const [currentPassword, setCurrentPassword] = useState('')
-  
-  const [form, setForm] = useState({
-  name:'', username:'', password:'', role:'all',
-  accessRole:'employee', isActive:true,
-})
+  const [msg, setMsg]             = useState({ text:'', err:false })
 
-  const [settingBonus, setSettingBonus] = useState(null) // employeeID
-  const [bonusInput, setBonusInput]     = useState(0)
-  const [savingBonus, setSavingBonus]   = useState(false)
+  // Password states
+  const [newPass, setNewPass]         = useState('')
+  const [showNewPass, setShowNewPass] = useState(false)
+  const [showCurPass, setShowCurPass] = useState(false)
+  const [passLoading, setPassLoading] = useState(false)
 
-  const ACCESS_ROLES = [
-  {
-    value:  'employee',
-    label:  '👷 Employee',
-    color:  '#6B7280',
-    bg:     'rgba(107,114,128,0.08)',
-    desc:   'Can only scan QR and view assigned work. No financial details.',
-  },
-  {
-    value:  'receptionist',
-    label:  '🎟️ Receptionist',
-    color:  '#4F46E5',
-    bg:     'rgba(79,70,229,0.08)',
-    desc:   'Can create orders and manage customers. Sees customer prices only.',
-  },
-  {
-    value:  'manager',
-    label:  '⭐ Manager',
-    color:  '#D97706',
-    bg:     'rgba(245,158,11,0.08)',
-    desc:   'Full admin access. Can do everything the admin can.',
-  },
-]
   useEffect(() => {
-    if (!localStorage.getItem('adminToken')) {
-      router.push('/admin/login'); return
-    }
-    fetchEmployees()
-  }, [])
+    fetchEmployee()
+  }, [empID])
 
-  const fetchEmployees = async () => {
+  const fetchEmployee = async () => {
+    setLoading(true)
     try {
-      const res = await API.get('/api/employees')
-      setEmployees(res.data.employees || [])
-    } catch (e) { console.error(e) }
-    finally { setLoading(false) }
-  }
-
-  const openAdd = () => {
-    setEditData(null)
-    setForm({ name:'', username:'', password:'', role:'all', isActive:true })
-    setError(''); setShowPass(false); setModal(true)
-  }
-
-const openEdit = async (employee) => {
-  setEditData(employee)
-  setForm({
-    name:       employee.name,
-    username:   employee.username,
-    password:   '',
-    role:       employee.role || 'all',
-    accessRole: employee.accessRole || 'employee',
-    isActive:   employee.isActive,
-  })
-  setError('')
-  setShowPass(false)
-  setCurrentPassword('')
-
-  try {
-    const res = await API.get(`/api/employees/${employee.employeeID}/password`)
-    if (res.data.password) {
-      setCurrentPassword(res.data.password)
-    } else {
-      setCurrentPassword(null) // explicitly null — not unavailable
+      const res = await API.get(`/api/employees/${empID}`)
+      setEmp(res.data.employee)
+    } catch (e) {
+      showMsg(e.response?.data?.message || 'Failed to load', true)
+    } finally {
+      setLoading(false)
     }
-  } catch {
-    setCurrentPassword(null)
   }
 
-  setModal(true)
-}
+  const showMsg = (text, err=false) => {
+    setMsg({ text, err })
+    setTimeout(() => setMsg({ text:'', err:false }), 3500)
+  }
+
   const handleSave = async () => {
-    if (!form.name || !form.username) {
-      setError('Name and username required'); return
-    }
-    if (!editData && !form.password) {
-      setError('Password required for new employee'); return
-    }
-    setSaving(true); setError('')
+    setSaving(true)
     try {
-      const payload = {
-      name:          form.name,
-      username:      form.username,
-      role:          form.role,
-      accessRole:    form.accessRole,
-      isActive:      form.isActive,
-      hasFullAccess: form.accessRole === 'manager',
-    }
-    if (form.password) payload.password = form.password
-
-      if (editData) {
-        await API.put(`/api/employees/${editData.employeeID}`, payload)
-      } else {
-        await API.post('/api/employees', { ...payload, password:form.password })
-      }
-      setModal(false)
-      fetchEmployees()
-    } catch (e) {
-      setError(e.response?.data?.message || 'Failed to save')
-    } finally { setSaving(false) }
-  }
-
-  const handleDelete = async (employeeID) => {
-    if (!confirm('Deactivate this employee?')) return
-    try {
-      await API.delete(`/api/employees/${employeeID}`)
-      fetchEmployees()
-    } catch (e) { alert('Failed') }
-  }
-
-  const handleSetBonus = async (employeeID) => {
-  setSavingBonus(true)
-  try {
-    await API.patch(`/api/employees/${employeeID}/bonus`, { bonus: bonusInput })
-    fetchEmployees()
-    setSettingBonus(null)
-    setBonusInput(0)
-  } catch (e) { alert('Failed to set bonus') }
-  finally { setSavingBonus(false) }
-}
-
-  const handleToggleAccess = async (employeeID, currentAccess) => {
-    setTogglingAccess(employeeID)
-    try {
-      await API.patch(`/api/employees/${employeeID}/access`, {
-        hasFullAccess: !currentAccess,
+      await API.put(`/api/employees/${empID}`, {
+        name:       emp.name,
+        phone:      emp.phone,
+        role:       emp.role,
+        accessRole: emp.accessRole,
+        bonus:      emp.bonus,
       })
-      fetchEmployees()
+      showMsg('✅ Employee updated!')
     } catch (e) {
-      alert(e.response?.data?.message || 'Failed to update access')
-    } finally { setTogglingAccess(null) }
+      showMsg(e.response?.data?.message || 'Failed', true)
+    } finally {
+      setSaving(false)
+    }
   }
+
+  const handlePasswordUpdate = async () => {
+    if (!newPass.trim()) {
+      showMsg('Enter a new password', true); return
+    }
+    if (newPass.trim().length < 4) {
+      showMsg('Password must be at least 4 characters', true); return
+    }
+    setPassLoading(true)
+    try {
+      const res = await API.patch(`/api/employees/${empID}/password`, {
+        password: newPass.trim(),
+      })
+      // Update local state with new plain password
+      setEmp(prev => ({
+        ...prev,
+        plainPassword: newPass.trim(),
+      }))
+      setNewPass('')
+      showMsg('✅ Password updated successfully!')
+    } catch (e) {
+      showMsg(e.response?.data?.message || 'Failed to update password', true)
+    } finally {
+      setPassLoading(false)
+    }
+  }
+
+  if (loading) return (
+    <main style={{ minHeight:'100vh', display:'flex',
+      alignItems:'center', justifyContent:'center',
+      fontFamily:'Poppins,sans-serif' }}>
+      <div style={{ width:40, height:40,
+        border:'3px solid rgba(79,70,229,0.2)',
+        borderTopColor:'#4F46E5', borderRadius:'50%',
+        animation:'spin 0.8s linear infinite' }}/>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </main>
+  )
+
+  if (!emp) return (
+    <main style={{ padding:24, fontFamily:'Poppins,sans-serif' }}>
+      <p style={{ color:'#DC2626' }}>Employee not found.</p>
+    </main>
+  )
 
   return (
-    <main style={{ minHeight:'100vh', padding:'24px',
-      maxWidth:900, margin:'0 auto' }}>
+    <main style={{ minHeight:'100vh', padding:'20px',
+      maxWidth:600, margin:'0 auto',
+      fontFamily:'Poppins,sans-serif' }}>
 
       {/* Header */}
-      <div className="glass" style={{
-        display:'flex', alignItems:'center',
-        justifyContent:'space-between', padding:'14px 24px',
-        marginBottom:24, flexWrap:'wrap', gap:12,
-      }}>
-        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-          <button onClick={() => router.push('/admin/dashboard')}
-            style={{ background:'none', border:'none',
-              cursor:'pointer', color:'#4F46E5', display:'flex' }}>
-            <ArrowLeft size={20} />
+      <div className="glass" style={{ display:'flex', alignItems:'center',
+        justifyContent:'space-between', padding:'14px 20px',
+        marginBottom:20, flexWrap:'wrap', gap:10 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <button onClick={() => router.back()}
+            style={{ width:36, height:36, borderRadius:10,
+              background:'rgba(79,70,229,0.08)', border:'none',
+              cursor:'pointer', display:'flex', alignItems:'center',
+              justifyContent:'center', color:'#4F46E5' }}>
+            <ArrowLeft size={18}/>
           </button>
-          <h1 style={{ fontSize:'1rem', fontWeight:700, color:'#1E1B4B' }}>
-            Employee Management
-          </h1>
+          <div>
+            <p style={{ fontWeight:800, color:'#1E1B4B', fontSize:'1rem' }}>
+              {emp.name}
+            </p>
+            <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
+              {emp.employeeID} · {emp.username}
+            </p>
+          </div>
         </div>
-        <button onClick={openAdd} className="btn-primary"
-          style={{ padding:'9px 18px', fontSize:'0.82rem',
+        <button onClick={handleSave} disabled={saving}
+          style={{ padding:'9px 20px',
+            background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+            color:'white', border:'none', borderRadius:10,
+            fontFamily:'Poppins,sans-serif', fontWeight:700,
+            fontSize:'0.85rem', cursor:'pointer',
             display:'flex', alignItems:'center', gap:6 }}>
-          <Plus size={15} /> Add Employee
+          {saving ? '⏳ Saving...' : <><Save size={14}/>Save</>}
         </button>
       </div>
 
-      {/* Role info */}
-      <div style={{
-        background:'rgba(79,70,229,0.05)',
-        border:'1.5px solid rgba(79,70,229,0.15)',
-        borderRadius:12, padding:'12px 18px', marginBottom:20,
-      }}>
-        <p style={{ fontSize:'0.82rem', color:'#4338CA',
-          fontWeight:500, marginBottom:8 }}>
-          🔐 Employee Permissions
-        </p>
-        <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:6 }}>
-          {ROLES.map(r => (
-            <span key={r.value} style={{
-              fontSize:'0.75rem', padding:'3px 10px',
-              borderRadius:999, background:r.bg,
-              color:r.color, fontWeight:600,
-            }}>
-              {r.label}
-            </span>
-          ))}
-        </div>
-        <p style={{ fontSize:'0.76rem', color:'#6B7280' }}>
-          Normal employees can only scan QR and view work details.
-          Grant <strong>Full Access</strong> to allow an employee to create orders,
-          manage customers and perform all admin operations.
-        </p>
-      </div>
-
-      <div className="glass" style={{ padding:24 }}>
-        {loading ? (
-          <p style={{ textAlign:'center', color:'#9CA3AF',
-            padding:'40px 0' }}>Loading...</p>
-        ) : employees.length === 0 ? (
-          <div style={{ textAlign:'center', padding:'48px 0' }}>
-            <p style={{ fontSize:'2.5rem', marginBottom:12 }}>👥</p>
-            <p style={{ color:'#6B7280', fontSize:'0.9rem',
-              marginBottom:16 }}>No employees yet.</p>
-            <button onClick={openAdd} className="btn-primary"
-              style={{ padding:'10px 24px', fontSize:'0.85rem' }}>
-              + Add First Employee
-            </button>
-          </div>
-        ) : (
-          <div style={{ display:'grid', gap:10 }}>
-            {employees.map((employee) => (
-              <div key={employee._id} className="glass"
-                style={{
-                  padding:'16px 20px',
-                  display:'flex', alignItems:'center',
-                  justifyContent:'space-between',
-                  flexWrap:'wrap', gap:12,
-                  background: employee.isActive
-                    ? 'rgba(255,255,255,0.5)'
-                    : 'rgba(239,68,68,0.03)',
-                  cursor:'pointer',
-                  border: employee.hasFullAccess
-                    ? '1.5px solid rgba(245,158,11,0.3)'
-                    : '1.5px solid rgba(255,255,255,0.8)',
-                }}
-                onClick={() => router.push(
-                  `/admin/employees/${employee.employeeID}`
-                )}>
-
-                {/* Left — info */}
-                <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-                  <div style={{
-                    width:44, height:44, borderRadius:'50%',
-                    background: employee.hasFullAccess
-                      ? 'linear-gradient(135deg,#F59E0B,#D97706)'
-                      : 'linear-gradient(135deg,#4F46E5,#6366F1)',
-                    display:'flex', alignItems:'center',
-                    justifyContent:'center', flexShrink:0,
-                  }}>
-                    <Users size={20} color="white" />
-                  </div>
-                  <div>
-                    <div style={{
-                      display:'flex', alignItems:'center',
-                      gap:8, marginBottom:4, flexWrap:'wrap',
-                    }}>
-                      <p style={{ fontWeight:700, color:'#1E1B4B',
-                        fontSize:'0.95rem' }}>
-                        {employee.name}
-                      </p>
-                      {getRoleBadge(employee.role || 'all')}
-                      {employee.hasFullAccess && (
-                        <span style={{
-                          fontSize:'0.68rem', padding:'2px 8px',
-                          borderRadius:999,
-                          background:'rgba(245,158,11,0.12)',
-                          color:'#D97706', fontWeight:700,
-                        }}>
-                          ⭐ Full Access
-                        </span>
-                      )}
-                      <span style={{
-                        fontSize:'0.7rem', padding:'2px 8px',
-                        borderRadius:999,
-                        background: employee.isActive
-                          ? 'rgba(16,185,129,0.1)'
-                          : 'rgba(239,68,68,0.1)',
-                        color: employee.isActive ? '#059669' : '#DC2626',
-                        fontWeight:600,
-                      }}>
-                        {employee.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                    <p style={{ fontSize:'0.78rem',
-                      color:'#4F46E5', fontWeight:600 }}>
-                      {employee.employeeID}
-                    </p>
-                    <p style={{ fontSize:'0.75rem', color:'#6B7280' }}>
-                      @{employee.username}
-                    </p>
-                  </div>
-                </div>
-
-                
-                {/* Right — actions */}
-                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}
-                  onClick={e => e.stopPropagation()}>
-
-                  {/* Grant / Revoke Full Access */}
-                  <button
-                    onClick={() => handleToggleAccess(
-                      employee.employeeID,
-                      employee.hasFullAccess
-                    )}
-                    disabled={togglingAccess === employee.employeeID}
-                    style={{
-                      display:'flex', alignItems:'center', gap:5,
-                      background: employee.hasFullAccess
-                        ? 'rgba(239,68,68,0.08)'
-                        : 'rgba(16,185,129,0.08)',
-                      border: `1px solid ${employee.hasFullAccess
-                        ? 'rgba(239,68,68,0.25)'
-                        : 'rgba(16,185,129,0.25)'}`,
-                      borderRadius:8, padding:'7px 14px',
-                      color: employee.hasFullAccess
-                        ? '#DC2626' : '#059669',
-                      fontSize:'0.78rem', fontWeight:600,
-                      cursor: togglingAccess === employee.employeeID
-                        ? 'not-allowed' : 'pointer',
-                      fontFamily:'Poppins,sans-serif',
-                      opacity: togglingAccess === employee.employeeID
-                        ? 0.6 : 1,
-                    }}>
-                    {togglingAccess === employee.employeeID
-                      ? '...'
-                      : employee.hasFullAccess
-                        ? '🔒 Revoke Access'
-                        : '🔓 Grant Access'}
-                  </button>
-                  {/* Access role badge */}
-                  {(() => {
-                    const ar = ACCESS_ROLES.find(r => r.value === (employee.accessRole||'employee')) || ACCESS_ROLES[0]
-                    return (
-                      <span style={{ fontSize:'0.7rem', padding:'2px 8px', borderRadius:999, background:ar.bg, color:ar.color, fontWeight:600 }}>
-                        {ar.label}
-                      </span>
-                    )
-                  })()}
-
-                  {/* Bonus section in employee card */}
-                  <div onClick={e => e.stopPropagation()}
-                    style={{ width:'100%', marginTop:8, padding:'10px 14px',
-                      background:'rgba(245,158,11,0.05)',
-                      border:'1px solid rgba(245,158,11,0.2)',
-                      borderRadius:10 }}>
-
-                    {settingBonus === employee.employeeID ? (
-                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                        <span style={{ fontSize:'0.78rem', color:'#D97706', fontWeight:600 }}>
-                          Bonus per order:
-                        </span>
-                        <div style={{ position:'relative', flex:1 }}>
-                          <span style={{ position:'absolute', left:8, top:'50%',
-                            transform:'translateY(-50%)', color:'#9CA3AF', fontSize:'0.85rem' }}>
-                            ₹
-                          </span>
-                          <input
-                            type="number" min="0" value={bonusInput}
-                            onChange={e => setBonusInput(parseFloat(e.target.value)||0)}
-                            style={{ width:'100%', padding:'7px 10px 7px 22px',
-                              border:'1.5px solid rgba(245,158,11,0.3)',
-                              borderRadius:8, fontFamily:'Poppins,sans-serif',
-                              fontSize:'0.88rem', outline:'none' }}
-                            autoFocus
-                          />
-                        </div>
-                        <button onClick={() => handleSetBonus(employee.employeeID)}
-                          disabled={savingBonus}
-                          style={{ padding:'7px 14px', background:'linear-gradient(135deg,#F59E0B,#D97706)',
-                            color:'white', border:'none', borderRadius:8, cursor:'pointer',
-                            fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.8rem',
-                            display:'flex', alignItems:'center', gap:4 }}>
-                          {savingBonus ? '...' : <><Check size={12}/> Set</>}
-                        </button>
-                        <button onClick={() => setSettingBonus(null)}
-                          style={{ padding:'7px 10px', background:'rgba(239,68,68,0.08)',
-                            border:'1px solid rgba(239,68,68,0.2)', borderRadius:8,
-                            color:'#DC2626', cursor:'pointer', display:'flex', alignItems:'center' }}>
-                          <X size={13}/>
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display:'flex', alignItems:'center',
-                        justifyContent:'space-between' }}>
-                        <div>
-                          <span style={{ fontSize:'0.72rem', color:'#9CA3AF', fontWeight:600 }}>
-                            BONUS PER ORDER:
-                          </span>
-                          <span style={{ fontSize:'0.9rem', fontWeight:800,
-                            color: employee.bonus > 0 ? '#D97706' : '#9CA3AF',
-                            marginLeft:8 }}>
-                            {employee.bonus > 0 ? `₹${employee.bonus}` : 'None'}
-                          </span>
-                          {employee.bonus > 0 && (
-                            <span style={{ fontSize:'0.7rem', color:'#6B7280', marginLeft:6 }}>
-                              (emp rate + ₹{employee.bonus} per order)
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => {
-                            setSettingBonus(employee.employeeID)
-                            setBonusInput(employee.bonus || 0)
-                          }}
-                          style={{ padding:'5px 12px',
-                            background:'rgba(245,158,11,0.08)',
-                            border:'1px solid rgba(245,158,11,0.25)',
-                            borderRadius:7, color:'#D97706',
-                            fontSize:'0.75rem', fontWeight:600,
-                            cursor:'pointer', fontFamily:'Poppins,sans-serif' }}>
-                          🏆 {employee.bonus > 0 ? 'Edit Bonus' : 'Set Bonus'}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Edit */}
-                  <button onClick={() => openEdit(employee)}
-                    style={{
-                      display:'flex', alignItems:'center', gap:5,
-                      background:'rgba(79,70,229,0.08)',
-                      border:'1px solid rgba(79,70,229,0.2)',
-                      borderRadius:8, padding:'7px 14px',
-                      color:'#4F46E5', fontSize:'0.8rem',
-                      fontWeight:600, cursor:'pointer',
-                      fontFamily:'Poppins,sans-serif',
-                    }}>
-                    <Edit2 size={13} /> Edit
-                  </button>
-
-                  {/* Deactivate */}
-                  {employee.isActive && (
-                    <button onClick={() => handleDelete(employee.employeeID)}
-                      style={{
-                        display:'flex', alignItems:'center', gap:5,
-                        background:'rgba(239,68,68,0.08)',
-                        border:'1px solid rgba(239,68,68,0.2)',
-                        borderRadius:8, padding:'7px 14px',
-                        color:'#DC2626', fontSize:'0.8rem',
-                        fontWeight:600, cursor:'pointer',
-                        fontFamily:'Poppins,sans-serif',
-                      }}>
-                      <Trash2 size={13} /> Deactivate
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Modal */}
-      {modal && (
-        <div style={{
-          position:'fixed', inset:0,
-          background:'rgba(30,27,75,0.3)',
-          backdropFilter:'blur(8px)',
-          display:'flex', alignItems:'center',
-          justifyContent:'center', zIndex:1000, padding:20,
-        }}>
-          <div className="glass" style={{ width:'100%', maxWidth:480, padding:32 }}>
-            <div style={{
-              display:'flex', justifyContent:'space-between',
-              alignItems:'center', marginBottom:24,
-            }}>
-              <h2 style={{ fontWeight:700, color:'#1E1B4B', fontSize:'1.1rem' }}>
-                {editData ? 'Edit Employee' : 'Add New Employee'}
-              </h2>
-              <button onClick={() => setModal(false)}
-                style={{ background:'none', border:'none',
-                  cursor:'pointer', color:'#9CA3AF' }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            {error && (
-              <div style={{
-                background:'rgba(239,68,68,0.08)',
-                border:'1px solid rgba(239,68,68,0.2)',
-                borderRadius:8, padding:'10px 14px',
-                marginBottom:16, color:'#DC2626', fontSize:'0.83rem',
-              }}>
-                {error}
-              </div>
-            )}
-
-            <div style={{ display:'grid', gap:14 }}>
-              <div>
-                <label className="input-label">FULL NAME *</label>
-                <input type="text" value={form.name}
-                  onChange={e => setForm({...form, name:e.target.value})}
-                  placeholder="Employee full name" className="input-field" />
-              </div>
-              <div>
-                <label className="input-label">USERNAME *</label>
-                <input type="text" value={form.username}
-                  onChange={e => setForm({...form, username:e.target.value})}
-                  placeholder="Login username" className="input-field" />
-              </div>
-              {/* Password section in modal */}
-              <div>
-                <label className="input-label">
-                  {editData ? 'CURRENT PASSWORD' : 'PASSWORD *'}
-                </label>
-                {editData ? (
-                  // Show current password for admin to copy
-                  <div style={{ position:'relative' }}>
-                    <input
-                      type={showPass ? 'text' : 'password'}
-                      value={currentPassword}
-                      readOnly
-                      style={{
-                        width:'100%', padding:'13px 44px 13px 14px',
-                        background:'rgba(245,158,11,0.05)',
-                        border:'1.5px solid rgba(245,158,11,0.25)',
-                        borderRadius:10, fontFamily:'Poppins,sans-serif',
-                        fontSize:'0.9rem', color:'#1E1B4B', outline:'none',
-                        cursor:'default',
-                      }}
-                    />
-                    <button type="button" onClick={() => setShowPass(!showPass)}
-                      style={{ position:'absolute', right:12, top:'50%',
-                        transform:'translateY(-50%)', background:'none',
-                        border:'none', cursor:'pointer', color:'#9CA3AF',
-                        display:'flex' }}>
-                      {showPass ? <EyeOff size={16}/> : <Eye size={16}/>}
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ position:'relative' }}>
-                    <input
-                      type={showPass ? 'text' : 'password'}
-                      value={form.password}
-                      onChange={e => setForm({...form, password:e.target.value})}
-                      placeholder="Set a password"
-                      className="input-field" style={{ paddingRight:44 }}
-                    />
-                    <button type="button" onClick={() => setShowPass(!showPass)}
-                      style={{ position:'absolute', right:12, top:'50%',
-                        transform:'translateY(-50%)', background:'none',
-                        border:'none', cursor:'pointer', color:'#9CA3AF',
-                        display:'flex' }}>
-                      {showPass ? <EyeOff size={16}/> : <Eye size={16}/>}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* New password — only shown when editing */}
-              {/* Current password display */}
-              {editData && (
-                <div>
-                  <label className="input-label">CURRENT PASSWORD</label>
-                  {currentPassword === null ? (
-                    <div style={{ padding:'11px 14px', background:'rgba(245,158,11,0.06)', border:'1.5px solid rgba(245,158,11,0.2)', borderRadius:10, marginBottom:4 }}>
-                      <p style={{ fontSize:'0.82rem', color:'#D97706' }}>
-                        ⚠️ Password not available — set a new password below to update it.
-                      </p>
-                    </div>
-                  ) : (
-                    <div style={{ position:'relative' }}>
-                      <input
-                        type={showPass ? 'text' : 'password'}
-                        value={currentPassword}
-                        readOnly
-                        style={{ width:'100%', padding:'11px 44px 11px 14px', background:'rgba(245,158,11,0.04)', border:'1.5px solid rgba(245,158,11,0.2)', borderRadius:10, fontFamily:'Poppins,sans-serif', fontSize:'0.9rem', color:'#1E1B4B', outline:'none', cursor:'default' }}
-                      />
-                      <button type="button" onClick={() => setShowPass(!showPass)}
-                        style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#9CA3AF', display:'flex' }}>
-                        {showPass ? <EyeOff size={16}/> : <Eye size={16}/>}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Role Selection */}
-              <div>
-                <label className="input-label">EMPLOYEE ROLE *</label>
-                <div style={{ display:'grid',
-                  gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                  {ROLES.map(r => (
-                    <button key={r.value} type="button"
-                      onClick={() => setForm({...form, role:r.value})}
-                      style={{
-                        padding:'10px 14px', borderRadius:10,
-                        fontFamily:'Poppins,sans-serif', fontWeight:600,
-                        fontSize:'0.82rem', cursor:'pointer', textAlign:'left',
-                        border: form.role === r.value
-                          ? `2px solid ${r.color}`
-                          : '1.5px solid rgba(79,70,229,0.15)',
-                        background: form.role === r.value
-                          ? r.bg : 'rgba(255,255,255,0.7)',
-                        color: form.role === r.value ? r.color : '#6B7280',
-                        transition:'all 0.2s',
-                      }}>
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
-                <p style={{ fontSize:'0.72rem', color:'#9CA3AF', marginTop:6 }}>
-                  {form.role === 'all'       && 'Can work on all stages'}
-                  {form.role === 'cutting'   && 'Can only work on cutting stage'}
-                  {form.role === 'stitching' && 'Can only work on stitching stage'}
-                  {form.role === 'finishing' && 'Can only work on finishing stage'}
-                </p>
-              </div>
-
-              {/* Access Role — what they can do */}
-              <div>
-                <label className="input-label">ACCESS ROLE *</label>
-                <p style={{ fontSize:'0.72rem', color:'#9CA3AF', marginBottom:8 }}>
-                  Controls what sections and data this employee can access.
-                </p>
-                <div style={{ display:'grid', gap:8 }}>
-                  {ACCESS_ROLES.map(r => (
-                    <button key={r.value} type="button"
-                      onClick={() => {
-                        setForm({...form, accessRole:r.value,
-                          // Manager auto-gets full access
-                          hasFullAccess: r.value === 'manager'
-                        })
-                      }}
-                      style={{ padding:'12px 14px', borderRadius:10, textAlign:'left',
-                        fontFamily:'Poppins,sans-serif', cursor:'pointer',
-                        border:   form.accessRole===r.value ? `2px solid ${r.color}` : '1.5px solid rgba(79,70,229,0.15)',
-                        background: form.accessRole===r.value ? r.bg : 'rgba(255,255,255,0.7)',
-                      }}>
-                      <p style={{ fontWeight:700, fontSize:'0.88rem', color:form.accessRole===r.value?r.color:'#1E1B4B', marginBottom:3 }}>
-                        {r.label} {form.accessRole===r.value && '✓'}
-                      </p>
-                      <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>{r.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {editData && (
-                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <label className="input-label" style={{ margin:0 }}>
-                    STATUS
-                  </label>
-                  <button type="button"
-                    onClick={() => setForm({...form, isActive:!form.isActive})}
-                    style={{
-                      padding:'6px 16px', borderRadius:999,
-                      fontFamily:'Poppins,sans-serif', fontWeight:600,
-                      fontSize:'0.8rem', cursor:'pointer',
-                      border: form.isActive
-                        ? '2px solid #10B981' : '2px solid #EF4444',
-                      background: form.isActive
-                        ? 'rgba(16,185,129,0.1)'
-                        : 'rgba(239,68,68,0.1)',
-                      color: form.isActive ? '#059669' : '#DC2626',
-                    }}>
-                    {form.isActive ? '✅ Active' : '❌ Inactive'}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div style={{ display:'flex', gap:10, marginTop:24 }}>
-              <button onClick={() => setModal(false)}
-                className="btn-ghost" style={{ flex:1 }}>
-                Cancel
-              </button>
-              <button onClick={handleSave} disabled={saving}
-                className="btn-primary"
-                style={{ flex:1, display:'flex',
-                  alignItems:'center', justifyContent:'center', gap:8 }}>
-                {saving
-                  ? <><div className="spinner" />Saving...</>
-                  : <><Check size={16} />{editData ? 'Update' : 'Add Employee'}</>}
-              </button>
-            </div>
-          </div>
+      {/* Message */}
+      {msg.text && (
+        <div style={{ padding:'12px 16px',
+          background: msg.err
+            ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)',
+          border: `1.5px solid ${msg.err
+            ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}`,
+          borderRadius:10, marginBottom:16,
+          color: msg.err ? '#DC2626' : '#059669',
+          fontSize:'0.87rem', fontWeight:500 }}>
+          {msg.text}
         </div>
       )}
+
+      <div style={{ display:'grid', gap:16 }}>
+
+        {/* Basic Info */}
+        <div className="glass" style={{ padding:20 }}>
+          <p style={{ fontSize:'0.78rem', fontWeight:700,
+            color:'#4F46E5', textTransform:'uppercase',
+            letterSpacing:'0.5px', marginBottom:16 }}>
+            👤 Basic Info
+          </p>
+          <div style={{ display:'grid', gap:12 }}>
+            <div>
+              <label className="input-label">NAME</label>
+              <input value={emp.name||''}
+                onChange={e => setEmp({...emp, name:e.target.value})}
+                className="input-field"
+                placeholder="Employee name"/>
+            </div>
+            <div>
+              <label className="input-label">PHONE</label>
+              <input value={emp.phone||''}
+                onChange={e => setEmp({...emp, phone:e.target.value})}
+                className="input-field"
+                placeholder="Phone number"/>
+            </div>
+            <div>
+              <label className="input-label">WORK ROLE</label>
+              <select value={emp.role||'all'}
+                onChange={e => setEmp({...emp, role:e.target.value})}
+                className="input-field">
+                <option value="cutting">Cutting</option>
+                <option value="stitching">Stitching</option>
+                <option value="finishing">Finishing</option>
+                <option value="all">All Roles</option>
+              </select>
+            </div>
+            <div>
+              <label className="input-label">ACCESS ROLE</label>
+              <select value={emp.accessRole||'employee'}
+                onChange={e => setEmp({...emp, accessRole:e.target.value})}
+                className="input-field">
+                <option value="employee">Employee (Scan only)</option>
+                <option value="receptionist">Receptionist (Create orders)</option>
+                <option value="manager">Manager (Full access)</option>
+              </select>
+            </div>
+            <div>
+              <label className="input-label">BONUS PER ORDER (₹)</label>
+              <input type="number" min="0" value={emp.bonus||0}
+                onChange={e => setEmp({...emp, bonus:Number(e.target.value)||0})}
+                className="input-field"/>
+            </div>
+          </div>
+        </div>
+
+        {/* Password Section */}
+        <div className="glass" style={{ padding:20 }}>
+          <p style={{ fontSize:'0.78rem', fontWeight:700,
+            color:'#4F46E5', textTransform:'uppercase',
+            letterSpacing:'0.5px', marginBottom:16 }}>
+            🔐 Password
+          </p>
+
+          {/* Current password display */}
+          <div style={{ marginBottom:16 }}>
+            <label className="input-label">CURRENT PASSWORD</label>
+            {emp.plainPassword ? (
+              <div style={{ position:'relative' }}>
+                <input
+                  readOnly
+                  type={showCurPass ? 'text' : 'password'}
+                  value={emp.plainPassword}
+                  style={{ width:'100%', padding:'12px 44px 12px 14px',
+                    background:'rgba(16,185,129,0.05)',
+                    border:'1.5px solid rgba(16,185,129,0.25)',
+                    borderRadius:10, fontFamily:'Poppins,sans-serif',
+                    fontSize:'0.9rem', color:'#059669',
+                    fontWeight:600, outline:'none',
+                    letterSpacing: showCurPass ? 'normal' : '0.15em' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurPass(p => !p)}
+                  style={{ position:'absolute', right:12,
+                    top:'50%', transform:'translateY(-50%)',
+                    background:'none', border:'none',
+                    cursor:'pointer', color:'#9CA3AF',
+                    display:'flex', padding:0 }}>
+                  {showCurPass ? <EyeOff size={16}/> : <Eye size={16}/>}
+                </button>
+              </div>
+            ) : (
+              <div style={{ padding:'12px 14px',
+                background:'rgba(245,158,11,0.05)',
+                border:'1.5px dashed rgba(245,158,11,0.3)',
+                borderRadius:10 }}>
+                <p style={{ fontSize:'0.82rem', color:'#D97706' }}>
+                  ⚠️ Password not recorded — set a new one below.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Set new password */}
+          <div>
+            <label className="input-label">SET NEW PASSWORD</label>
+            <div style={{ position:'relative', marginBottom:12 }}>
+              <input
+                type={showNewPass ? 'text' : 'password'}
+                value={newPass}
+                onChange={e => setNewPass(e.target.value)}
+                placeholder="Enter new password..."
+                className="input-field"
+                style={{ paddingRight:44 }}
+                onKeyDown={e => e.key==='Enter' && handlePasswordUpdate()}
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPass(p => !p)}
+                style={{ position:'absolute', right:12,
+                  top:'50%', transform:'translateY(-50%)',
+                  background:'none', border:'none',
+                  cursor:'pointer', color:'#9CA3AF',
+                  display:'flex', padding:0 }}>
+                {showNewPass ? <EyeOff size={16}/> : <Eye size={16}/>}
+              </button>
+            </div>
+            <button
+              onClick={handlePasswordUpdate}
+              disabled={passLoading || !newPass.trim()}
+              style={{ width:'100%', padding:'12px',
+                background: newPass.trim()
+                  ? 'linear-gradient(135deg,#4F46E5,#6366F1)'
+                  : '#E5E7EB',
+                color: newPass.trim() ? 'white' : '#9CA3AF',
+                border:'none', borderRadius:10,
+                fontFamily:'Poppins,sans-serif', fontWeight:700,
+                fontSize:'0.9rem',
+                cursor: newPass.trim() ? 'pointer' : 'not-allowed',
+                display:'flex', alignItems:'center',
+                justifyContent:'center', gap:6 }}>
+              {passLoading
+                ? '⏳ Updating...'
+                : <><RefreshCw size={14}/>Update Password</>}
+            </button>
+          </div>
+        </div>
+
+      </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>
   )
 }

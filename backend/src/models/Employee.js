@@ -1,30 +1,39 @@
 const mongoose = require('mongoose')
-const bcrypt   = require('bcryptjs')
 
 const employeeSchema = new mongoose.Schema({
-  employeeID:    { type:String, unique:true, required:true },
+  employeeID:    { type:String, unique:true },
   name:          { type:String, required:true, trim:true },
   username:      { type:String, required:true, unique:true, trim:true },
   password:      { type:String, required:true },
-  plainPassword: { type:String, default:'' },
-
-  // Work role — for allotment stage assignment
-  role: {
+  plainPassword: { type:String, default:'' },  // ← must exist
+  phone:         { type:String, default:'' },
+  role:          {
     type:    String,
     enum:    ['cutting','stitching','finishing','all'],
     default: 'all',
   },
-
-  // Access role — determines what they can see/do
-  accessRole: {
+  accessRole:    {
     type:    String,
     enum:    ['employee','receptionist','manager'],
     default: 'employee',
   },
-
-  hasFullAccess: { type:Boolean, default:false }, // legacy — manager sets this true
   bonus:         { type:Number, default:0 },
+  hasFullAccess: { type:Boolean, default:false },
   isActive:      { type:Boolean, default:true },
 }, { timestamps:true })
+
+// Auto-generate employeeID
+employeeSchema.pre('save', async function (next) {
+  if (this.isNew && !this.employeeID) {
+    const Counter  = require('./Counter')
+    const counter  = await Counter.findOneAndUpdate(
+      { name:'employeeID' },
+      { $inc:{ seq:1 } },
+      { new:true, upsert:true }
+    )
+    this.employeeID = `EMP${String(counter.seq).padStart(3,'0')}`
+  }
+  next()
+})
 
 module.exports = mongoose.model('Employee', employeeSchema)
