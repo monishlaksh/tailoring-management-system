@@ -93,6 +93,42 @@ router.get('/', protectAdminOrFullAccess, async (req, res) => {
   }
 })
 
+// ── GET customer's own orders ─────────────────────────────────
+// MUST be before /:orderID route
+router.get('/my-orders', protectCustomer, async (req, res) => {
+  try {
+    const customerID = req.customer?.customerID
+
+    if (!customerID) {
+      return res.status(400).json({
+        success: false,
+        message: 'No customer ID in token',
+      })
+    }
+
+    console.log('[MY-ORDERS] Fetching for customerID:', customerID)
+
+    const orders = await Order.find({ customerID })
+      .sort({ createdAt: -1 })
+      .lean()
+
+    console.log('[MY-ORDERS] Found:', orders.length)
+
+    const serialized = orders.map(o => ({
+      ...o,
+      measurements: o.measurements instanceof Map
+        ? Object.fromEntries(o.measurements)
+        : (o.measurements || {}),
+    }))
+
+    res.json({ success: true, count: serialized.length, orders: serialized })
+  } catch (e) {
+    console.error('[MY-ORDERS]', e.message)
+    res.status(500).json({ success: false, message: e.message })
+  }
+})
+
+
 // GET single order
 router.get('/:orderID', protect, async (req, res) => {
   try {
@@ -110,29 +146,6 @@ router.get('/:orderID', protect, async (req, res) => {
     }
 
     res.json({ success:true, order:serialized })
-  } catch (e) {
-    res.status(500).json({ success:false, message:e.message })
-  }
-})
-
-// GET customer orders
-// GET customer's own orders
-router.get('/my-orders', protectCustomer, async (req, res) => {
-  try {
-    const orders = await Order.find({
-      customerID: req.customer.customerID
-    })
-      .sort({ createdAt:-1 })
-      .lean()
-
-    const serialized = orders.map(o => ({
-      ...o,
-      measurements: o.measurements instanceof Map
-        ? Object.fromEntries(o.measurements)
-        : (o.measurements || {}),
-    }))
-
-    res.json({ success:true, count:serialized.length, orders:serialized })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }

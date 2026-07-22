@@ -112,15 +112,23 @@ const protectCustomer = (req, res, next) => {
     const token = req.headers.authorization?.split(' ')[1]
     if (!token)
       return res.status(401).json({ success:false, message:'No token provided' })
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
     if (decoded.role !== 'customer')
       return res.status(403).json({ success:false, message:'Customer access required' })
-    req.customer = decoded; next()
+
+    // Set req.customer with customerID
+    req.customer = {
+      customerID: decoded.customerID,
+      customerId: decoded.customerId,
+    }
+
+    next()
   } catch (e) {
     return res.status(401).json({ success:false, message:'Token invalid or expired' })
   }
 }
-
 // ── Helpers ───────────────────────────────────────────────────
 const findEmployee = async (decoded) => {
   let employee = null

@@ -25,66 +25,71 @@ export default function CustomerDashboard() {
   }, [])
 
   const fetchData = async (token) => {
-    setLoading(true)
-    setError('')
-    try {
-      // Fetch customer info
-      const meRes = await fetch(`${BACKEND}/api/auth/customer/me`, {
-        method:  'GET',
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-
-      const meText = await meRes.text()
-      let meJson
-      try { meJson = JSON.parse(meText) }
-      catch (e) {
-        setError('Server error. Please try again.')
-        setLoading(false)
-        return
-      }
-
-      // Only redirect to login on true auth failure
-      if (meRes.status === 401) {
-        localStorage.removeItem('customerToken')
-        router.replace('/customer/login')
-        return
-      }
-
-      if (!meJson.success) {
-        setError(meJson.message || 'Failed to load your data.')
-        setLoading(false)
-        return
-      }
-
-      setCustomer(meJson.customer)
-
-      // Fetch orders separately — non-critical
-      try {
-        const ordRes = await fetch(`${BACKEND}/api/orders/my-orders`, {
-          method:  'GET',
-          headers: {
-            'Content-Type':  'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        })
-        const ordJson = await ordRes.json()
-        setOrders(ordJson.orders || [])
-      } catch (e) {
-        console.warn('[ORDERS] Failed:', e.message)
-        setOrders([]) // non-critical
-      }
-
-    } catch (e) {
-      console.error('[CUSTOMER DASHBOARD]', e)
-      // Network error — don't redirect, just show retry
-      setError('Cannot reach server. Check your connection.')
-    } finally {
+  setLoading(true)
+  setError('')
+  try {
+    // Fetch customer info
+    const meRes  = await fetch(`${BACKEND}/api/auth/customer/me`, {
+      method: 'GET',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+    const meText = await meRes.text()
+    let meJson
+    try { meJson = JSON.parse(meText) }
+    catch (e) {
+      setError('Server error. Please try again.')
       setLoading(false)
+      return
     }
+
+    if (meRes.status === 401) {
+      localStorage.removeItem('customerToken')
+      router.replace('/customer/login')
+      return
+    }
+
+    if (!meJson.success) {
+      setError(meJson.message || 'Failed to load your data.')
+      setLoading(false)
+      return
+    }
+
+    setCustomer(meJson.customer)
+
+    // Fetch orders
+    const ordRes  = await fetch(`${BACKEND}/api/orders/my-orders`, {
+      method: 'GET',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+    const ordText = await ordRes.text()
+
+    try {
+      const ordJson = JSON.parse(ordText)
+      if (ordJson.success) {
+        setOrders(ordJson.orders || [])
+      } else {
+        console.error('[ORDERS]', ordJson.message)
+        // Still show dashboard — just no orders
+        setOrders([])
+      }
+    } catch (e) {
+      console.error('[ORDERS] Non-JSON response:', ordText.slice(0, 200))
+      setOrders([])
+    }
+
+  } catch (e) {
+    console.error('[CUSTOMER DASHBOARD]', e)
+    setError('Cannot reach server. Check your connection.')
+  } finally {
+    setLoading(false)
   }
+}
 
   const handleLogout = () => {
     localStorage.removeItem('customerToken')
