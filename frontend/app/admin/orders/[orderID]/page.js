@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { ArrowLeft, Save, Trash2, ChevronRight } from 'lucide-react'
 import { adminAPI as API } from '../../../../lib/api'
 import NumInput from '../../../../components/NumInput'
-import VoicePlayer from '../../../components/VoicePlayer'
+import VoicePlayer from '../../../../components/VoicePlayer'
 
 const STAGES      = ['Booking','Cutting','Stitching','Finishing','Ready For Delivery','Delivered']
 const STAGE_ICONS = { 'Booking':'📘','Cutting':'✂️','Stitching':'🧵','Finishing':'🚩','Ready For Delivery':'✅','Delivered':'🚚' }

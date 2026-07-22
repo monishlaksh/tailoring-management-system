@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { ArrowLeft, Check, X, Users, ChevronDown, ChevronUp, Printer } from 'lucide-react'
 import { adminAPI as API } from '../../../../lib/api'
-import VoicePlayer from '../../../components/VoicePlayer'
+import VoicePlayer from '../../../../components/VoicePlayer'
 
 
 const STAGES = ['cutting', 'stitching', 'finishing']
