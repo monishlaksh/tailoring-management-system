@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { adminAPI as API } from '../../../../lib/api'
+import { adminAPI as API } from '../../../lib/api'
 import { Eye, EyeOff, Save, ArrowLeft, RefreshCw } from 'lucide-react'
 
 export default function EmployeeEditPage() {
