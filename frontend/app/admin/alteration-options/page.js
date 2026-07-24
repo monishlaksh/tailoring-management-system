@@ -17,7 +17,13 @@ export default function AlterationOptionsPage() {
   const [savingNew, setSavingNew] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
 
-  const emptyForm = { name:'', description:'', extraCost:0, clothTypes:[] }
+  const emptyForm = {
+  name:'',
+  description:'',
+  extraCost:0,
+  empCost:0,
+  clothTypes:[]
+}
   const [newForm, setNewForm]   = useState(emptyForm)
   const [editForm, setEditForm] = useState(emptyForm)
 
@@ -192,6 +198,33 @@ export default function AlterationOptionsPage() {
                 onChange={val => setNewForm({...newForm,extraCost:val})}
                 style={{ border:'1.5px solid rgba(79,70,229,0.2)' }} />
             </div>
+            <div style={{ maxWidth:200 }}>
+            <label className="input-label">EMPLOYEE RATE (₹)</label>
+
+            <p
+              style={{
+                fontSize:'0.7rem',
+                color:'#9CA3AF',
+                marginBottom:4
+              }}
+            >
+              Added to employee earnings
+            </p>
+
+            <NumInput
+              prefix="₹"
+              value={newForm.empCost || 0}
+              onChange={val =>
+                setNewForm({
+                  ...newForm,
+                  empCost:val
+                })
+              }
+              style={{
+                border:'1.5px solid rgba(16,185,129,0.2)'
+              }}
+            />
+          </div>
             <ClothTypeSelector form={newForm} setForm={setNewForm} />
           </div>
           <div style={{ display:'flex', gap:10, marginTop:18 }}>
@@ -262,6 +295,23 @@ export default function AlterationOptionsPage() {
                         onChange={val => setEditForm({...editForm,extraCost:val})}
                         style={{ border:'1.5px solid rgba(79,70,229,0.2)' }} />
                     </div>
+                    <div style={{ maxWidth:200 }}>
+                    <label className="input-label">EMPLOYEE RATE (₹)</label>
+
+                    <NumInput
+                      prefix="₹"
+                      value={editForm.empCost || 0}
+                      onChange={val =>
+                        setEditForm({
+                          ...editForm,
+                          empCost:val
+                        })
+                      }
+                      style={{
+                        border:'1.5px solid rgba(16,185,129,0.2)'
+                      }}
+                    />
+                  </div>
                     <ClothTypeSelector form={editForm} setForm={setEditForm} />
                   </div>
                   <div style={{ display:'flex', gap:8 }}>
@@ -298,11 +348,44 @@ export default function AlterationOptionsPage() {
                         {opt.name}
                       </span>
                       {(opt.extraCost||0) > 0 && (
-                        <span style={{ fontSize:'0.75rem', fontWeight:700,
-                          color:'#059669', padding:'2px 8px',
-                          background:'rgba(16,185,129,0.1)', borderRadius:999 }}>
-                          +₹{opt.extraCost.toLocaleString('en-IN')}
-                        </span>
+                        <div
+                          style={{
+                            display:'flex',
+                            gap:8,
+                            marginTop:6,
+                            flexWrap:'wrap'
+                          }}
+                        >
+                          {(opt.extraCost||0) > 0 && (
+                            <span
+                              style={{
+                                fontSize:'0.72rem',
+                                padding:'2px 8px',
+                                borderRadius:999,
+                                background:'rgba(79,70,229,0.08)',
+                                color:'#4F46E5',
+                                fontWeight:600
+                              }}
+                            >
+                              +₹{opt.extraCost} customer
+                            </span>
+                          )}
+
+                          {(opt.empCost||0) > 0 && (
+                            <span
+                              style={{
+                                fontSize:'0.72rem',
+                                padding:'2px 8px',
+                                borderRadius:999,
+                                background:'rgba(16,185,129,0.08)',
+                                color:'#059669',
+                                fontWeight:600
+                              }}
+                            >
+                              ₹{opt.empCost} emp rate
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                     {opt.description && (
@@ -336,10 +419,11 @@ export default function AlterationOptionsPage() {
                     <button onClick={() => {
                       setEditing(opt._id)
                       setEditForm({
-                        name:        opt.name,
-                        description: opt.description||'',
-                        extraCost:   opt.extraCost||0,
-                        clothTypes:  opt.clothTypes||[],
+                          name: opt.name,
+                          description: opt.description || '',
+                          extraCost: opt.extraCost || 0,
+                          empCost: opt.empCost || 0,
+                          clothTypes: opt.clothTypes || [],
                       })
                     }}
                       style={{ background:'rgba(79,70,229,0.08)',

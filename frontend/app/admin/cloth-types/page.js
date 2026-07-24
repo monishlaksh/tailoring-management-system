@@ -58,6 +58,7 @@ const [editSub, setEditSub] = useState({
   name:'',
   nameTa:'',
   cost:0,
+  empCost:0,
   image:''
 })
 
@@ -183,7 +184,16 @@ const MEASUREMENT_PRESETS = {
 
   const updateSub = async (ctId, typeId, subId) => {
     try {
-      await API.put(`/api/cloth-types/${ctId}/types/${typeId}/subtypes/${subId}`, editSub)
+      await API.put(
+  `/api/cloth-types/${ctId}/types/${typeId}/subtypes/${subId}`,
+      {
+        name:editSub.name,
+        nameTa:editSub.nameTa,
+        cost:editSub.cost,
+        empCost:editSub.empCost,
+        image:editSub.image
+      }
+    )
       setEditingSub(null); fetchData(); showMsg('Subtype updated!')
     } catch (e) { showMsg('Failed', true) }
   }
@@ -859,7 +869,22 @@ const MEASUREMENT_PRESETS = {
                                   <NumInput prefix="₹" value={editSub.cost}
                                     onChange={val=>setEditSub(p=>({...p,cost:val}))}
                                     style={{ width:100, border:'1.5px solid rgba(79,70,229,0.2)', padding:'6px 10px 6px 22px', fontSize:'0.82rem' }} />
-                                    
+                                  <NumInput
+                                      prefix="₹"
+                                      value={editSub.empCost || 0}
+                                      onChange={val =>
+                                          setEditSub(p=>({
+                                              ...p,
+                                              empCost:val
+                                          }))
+                                      }
+                                      style={{
+                                          width:100,
+                                          border:'1.5px solid rgba(16,185,129,0.2)',
+                                          padding:'6px 10px 6px 22px',
+                                          fontSize:'0.82rem'
+                                      }}
+                                  />
                                   {/* Image upload for subtype */}
                                    <div style={{ minWidth:90 }}>
                                     <p style={{ fontSize:'0.65rem', color:'#9CA3AF', fontWeight:600, marginBottom:4 }}>
@@ -904,12 +929,28 @@ const MEASUREMENT_PRESETS = {
                                     <span style={{ fontSize:'0.8rem', fontWeight:700, color:'#059669' }}>
                                       {sub.cost>0?`+₹${sub.cost}`:'Free'}
                                     </span>
+                                    {sub.empCost > 0 && (
+                                        <span
+                                            style={{
+                                                fontSize:'0.72rem',
+                                                padding:'2px 8px',
+                                                borderRadius:999,
+                                                background:'rgba(16,185,129,0.08)',
+                                                color:'#059669',
+                                                fontWeight:600
+                                            }}
+                                        >
+                                            Emp ₹{sub.empCost}
+                                        </span>
+                                    )}
                                   </div>
                                   <div style={{ display:'flex', gap:5 }}>
-                                    <button onClick={()=>{ setEditingSub({ subId:sub._id }); setEditSub({name:sub.name,
-                                        nameTa:sub.nameTa || '',
-                                        cost:sub.cost || 0,
-                                        image:sub.image || ''
+                                    <button onClick={()=>{ setEditingSub({ subId:sub._id });setEditSub({
+                                          name:sub.name,
+                                          nameTa:sub.nameTa || '',
+                                          cost:sub.cost || 0,
+                                          empCost:sub.empCost || 0,
+                                          image:sub.image || ''
                                       }) }}
                                       style={{ padding:'4px 8px', background:'rgba(79,70,229,0.08)', border:'1px solid rgba(79,70,229,0.2)', borderRadius:6, color:'#4F46E5', fontSize:'0.72rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif', display:'flex', alignItems:'center', gap:2 }}>
                                       <Edit2 size={10}/> Edit
@@ -945,6 +986,38 @@ const MEASUREMENT_PRESETS = {
                                 onChange={val=>setNewSub(p=>({...p,[`${ct._id}_${type._id}`]:{...p[`${ct._id}_${type._id}`],cost:val}}))}
                                 style={{ width:100, border:'1.5px solid rgba(79,70,229,0.2)', padding:'7px 10px 7px 22px', fontSize:'0.82rem' }} />
                             </div>
+                            <div>
+                            <p
+                              style={{
+                                fontSize:'0.65rem',
+                                color:'#9CA3AF',
+                                fontWeight:600,
+                                marginBottom:4
+                              }}
+                            >
+                              EMP RATE (₹)
+                            </p>
+
+                            <NumInput
+                              prefix="₹"
+                              value={newSub[`${ct._id}_${type._id}`]?.empCost || 0}
+                              onChange={val =>
+                                setNewSub(p => ({
+                                  ...p,
+                                  [`${ct._id}_${type._id}`]:{
+                                    ...p[`${ct._id}_${type._id}`],
+                                    empCost:val
+                                  }
+                                }))
+                              }
+                              style={{
+                                width:100,
+                                border:'1.5px solid rgba(16,185,129,0.2)',
+                                padding:'7px 10px 7px 22px',
+                                fontSize:'0.82rem'
+                              }}
+                            />
+                          </div>
                             <button onClick={()=>addSub(ct._id,type._id)}
                               disabled={savingSub===`${ct._id}_${type._id}`}
                               style={{ padding:'7px 14px', background:'linear-gradient(135deg,#4F46E5,#6366F1)', color:'white', border:'none', borderRadius:10, cursor:'pointer', fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.8rem', display:'flex', alignItems:'center', gap:4 }}>

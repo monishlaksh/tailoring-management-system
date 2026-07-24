@@ -160,7 +160,7 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
       customerID, clothType, quantity,
       unitCost, amountSettled,
       fabricNotes, specialInstructions,
-      measurements, alteration, deliveryDate,
+      measurements, alteration, deliveryDate,empRate:clientEmpRate,
       voiceNote,
     } = req.body
 

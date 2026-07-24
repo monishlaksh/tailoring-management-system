@@ -237,7 +237,14 @@ router.post('/:id/types/:typeId/subtypes', protect, async (req, res) => {
     const exists = type.subtypes.find(s => s.name.toLowerCase() === name.trim().toLowerCase())
     if (exists)
       return res.status(400).json({ success:false, message:'Subtype already exists' })
-    type.subtypes.push({ name:name.trim(), nameTa:nameTa||'', cost:parseFloat(cost)||0 })
+    // In POST /:id/types/:typeId/subtypes
+      type.subtypes.push({
+        name:    name.trim(),
+        nameTa:  nameTa || '',
+        cost:    parseFloat(cost)    || 0,
+        empCost: parseFloat(empCost) || 0,  // ← add this
+        image:   '',
+      })
     await ct.save()
     res.json({ success:true, clothType:ct })
   } catch (e) {
@@ -249,7 +256,9 @@ router.post('/:id/types/:typeId/subtypes', protect, async (req, res) => {
 // PUT update subtype — already accepts req.body spread
 router.put('/:id/types/:typeId/subtypes/:subId', protect, async (req, res) => {
   try {
-    const { name, nameTa, cost, isActive, image } = req.body
+    // In PUT /:id/types/:typeId/subtypes/:subId
+    const { name, nameTa, cost, empCost, isActive, image } = req.body
+    if (empCost !== undefined) sub.empCost = parseFloat(empCost) || 0
     const ct = await ClothType.findById(req.params.id)
     if (!ct) return res.status(404).json({ success:false, message:'Not found' })
     const type = ct.types.id(req.params.typeId)

@@ -78,23 +78,41 @@ router.get('/all', protect, async (req, res) => {
 })
 
 // POST create
+// POST create
 router.post('/', protect, async (req, res) => {
   try {
-    const { name, description, extraCost, clothTypes } = req.body
-    if (!name?.trim())
-      return res.status(400).json({ success:false, message:'Name is required' })
-
-    const existing = await AlterationOption.findOne({ name:name.trim() })
-    if (existing)
-      return res.status(400).json({ success:false, message:'Already exists' })
-
+    const { name, description, clothType, extraCost, empCost } = req.body
     const option = await AlterationOption.create({
       name:        name.trim(),
       description: description || '',
+      clothType:   clothType   || 'all',
       extraCost:   parseFloat(extraCost) || 0,
-      clothTypes:  clothTypes || [],
+      empCost:     parseFloat(empCost)   || 0,  // ← add
     })
-    res.status(201).json({ success:true, message:'Created', option })
+    res.status(201).json({ success:true, option })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
+
+// PUT update
+router.put('/:id', protect, async (req, res) => {
+  try {
+    const { name, description, clothType, extraCost, empCost, isActive } = req.body
+    const option = await AlterationOption.findByIdAndUpdate(
+      req.params.id,
+      {
+        ...(name        && { name }),
+        ...(description !== undefined && { description }),
+        ...(clothType   && { clothType }),
+        ...(extraCost   !== undefined && { extraCost: parseFloat(extraCost)||0 }),
+        ...(empCost     !== undefined && { empCost:   parseFloat(empCost)||0   }),  // ← add
+        ...(typeof isActive === 'boolean' && { isActive }),
+      },
+      { new:true }
+    )
+    if (!option) return res.status(404).json({ success:false, message:'Not found' })
+    res.json({ success:true, option })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }

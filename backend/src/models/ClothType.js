@@ -3,9 +3,10 @@ const mongoose = require('mongoose')
 const subtypeSchema = new mongoose.Schema({
   name:     { type:String, required:true, trim:true },
   nameTa:   { type:String, default:'' },
-  cost:     { type:Number, default:0 },
+  cost:     { type:Number, default:0 },   // customer price
+  empCost:  { type:Number, default:0 },   // ← employee rate
+  image:    { type:String, default:'' },
   isActive: { type:Boolean, default:true },
-  // image removed from subtype
 }, { _id:true })
 
 const typeSchema = new mongoose.Schema({

@@ -1,12 +1,11 @@
 const mongoose = require('mongoose')
 
 const alterationOptionSchema = new mongoose.Schema({
-  name:        { type:String, required:true, unique:true, trim:true },
+  name:        { type:String, required:true, trim:true },
   description: { type:String, default:'' },
-  extraCost:   { type:Number, default:0 },
-  // Empty array = applies to all cloth types
-  // Populated = only for those cloth types
-  clothTypes:  [{ type:String }],
+  clothType:   { type:String, default:'all' },
+  extraCost:   { type:Number, default:0 },  // customer extra price
+  empCost:     { type:Number, default:0 },  // ← employee rate for this alteration
   isActive:    { type:Boolean, default:true },
 }, { timestamps:true })
 

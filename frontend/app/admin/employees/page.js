@@ -1,17 +1,21 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter, useParams } from 'next/navigation'
-import { adminAPI as API } from '../../../lib/api'
+import { useRouter, useParams, usePathname } from 'next/navigation'
+import { adminAPI as API } from '../../../../lib/api'
 import { Eye, EyeOff, Save, ArrowLeft, RefreshCw } from 'lucide-react'
 
 export default function EmployeeEditPage() {
-  const router = useRouter()
-  const params = useParams()
-  const empID  = params?.employeeID // e.g. EMP000001
+  const router   = useRouter()
+  const params   = useParams()
+  const pathname = usePathname()
+
+  // Get employeeID from params OR fallback to pathname
+  const empID = params?.employeeID || pathname?.split('/').pop()
 
   const [emp, setEmp]         = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving]   = useState(false)
+  const [error, setError]     = useState('')
   const [msg, setMsg]         = useState({ text:'', err:false })
 
   const [newPass, setNewPass]         = useState('')
@@ -20,19 +24,40 @@ export default function EmployeeEditPage() {
   const [passLoading, setPassLoading] = useState(false)
 
   useEffect(() => {
-    if (!empID) return
+    const token = localStorage.getItem('adminToken')
+    if (!token) { router.push('/admin/login'); return }
+    if (!empID || empID === 'undefined') {
+      setError('Invalid employee ID')
+      setLoading(false)
+      return
+    }
     fetchEmployee()
   }, [empID])
 
   const fetchEmployee = async () => {
     setLoading(true)
+    setError('')
     try {
+      console.log('[EMP EDIT] Fetching:', empID)
       const res = await API.get(`/api/employees/${empID}`)
-      setEmp(res.data.employee)
+      console.log('[EMP EDIT] Got:', res.data)
+      if (res.data.success) {
+        setEmp(res.data.employee)
+      } else {
+        setError(res.data.message || 'Employee not found')
+      }
     } catch (e) {
-      showMsg(e.response?.data?.message || 'Failed to load employee', true)
+      console.error('[EMP EDIT] Error:', e.response?.status, e.response?.data)
+      const status = e.response?.status
+      if (status === 401) {
+        router.push('/admin/login')
+        return
+      }
+      setError(
+        e.response?.data?.message || `Failed to load employee (${status || 'network error'})`
+      )
     } finally {
-      setLoading(false)
+      setLoading(false) // ← ALWAYS called
     }
   }
 
@@ -53,7 +78,7 @@ export default function EmployeeEditPage() {
         bonus:      emp.bonus      || 0,
       })
       showMsg('✅ Employee updated successfully!')
-      fetchEmployee() // refresh to get latest data
+      fetchEmployee()
     } catch (e) {
       showMsg(e.response?.data?.message || 'Failed to save', true)
     } finally {
@@ -73,7 +98,7 @@ export default function EmployeeEditPage() {
       })
       setEmp(prev => ({ ...prev, plainPassword: newPass.trim() }))
       setNewPass('')
-      showMsg('✅ Password updated successfully!')
+      showMsg('✅ Password updated!')
     } catch (e) {
       showMsg(e.response?.data?.message || 'Failed to update password', true)
     } finally {
@@ -81,6 +106,7 @@ export default function EmployeeEditPage() {
     }
   }
 
+  // ── Loading state ─────────────────────────────────────────
   if (loading) return (
     <main style={{ minHeight:'100vh', display:'flex',
       alignItems:'center', justifyContent:'center',
@@ -94,36 +120,54 @@ export default function EmployeeEditPage() {
         <p style={{ color:'#6B7280', fontSize:'0.88rem' }}>
           Loading employee...
         </p>
+        <p style={{ color:'#C4C9D4', fontSize:'0.75rem', marginTop:4 }}>
+          {empID}
+        </p>
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>
   )
 
-  if (!emp) return (
-    <main style={{ padding:24, fontFamily:'Poppins,sans-serif',
-      minHeight:'100vh', display:'flex', alignItems:'center',
-      justifyContent:'center' }}>
-      <div style={{ textAlign:'center' }}>
-        <p style={{ fontSize:'1.5rem', marginBottom:10 }}>👤</p>
-        <p style={{ color:'#DC2626', fontWeight:600 }}>
-          Employee not found
+  // ── Error state ───────────────────────────────────────────
+  if (error || !emp) return (
+    <main style={{ minHeight:'100vh', display:'flex',
+      alignItems:'center', justifyContent:'center',
+      padding:24, fontFamily:'Poppins,sans-serif' }}>
+      <div style={{ maxWidth:360, width:'100%', textAlign:'center' }}>
+        <p style={{ fontSize:'2rem', marginBottom:12 }}>👤</p>
+        <p style={{ fontWeight:700, color:'#1E1B4B', marginBottom:6 }}>
+          {error || 'Employee not found'}
         </p>
-        <p style={{ color:'#9CA3AF', fontSize:'0.85rem',
-          margin:'8px 0 16px' }}>
+        <p style={{ fontSize:'0.78rem', color:'#9CA3AF',
+          background:'#F8F7FF', padding:'8px 14px',
+          borderRadius:8, marginBottom:16 }}>
           ID: {empID}
         </p>
-        <button onClick={() => router.push('/admin/employees')}
-          style={{ padding:'9px 20px',
-            background:'linear-gradient(135deg,#4F46E5,#6366F1)',
-            color:'white', border:'none', borderRadius:10,
-            fontFamily:'Poppins,sans-serif', fontWeight:600,
-            cursor:'pointer' }}>
-          ← Back to Employees
-        </button>
+        <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
+          <button onClick={fetchEmployee}
+            style={{ padding:'9px 20px',
+              background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+              color:'white', border:'none', borderRadius:10,
+              fontFamily:'Poppins,sans-serif', fontWeight:600,
+              cursor:'pointer' }}>
+            🔄 Retry
+          </button>
+          <button onClick={() => router.push('/admin/employees')}
+            style={{ padding:'9px 20px',
+              background:'rgba(79,70,229,0.08)',
+              color:'#4F46E5',
+              border:'1.5px solid rgba(79,70,229,0.2)',
+              borderRadius:10, fontFamily:'Poppins,sans-serif',
+              fontWeight:600, cursor:'pointer' }}>
+            ← Back
+          </button>
+        </div>
       </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>
   )
 
+  // ── Main page ─────────────────────────────────────────────
   return (
     <main style={{ minHeight:'100vh', padding:'20px',
       maxWidth:600, margin:'0 auto',
@@ -138,14 +182,12 @@ export default function EmployeeEditPage() {
           <button onClick={() => router.push('/admin/employees')}
             style={{ width:36, height:36, borderRadius:10,
               background:'rgba(79,70,229,0.08)', border:'none',
-              cursor:'pointer', display:'flex',
-              alignItems:'center', justifyContent:'center',
-              color:'#4F46E5' }}>
+              cursor:'pointer', display:'flex', alignItems:'center',
+              justifyContent:'center', color:'#4F46E5' }}>
             <ArrowLeft size={18}/>
           </button>
           <div>
-            <p style={{ fontWeight:800, color:'#1E1B4B',
-              fontSize:'1rem' }}>
+            <p style={{ fontWeight:800, color:'#1E1B4B', fontSize:'1rem' }}>
               {emp.name}
             </p>
             <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
@@ -158,16 +200,15 @@ export default function EmployeeEditPage() {
             background:'linear-gradient(135deg,#4F46E5,#6366F1)',
             color:'white', border:'none', borderRadius:10,
             fontFamily:'Poppins,sans-serif', fontWeight:700,
-            fontSize:'0.85rem', cursor:saving?'not-allowed':'pointer',
+            fontSize:'0.85rem',
+            cursor: saving ? 'not-allowed' : 'pointer',
             display:'flex', alignItems:'center', gap:6,
-            opacity:saving?0.8:1 }}>
-          {saving
-            ? '⏳ Saving...'
-            : <><Save size={14}/>Save Changes</>}
+            opacity: saving ? 0.8 : 1 }}>
+          {saving ? '⏳ Saving...' : <><Save size={14}/>Save Changes</>}
         </button>
       </div>
 
-      {/* Message */}
+      {/* Flash message */}
       {msg.text && (
         <div style={{ padding:'12px 16px',
           background: msg.err
@@ -197,7 +238,7 @@ export default function EmployeeEditPage() {
               <label className="input-label">NAME *</label>
               <input
                 value={emp.name || ''}
-                onChange={e => setEmp({ ...emp, name:e.target.value })}
+                onChange={e => setEmp({...emp, name:e.target.value})}
                 className="input-field"
                 placeholder="Employee name"
               />
@@ -206,16 +247,31 @@ export default function EmployeeEditPage() {
               <label className="input-label">PHONE</label>
               <input
                 value={emp.phone || ''}
-                onChange={e => setEmp({ ...emp, phone:e.target.value })}
+                onChange={e => setEmp({...emp, phone:e.target.value})}
                 className="input-field"
                 placeholder="Phone number"
               />
             </div>
             <div>
+              <label className="input-label">USERNAME</label>
+              <input
+                value={emp.username || ''}
+                readOnly
+                style={{ width:'100%', padding:'12px 14px',
+                  background:'rgba(79,70,229,0.03)',
+                  border:'1.5px solid rgba(79,70,229,0.1)',
+                  borderRadius:10, fontFamily:'Poppins,sans-serif',
+                  fontSize:'0.9rem', color:'#9CA3AF', outline:'none' }}
+              />
+              <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:3 }}>
+                Username cannot be changed
+              </p>
+            </div>
+            <div>
               <label className="input-label">WORK ROLE</label>
               <select
                 value={emp.role || 'all'}
-                onChange={e => setEmp({ ...emp, role:e.target.value })}
+                onChange={e => setEmp({...emp, role:e.target.value})}
                 className="input-field">
                 <option value="cutting">✂️ Cutting</option>
                 <option value="stitching">🧵 Stitching</option>
@@ -227,7 +283,7 @@ export default function EmployeeEditPage() {
               <label className="input-label">ACCESS ROLE</label>
               <select
                 value={emp.accessRole || 'employee'}
-                onChange={e => setEmp({ ...emp, accessRole:e.target.value })}
+                onChange={e => setEmp({...emp, accessRole:e.target.value})}
                 className="input-field">
                 <option value="employee">
                   👷 Employee — Scan only
@@ -240,10 +296,11 @@ export default function EmployeeEditPage() {
                 </option>
               </select>
               <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:4 }}>
-                {emp.accessRole === 'manager'     && '⭐ Full access to all admin features'}
-                {emp.accessRole === 'receptionist'&& '🎟️ Can create orders and manage customers'}
-                {emp.accessRole === 'employee'    && '👷 Can only scan QR codes and view work'}
-                {!emp.accessRole                  && '👷 Can only scan QR codes and view work'}
+                {emp.accessRole === 'manager'
+                  ? '⭐ Full access to all admin features'
+                  : emp.accessRole === 'receptionist'
+                    ? '🎟️ Can create orders and manage customers'
+                    : '👷 Can only scan QR codes and view assigned work'}
               </p>
             </div>
             <div>
@@ -253,19 +310,18 @@ export default function EmployeeEditPage() {
                 min="0"
                 value={emp.bonus || 0}
                 onChange={e => setEmp({
-                  ...emp,
-                  bonus: Number(e.target.value) || 0,
+                  ...emp, bonus:Number(e.target.value) || 0
                 })}
                 className="input-field"
               />
-              <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:4 }}>
+              <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:3 }}>
                 Added on top of emp rate when a stage is approved
               </p>
             </div>
           </div>
         </div>
 
-        {/* Password Section */}
+        {/* Password */}
         <div className="glass" style={{ padding:20 }}>
           <p style={{ fontSize:'0.78rem', fontWeight:700,
             color:'#4F46E5', textTransform:'uppercase',
@@ -273,7 +329,6 @@ export default function EmployeeEditPage() {
             🔐 Password
           </p>
 
-          {/* Current password */}
           <div style={{ marginBottom:16 }}>
             <label className="input-label">CURRENT PASSWORD</label>
             {emp.plainPassword ? (
@@ -282,22 +337,17 @@ export default function EmployeeEditPage() {
                   readOnly
                   type={showCurPass ? 'text' : 'password'}
                   value={emp.plainPassword}
-                  style={{
-                    width:       '100%',
-                    padding:     '12px 44px 12px 14px',
-                    background:  'rgba(16,185,129,0.05)',
-                    border:      '1.5px solid rgba(16,185,129,0.25)',
+                  style={{ width:'100%',
+                    padding:'12px 44px 12px 14px',
+                    background:'rgba(16,185,129,0.05)',
+                    border:'1.5px solid rgba(16,185,129,0.25)',
                     borderRadius:10,
-                    fontFamily:  'Poppins,sans-serif',
-                    fontSize:    '0.9rem',
-                    color:       '#059669',
-                    fontWeight:  600,
-                    outline:     'none',
-                    letterSpacing: showCurPass ? 'normal' : '0.2em',
-                  }}
+                    fontFamily:'Poppins,sans-serif',
+                    fontSize:'0.9rem', color:'#059669',
+                    fontWeight:600, outline:'none',
+                    letterSpacing: showCurPass ? 'normal' : '0.2em' }}
                 />
-                <button
-                  type="button"
+                <button type="button"
                   onClick={() => setShowCurPass(p => !p)}
                   style={{ position:'absolute', right:12,
                     top:'50%', transform:'translateY(-50%)',
@@ -319,7 +369,6 @@ export default function EmployeeEditPage() {
             )}
           </div>
 
-          {/* Set new password */}
           <div>
             <label className="input-label">SET NEW PASSWORD</label>
             <div style={{ position:'relative', marginBottom:12 }}>
@@ -334,8 +383,7 @@ export default function EmployeeEditPage() {
                   if (e.key === 'Enter') handlePasswordUpdate()
                 }}
               />
-              <button
-                type="button"
+              <button type="button"
                 onClick={() => setShowNewPass(p => !p)}
                 style={{ position:'absolute', right:12,
                   top:'50%', transform:'translateY(-50%)',
@@ -348,27 +396,19 @@ export default function EmployeeEditPage() {
             <button
               onClick={handlePasswordUpdate}
               disabled={passLoading || !newPass.trim()}
-              style={{
-                width:        '100%',
-                padding:      '12px',
-                background:   newPass.trim()
+              style={{ width:'100%', padding:'12px',
+                background: newPass.trim()
                   ? 'linear-gradient(135deg,#4F46E5,#6366F1)'
                   : '#E5E7EB',
-                color:        newPass.trim() ? 'white' : '#9CA3AF',
-                border:       'none',
-                borderRadius: 10,
-                fontFamily:   'Poppins,sans-serif',
-                fontWeight:   700,
-                fontSize:     '0.9rem',
-                cursor:       newPass.trim() ? 'pointer' : 'not-allowed',
-                display:      'flex',
-                alignItems:   'center',
-                justifyContent:'center',
-                gap:          6,
-                transition:   'all 0.2s',
-              }}>
+                color: newPass.trim() ? 'white' : '#9CA3AF',
+                border:'none', borderRadius:10,
+                fontFamily:'Poppins,sans-serif', fontWeight:700,
+                fontSize:'0.9rem',
+                cursor: newPass.trim() ? 'pointer' : 'not-allowed',
+                display:'flex', alignItems:'center',
+                justifyContent:'center', gap:6 }}>
               {passLoading
-                ? '⏳ Updating password...'
+                ? '⏳ Updating...'
                 : <><RefreshCw size={14}/>Update Password</>}
             </button>
           </div>
