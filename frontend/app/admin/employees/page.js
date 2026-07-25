@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  ArrowLeft, Plus, Edit2, Trash2,
+  ArrowLeft, Plus, Trash2,
   X, Check, Users, Eye, EyeOff
 } from 'lucide-react'
 import { adminAPI as API } from '../../../lib/api'
@@ -15,37 +15,17 @@ const ROLES = [
 ]
 
 const ACCESS_ROLES = [
-  {
-    value: 'employee',
-    label: '👷 Employee',
-    color: '#6B7280',
-    bg:    'rgba(107,114,128,0.08)',
-    desc:  'Can only scan QR and view assigned work.',
-  },
-  {
-    value: 'receptionist',
-    label: '🎟️ Receptionist',
-    color: '#4F46E5',
-    bg:    'rgba(79,70,229,0.08)',
-    desc:  'Can create orders and manage customers.',
-  },
-  {
-    value: 'manager',
-    label: '⭐ Manager',
-    color: '#D97706',
-    bg:    'rgba(245,158,11,0.08)',
-    desc:  'Full admin access — can do everything.',
-  },
+  { value:'employee',     label:'👷 Employee',     color:'#6B7280', bg:'rgba(107,114,128,0.08)', desc:'Scan only'              },
+  { value:'receptionist', label:'🎟️ Receptionist', color:'#4F46E5', bg:'rgba(79,70,229,0.08)',   desc:'Create orders'          },
+  { value:'manager',      label:'⭐ Manager',      color:'#D97706', bg:'rgba(245,158,11,0.08)',  desc:'Full admin access'      },
 ]
 
 const getRoleBadge = (role) => {
   const r = ROLES.find(x => x.value === role) || ROLES[3]
   return (
-    <span style={{
-      fontSize:'0.73rem', fontWeight:600,
+    <span style={{ fontSize:'0.73rem', fontWeight:600,
       padding:'3px 10px', borderRadius:999,
-      background:r.bg, color:r.color,
-    }}>
+      background:r.bg, color:r.color }}>
       {r.label}
     </span>
   )
@@ -53,10 +33,10 @@ const getRoleBadge = (role) => {
 
 export default function EmployeesPage() {
   const router = useRouter()
+
   const [employees, setEmployees]           = useState([])
   const [loading, setLoading]               = useState(true)
-  const [modal, setModal]                   = useState(false)
-  const [editData, setEditData]             = useState(null)
+  const [addModal, setAddModal]             = useState(false)
   const [showPass, setShowPass]             = useState(false)
   const [saving, setSaving]                 = useState(false)
   const [togglingAccess, setTogglingAccess] = useState(null)
@@ -64,10 +44,11 @@ export default function EmployeesPage() {
   const [settingBonus, setSettingBonus]     = useState(null)
   const [bonusInput, setBonusInput]         = useState(0)
   const [savingBonus, setSavingBonus]       = useState(false)
+  const [successMsg, setSuccessMsg]         = useState('')
 
   const [form, setForm] = useState({
     name:'', username:'', password:'',
-    role:'all', accessRole:'employee', isActive:true,
+    role:'all', accessRole:'employee',
   })
 
   useEffect(() => {
@@ -81,68 +62,64 @@ export default function EmployeesPage() {
     try {
       const res = await API.get('/api/employees')
       setEmployees(res.data.employees || [])
-    } catch (e) { console.error(e) }
-    finally { setLoading(false) }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const showSuccess = (msg) => {
+    setSuccessMsg(msg)
+    setTimeout(() => setSuccessMsg(''), 3000)
   }
 
   const openAdd = () => {
-    setEditData(null)
-    setForm({ name:'', username:'', password:'', role:'all', accessRole:'employee', isActive:true })
-    setError(''); setShowPass(false); setModal(true)
+    setForm({ name:'', username:'', password:'', role:'all', accessRole:'employee' })
+    setError('')
+    setShowPass(false)
+    setAddModal(true)
   }
 
-  const openEdit = (employee) => {
-    setEditData(employee)
-    setForm({
-      name:       employee.name,
-      username:   employee.username,
-      password:   '',
-      role:       employee.role       || 'all',
-      accessRole: employee.accessRole || 'employee',
-      isActive:   employee.isActive,
-    })
-    setError(''); setShowPass(false); setModal(true)
-  }
+  // ── Add new employee ──────────────────────────────────────
+  const handleAdd = async () => {
+    if (!form.name.trim())     { setError('Name is required'); return }
+    if (!form.username.trim()) { setError('Username is required'); return }
+    if (!form.password.trim()) { setError('Password is required'); return }
 
-  const handleSave = async () => {
-    if (!form.name || !form.username) {
-      setError('Name and username required'); return
-    }
-    if (!editData && !form.password) {
-      setError('Password required for new employee'); return
-    }
-    setSaving(true); setError('')
+    setSaving(true)
+    setError('')
     try {
-      const payload = {
-        name:          form.name,
-        username:      form.username,
+      await API.post('/api/employees', {
+        name:          form.name.trim(),
+        username:      form.username.trim(),
+        password:      form.password.trim(),
         role:          form.role,
         accessRole:    form.accessRole,
-        isActive:      form.isActive,
         hasFullAccess: form.accessRole === 'manager',
-      }
-      if (form.password) payload.password = form.password
-
-      if (editData) {
-        await API.put(`/api/employees/${editData.employeeID}`, payload)
-      } else {
-        await API.post('/api/employees', { ...payload, password:form.password })
-      }
-      setModal(false)
+      })
+      setAddModal(false)
+      showSuccess('Employee added!')
       fetchEmployees()
     } catch (e) {
-      setError(e.response?.data?.message || 'Failed to save')
-    } finally { setSaving(false) }
+      setError(e.response?.data?.message || 'Failed to add employee')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const handleDelete = async (employeeID) => {
+  // ── Deactivate ────────────────────────────────────────────
+  const handleDeactivate = async (employeeID) => {
     if (!confirm('Deactivate this employee?')) return
     try {
       await API.delete(`/api/employees/${employeeID}`)
       fetchEmployees()
-    } catch (e) { alert('Failed') }
+    } catch (e) {
+      alert('Failed to deactivate')
+    }
   }
 
+  // ── Toggle full access ────────────────────────────────────
   const handleToggleAccess = async (employeeID, currentAccess) => {
     setTogglingAccess(employeeID)
     try {
@@ -151,31 +128,38 @@ export default function EmployeesPage() {
       })
       fetchEmployees()
     } catch (e) {
-      alert(e.response?.data?.message || 'Failed to update access')
-    } finally { setTogglingAccess(null) }
+      alert(e.response?.data?.message || 'Failed')
+    } finally {
+      setTogglingAccess(null)
+    }
   }
 
+  // ── Set bonus ─────────────────────────────────────────────
   const handleSetBonus = async (employeeID) => {
     setSavingBonus(true)
     try {
-      await API.patch(`/api/employees/${employeeID}/bonus`, { bonus: bonusInput })
+      await API.patch(`/api/employees/${employeeID}/bonus`, {
+        bonus: bonusInput,
+      })
       fetchEmployees()
       setSettingBonus(null)
       setBonusInput(0)
-    } catch (e) { alert('Failed to set bonus') }
-    finally { setSavingBonus(false) }
+    } catch (e) {
+      alert('Failed to set bonus')
+    } finally {
+      setSavingBonus(false)
+    }
   }
 
   return (
     <main style={{ minHeight:'100vh', padding:'24px',
-      maxWidth:900, margin:'0 auto' }}>
+      maxWidth:900, margin:'0 auto',
+      fontFamily:'Poppins,sans-serif' }}>
 
       {/* Header */}
-      <div className="glass" style={{
-        display:'flex', alignItems:'center',
+      <div className="glass" style={{ display:'flex', alignItems:'center',
         justifyContent:'space-between', padding:'14px 24px',
-        marginBottom:24, flexWrap:'wrap', gap:12,
-      }}>
+        marginBottom:20, flexWrap:'wrap', gap:12 }}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <button onClick={() => router.push('/admin/dashboard')}
             style={{ background:'none', border:'none',
@@ -193,33 +177,47 @@ export default function EmployeesPage() {
         </button>
       </div>
 
-      {/* Permission info */}
-      <div style={{
-        background:'rgba(79,70,229,0.05)',
+      {/* Success message */}
+      {successMsg && (
+        <div style={{ padding:'12px 16px',
+          background:'rgba(16,185,129,0.08)',
+          border:'1.5px solid rgba(16,185,129,0.2)',
+          borderRadius:10, marginBottom:16,
+          color:'#059669', fontSize:'0.87rem', fontWeight:500 }}>
+          ✅ {successMsg}
+        </div>
+      )}
+
+      {/* Access roles info */}
+      <div style={{ background:'rgba(79,70,229,0.05)',
         border:'1.5px solid rgba(79,70,229,0.15)',
-        borderRadius:12, padding:'12px 18px', marginBottom:20,
-      }}>
-        <p style={{ fontSize:'0.82rem', color:'#4338CA',
-          fontWeight:500, marginBottom:6 }}>
+        borderRadius:12, padding:'12px 18px', marginBottom:20 }}>
+        <p style={{ fontSize:'0.78rem', color:'#4338CA',
+          fontWeight:600, marginBottom:8 }}>
           🔐 Access Roles
         </p>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
           {ACCESS_ROLES.map(r => (
-            <span key={r.value} style={{
-              fontSize:'0.72rem', padding:'3px 10px',
-              borderRadius:999, background:r.bg,
-              color:r.color, fontWeight:600,
-            }}>
+            <span key={r.value} style={{ fontSize:'0.72rem',
+              padding:'3px 10px', borderRadius:999,
+              background:r.bg, color:r.color, fontWeight:600 }}>
               {r.label} — {r.desc}
             </span>
           ))}
         </div>
       </div>
 
+      {/* Employee list */}
       <div className="glass" style={{ padding:24 }}>
         {loading ? (
-          <p style={{ textAlign:'center', color:'#9CA3AF',
-            padding:'40px 0' }}>Loading...</p>
+          <div style={{ textAlign:'center', padding:'40px 0' }}>
+            <div style={{ width:36, height:36,
+              border:'3px solid rgba(79,70,229,0.2)',
+              borderTopColor:'#4F46E5', borderRadius:'50%',
+              animation:'spin 0.8s linear infinite',
+              margin:'0 auto 12px' }}/>
+            <p style={{ color:'#9CA3AF' }}>Loading...</p>
+          </div>
         ) : employees.length === 0 ? (
           <div style={{ textAlign:'center', padding:'48px 0' }}>
             <p style={{ fontSize:'2.5rem', marginBottom:12 }}>👥</p>
@@ -232,167 +230,141 @@ export default function EmployeesPage() {
           </div>
         ) : (
           <div style={{ display:'grid', gap:12 }}>
-            {employees.map(employee => {
+            {employees.map(emp => {
               const ar = ACCESS_ROLES.find(
-                r => r.value === (employee.accessRole||'employee')
+                r => r.value === (emp.accessRole || 'employee')
               ) || ACCESS_ROLES[0]
 
               return (
-                <div key={employee._id} className="glass"
-                  style={{
-                    padding:'16px 20px',
-                    background: employee.isActive
+                <div key={emp._id} className="glass"
+                  style={{ padding:'16px 18px',
+                    background: emp.isActive
                       ? 'rgba(255,255,255,0.5)'
                       : 'rgba(239,68,68,0.03)',
-                    border: employee.hasFullAccess
+                    border: emp.hasFullAccess
                       ? '1.5px solid rgba(245,158,11,0.3)'
-                      : '1.5px solid rgba(255,255,255,0.8)',
+                      : '1.5px solid rgba(229,231,235,1)',
                     cursor:'pointer',
                   }}
-                  onClick={() => router.push(
-                    `/admin/employees/${employee.employeeID}`
-                  )}>
+                  onClick={() =>
+                    router.push(`/admin/employees/${emp.employeeID}`)
+                  }>
 
-                  {/* Top row — info + actions */}
+                  {/* Top row */}
                   <div style={{ display:'flex', alignItems:'center',
                     justifyContent:'space-between',
-                    flexWrap:'wrap', gap:12, marginBottom:10 }}>
+                    flexWrap:'wrap', gap:10, marginBottom:12 }}>
 
-                    {/* Left — avatar + info */}
-                    <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-                      <div style={{
-                        width:44, height:44, borderRadius:'50%',
-                        background: employee.hasFullAccess
+                    {/* Avatar + info */}
+                    <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                      <div style={{ width:42, height:42, borderRadius:'50%',
+                        background: emp.hasFullAccess
                           ? 'linear-gradient(135deg,#F59E0B,#D97706)'
                           : 'linear-gradient(135deg,#4F46E5,#6366F1)',
                         display:'flex', alignItems:'center',
-                        justifyContent:'center', flexShrink:0,
-                      }}>
+                        justifyContent:'center', flexShrink:0 }}>
                         <Users size={20} color="white"/>
                       </div>
                       <div>
                         <div style={{ display:'flex', alignItems:'center',
-                          gap:8, marginBottom:4, flexWrap:'wrap' }}>
+                          gap:6, flexWrap:'wrap', marginBottom:3 }}>
                           <p style={{ fontWeight:700, color:'#1E1B4B',
-                            fontSize:'0.95rem' }}>
-                            {employee.name}
+                            fontSize:'0.92rem' }}>
+                            {emp.name}
                           </p>
-                          {getRoleBadge(employee.role || 'all')}
-                          <span style={{
-                            fontSize:'0.7rem', padding:'2px 8px',
+                          {getRoleBadge(emp.role || 'all')}
+                          <span style={{ fontSize:'0.7rem', padding:'2px 8px',
                             borderRadius:999,
                             background: ar.bg,
-                            color: ar.color, fontWeight:600,
-                          }}>
+                            color: ar.color, fontWeight:600 }}>
                             {ar.label}
                           </span>
-                          {employee.hasFullAccess && (
-                            <span style={{
-                              fontSize:'0.68rem', padding:'2px 8px',
-                              borderRadius:999,
-                              background:'rgba(245,158,11,0.12)',
-                              color:'#D97706', fontWeight:700,
-                            }}>
-                              ⭐ Full Access
-                            </span>
-                          )}
-                          <span style={{
-                            fontSize:'0.7rem', padding:'2px 8px',
+                          <span style={{ fontSize:'0.7rem', padding:'2px 8px',
                             borderRadius:999,
-                            background: employee.isActive
-                              ? 'rgba(16,185,129,0.1)'
-                              : 'rgba(239,68,68,0.1)',
-                            color: employee.isActive ? '#059669' : '#DC2626',
-                            fontWeight:600,
-                          }}>
-                            {employee.isActive ? 'Active' : 'Inactive'}
+                            background: emp.isActive
+                              ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                            color: emp.isActive ? '#059669' : '#DC2626',
+                            fontWeight:600 }}>
+                            {emp.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </div>
-                        <p style={{ fontSize:'0.78rem',
-                          color:'#4F46E5', fontWeight:600 }}>
-                          {employee.employeeID}
+                        <p style={{ fontSize:'0.75rem', color:'#4F46E5',
+                          fontWeight:600 }}>
+                          {emp.employeeID}
                         </p>
-                        <p style={{ fontSize:'0.75rem', color:'#6B7280' }}>
-                          @{employee.username}
+                        <p style={{ fontSize:'0.72rem', color:'#9CA3AF' }}>
+                          @{emp.username}
                         </p>
                       </div>
                     </div>
 
-                    {/* Right — action buttons */}
+                    {/* Action buttons */}
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}
                       onClick={e => e.stopPropagation()}>
 
-                      {/* Grant/Revoke full access */}
+                      {/* Grant/revoke */}
                       <button
+                        disabled={togglingAccess === emp.employeeID}
                         onClick={() => handleToggleAccess(
-                          employee.employeeID, employee.hasFullAccess
+                          emp.employeeID, emp.hasFullAccess
                         )}
-                        disabled={togglingAccess === employee.employeeID}
-                        style={{
-                          display:'flex', alignItems:'center', gap:5,
-                          background: employee.hasFullAccess
-                            ? 'rgba(239,68,68,0.08)'
-                            : 'rgba(16,185,129,0.08)',
-                          border: `1px solid ${employee.hasFullAccess
-                            ? 'rgba(239,68,68,0.25)'
-                            : 'rgba(16,185,129,0.25)'}`,
+                        style={{ display:'flex', alignItems:'center', gap:4,
+                          background: emp.hasFullAccess
+                            ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)',
+                          border: `1px solid ${emp.hasFullAccess
+                            ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.25)'}`,
                           borderRadius:8, padding:'7px 12px',
-                          color: employee.hasFullAccess ? '#DC2626' : '#059669',
+                          color: emp.hasFullAccess ? '#DC2626' : '#059669',
                           fontSize:'0.78rem', fontWeight:600,
-                          cursor: togglingAccess === employee.employeeID
+                          cursor: togglingAccess === emp.employeeID
                             ? 'not-allowed' : 'pointer',
                           fontFamily:'Poppins,sans-serif',
-                          opacity: togglingAccess === employee.employeeID ? 0.6 : 1,
-                        }}>
-                        {togglingAccess === employee.employeeID
+                          opacity: togglingAccess === emp.employeeID ? 0.6 : 1 }}>
+                        {togglingAccess === emp.employeeID
                           ? '...'
-                          : employee.hasFullAccess
-                            ? '🔒 Revoke'
-                            : '🔓 Grant'}
+                          : emp.hasFullAccess ? '🔒 Revoke' : '🔓 Grant'}
                       </button>
 
-                      {/* Edit */}
-                      <button onClick={() => openEdit(employee)}
-                        style={{
-                          display:'flex', alignItems:'center', gap:5,
+                      {/* Edit — navigate to edit page */}
+                      <button
+                        onClick={() =>
+                          router.push(`/admin/employees/${emp.employeeID}`)
+                        }
+                        style={{ display:'flex', alignItems:'center', gap:4,
                           background:'rgba(79,70,229,0.08)',
                           border:'1px solid rgba(79,70,229,0.2)',
                           borderRadius:8, padding:'7px 12px',
                           color:'#4F46E5', fontSize:'0.78rem',
                           fontWeight:600, cursor:'pointer',
-                          fontFamily:'Poppins,sans-serif',
-                        }}>
-                        <Edit2 size={13}/> Edit
+                          fontFamily:'Poppins,sans-serif' }}>
+                        ✏️ Edit
                       </button>
 
                       {/* Deactivate */}
-                      {employee.isActive && (
-                        <button onClick={() => handleDelete(employee.employeeID)}
-                          style={{
-                            display:'flex', alignItems:'center', gap:5,
+                      {emp.isActive && (
+                        <button
+                          onClick={() => handleDeactivate(emp.employeeID)}
+                          style={{ display:'flex', alignItems:'center', gap:4,
                             background:'rgba(239,68,68,0.08)',
                             border:'1px solid rgba(239,68,68,0.2)',
                             borderRadius:8, padding:'7px 12px',
                             color:'#DC2626', fontSize:'0.78rem',
                             fontWeight:600, cursor:'pointer',
-                            fontFamily:'Poppins,sans-serif',
-                          }}>
+                            fontFamily:'Poppins,sans-serif' }}>
                           <Trash2 size={13}/> Deactivate
                         </button>
                       )}
                     </div>
                   </div>
 
-                  {/* Bonus section */}
+                  {/* Bonus row */}
                   <div onClick={e => e.stopPropagation()}
-                    style={{
-                      padding:'10px 14px',
+                    style={{ padding:'10px 14px',
                       background:'rgba(245,158,11,0.05)',
                       border:'1px solid rgba(245,158,11,0.2)',
-                      borderRadius:10,
-                    }}>
+                      borderRadius:10 }}>
 
-                    {settingBonus === employee.employeeID ? (
+                    {settingBonus === emp.employeeID ? (
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                         <span style={{ fontSize:'0.78rem',
                           color:'#D97706', fontWeight:600 }}>
@@ -401,30 +373,31 @@ export default function EmployeesPage() {
                         <div style={{ position:'relative', flex:1 }}>
                           <span style={{ position:'absolute', left:8,
                             top:'50%', transform:'translateY(-50%)',
-                            color:'#9CA3AF', fontSize:'0.85rem' }}>
-                            ₹
-                          </span>
+                            color:'#9CA3AF', fontSize:'0.85rem' }}>₹</span>
                           <input
                             type="number" min="0"
                             value={bonusInput}
-                            onChange={e => setBonusInput(parseFloat(e.target.value)||0)}
-                            style={{ width:'100%', padding:'7px 10px 7px 22px',
+                            onChange={e =>
+                              setBonusInput(parseFloat(e.target.value) || 0)
+                            }
+                            autoFocus
+                            style={{ width:'100%',
+                              padding:'7px 10px 7px 22px',
                               border:'1.5px solid rgba(245,158,11,0.3)',
                               borderRadius:8,
                               fontFamily:'Poppins,sans-serif',
                               fontSize:'0.88rem', outline:'none' }}
-                            autoFocus
                           />
                         </div>
                         <button
-                          onClick={() => handleSetBonus(employee.employeeID)}
+                          onClick={() => handleSetBonus(emp.employeeID)}
                           disabled={savingBonus}
                           style={{ padding:'7px 14px',
                             background:'linear-gradient(135deg,#F59E0B,#D97706)',
                             color:'white', border:'none', borderRadius:8,
-                            cursor:'pointer',
-                            fontFamily:'Poppins,sans-serif', fontWeight:600,
-                            fontSize:'0.8rem', display:'flex', alignItems:'center', gap:4 }}>
+                            cursor:'pointer', fontFamily:'Poppins,sans-serif',
+                            fontWeight:600, fontSize:'0.8rem',
+                            display:'flex', alignItems:'center', gap:4 }}>
                           {savingBonus ? '...' : <><Check size={12}/> Set</>}
                         </button>
                         <button onClick={() => setSettingBonus(null)}
@@ -432,29 +405,25 @@ export default function EmployeesPage() {
                             background:'rgba(239,68,68,0.08)',
                             border:'1px solid rgba(239,68,68,0.2)',
                             borderRadius:8, color:'#DC2626',
-                            cursor:'pointer', display:'flex', alignItems:'center' }}>
+                            cursor:'pointer', display:'flex',
+                            alignItems:'center' }}>
                           <X size={13}/>
                         </button>
                       </div>
                     ) : (
                       <div style={{ display:'flex', alignItems:'center',
                         justifyContent:'space-between' }}>
-                        <div>
-                          <span style={{ fontSize:'0.72rem',
-                            color:'#9CA3AF', fontWeight:600 }}>
-                            BONUS PER ORDER:{' '}
-                          </span>
-                          <span style={{
-                            fontSize:'0.9rem', fontWeight:800,
-                            color: employee.bonus > 0 ? '#D97706' : '#9CA3AF',
-                          }}>
-                            {employee.bonus > 0 ? `₹${employee.bonus}` : 'None'}
-                          </span>
-                        </div>
+                        <span style={{ fontSize:'0.78rem', color:'#9CA3AF' }}>
+                          Bonus per order:{' '}
+                          <strong style={{ color: emp.bonus > 0
+                            ? '#D97706' : '#9CA3AF' }}>
+                            {emp.bonus > 0 ? `₹${emp.bonus}` : 'None'}
+                          </strong>
+                        </span>
                         <button
                           onClick={() => {
-                            setSettingBonus(employee.employeeID)
-                            setBonusInput(employee.bonus || 0)
+                            setSettingBonus(emp.employeeID)
+                            setBonusInput(emp.bonus || 0)
                           }}
                           style={{ padding:'5px 12px',
                             background:'rgba(245,158,11,0.08)',
@@ -462,7 +431,7 @@ export default function EmployeesPage() {
                             borderRadius:7, color:'#D97706',
                             fontSize:'0.75rem', fontWeight:600,
                             cursor:'pointer', fontFamily:'Poppins,sans-serif' }}>
-                          🏆 {employee.bonus > 0 ? 'Edit Bonus' : 'Set Bonus'}
+                          🏆 {emp.bonus > 0 ? 'Edit' : 'Set'} Bonus
                         </button>
                       </div>
                     )}
@@ -475,23 +444,22 @@ export default function EmployeesPage() {
         )}
       </div>
 
-      {/* Add/Edit Modal */}
-      {modal && (
-        <div style={{
-          position:'fixed', inset:0,
+      {/* ADD Employee Modal — no edit here, edit goes to /employees/[id] */}
+      {addModal && (
+        <div style={{ position:'fixed', inset:0,
           background:'rgba(30,27,75,0.3)',
           backdropFilter:'blur(8px)',
           display:'flex', alignItems:'center',
-          justifyContent:'center', zIndex:1000, padding:20,
-        }}>
+          justifyContent:'center', zIndex:1000, padding:20 }}>
           <div className="glass" style={{ width:'100%', maxWidth:500,
             padding:32, maxHeight:'90vh', overflowY:'auto' }}>
+
             <div style={{ display:'flex', justifyContent:'space-between',
               alignItems:'center', marginBottom:24 }}>
               <h2 style={{ fontWeight:700, color:'#1E1B4B', fontSize:'1.1rem' }}>
-                {editData ? 'Edit Employee' : 'Add New Employee'}
+                Add New Employee
               </h2>
-              <button onClick={() => setModal(false)}
+              <button onClick={() => setAddModal(false)}
                 style={{ background:'none', border:'none',
                   cursor:'pointer', color:'#9CA3AF' }}>
                 <X size={20}/>
@@ -503,13 +471,12 @@ export default function EmployeesPage() {
                 border:'1px solid rgba(239,68,68,0.2)',
                 borderRadius:8, padding:'10px 14px',
                 marginBottom:16, color:'#DC2626', fontSize:'0.83rem' }}>
-                {error}
+                ⚠️ {error}
               </div>
             )}
 
             <div style={{ display:'grid', gap:14 }}>
 
-              {/* Name */}
               <div>
                 <label className="input-label">FULL NAME *</label>
                 <input type="text" value={form.name}
@@ -518,7 +485,6 @@ export default function EmployeesPage() {
                   className="input-field"/>
               </div>
 
-              {/* Username */}
               <div>
                 <label className="input-label">USERNAME *</label>
                 <input type="text" value={form.username}
@@ -527,35 +493,28 @@ export default function EmployeesPage() {
                   className="input-field"/>
               </div>
 
-              {/* Password */}
               <div>
-                <label className="input-label">
-                  {editData
-                    ? 'NEW PASSWORD (leave blank to keep)'
-                    : 'PASSWORD *'}
-                </label>
+                <label className="input-label">PASSWORD *</label>
                 <div style={{ position:'relative' }}>
                   <input
                     type={showPass ? 'text' : 'password'}
                     value={form.password}
                     onChange={e => setForm({...form, password:e.target.value})}
-                    placeholder={editData
-                      ? 'Leave blank to keep current'
-                      : 'Set a strong password'}
+                    placeholder="Set a password"
                     className="input-field"
                     style={{ paddingRight:44 }}
                   />
-                  <button type="button" onClick={() => setShowPass(!showPass)}
+                  <button type="button"
+                    onClick={() => setShowPass(p => !p)}
                     style={{ position:'absolute', right:12, top:'50%',
                       transform:'translateY(-50%)', background:'none',
                       border:'none', cursor:'pointer', color:'#9CA3AF',
-                      display:'flex' }}>
+                      display:'flex', padding:0 }}>
                     {showPass ? <EyeOff size={16}/> : <Eye size={16}/>}
                   </button>
                 </div>
               </div>
 
-              {/* Work Role */}
               <div>
                 <label className="input-label">WORK ROLE *</label>
                 <div style={{ display:'grid',
@@ -563,8 +522,7 @@ export default function EmployeesPage() {
                   {ROLES.map(r => (
                     <button key={r.value} type="button"
                       onClick={() => setForm({...form, role:r.value})}
-                      style={{
-                        padding:'10px 14px', borderRadius:10,
+                      style={{ padding:'10px 14px', borderRadius:10,
                         fontFamily:'Poppins,sans-serif', fontWeight:600,
                         fontSize:'0.82rem', cursor:'pointer', textAlign:'left',
                         border: form.role === r.value
@@ -572,42 +530,30 @@ export default function EmployeesPage() {
                           : '1.5px solid rgba(79,70,229,0.15)',
                         background: form.role === r.value
                           ? r.bg : 'rgba(255,255,255,0.7)',
-                        color: form.role === r.value ? r.color : '#6B7280',
-                        transition:'all 0.2s',
-                      }}>
+                        color: form.role === r.value ? r.color : '#6B7280' }}>
                       {r.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Access Role */}
               <div>
                 <label className="input-label">ACCESS ROLE *</label>
-                <p style={{ fontSize:'0.72rem', color:'#9CA3AF', marginBottom:8 }}>
-                  Controls what sections this employee can access.
-                </p>
                 <div style={{ display:'grid', gap:8 }}>
                   {ACCESS_ROLES.map(r => (
                     <button key={r.value} type="button"
-                      onClick={() => setForm({
-                        ...form,
-                        accessRole:    r.value,
-                        hasFullAccess: r.value === 'manager',
-                      })}
-                      style={{
-                        padding:'12px 14px', borderRadius:10,
+                      onClick={() => setForm({...form, accessRole:r.value})}
+                      style={{ padding:'12px 14px', borderRadius:10,
                         textAlign:'left', fontFamily:'Poppins,sans-serif',
                         cursor:'pointer',
                         border: form.accessRole === r.value
                           ? `2px solid ${r.color}`
                           : '1.5px solid rgba(79,70,229,0.15)',
                         background: form.accessRole === r.value
-                          ? r.bg : 'rgba(255,255,255,0.7)',
-                      }}>
+                          ? r.bg : 'rgba(255,255,255,0.7)' }}>
                       <p style={{ fontWeight:700, fontSize:'0.88rem',
-                        color: form.accessRole===r.value ? r.color : '#1E1B4B',
-                        marginBottom:3 }}>
+                        color: form.accessRole === r.value
+                          ? r.color : '#1E1B4B', marginBottom:2 }}>
                         {r.label}
                         {form.accessRole === r.value && ' ✓'}
                       </p>
@@ -619,47 +565,28 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
-              {/* Active toggle — only for edit */}
-              {editData && (
-                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <label className="input-label" style={{ margin:0 }}>
-                    STATUS
-                  </label>
-                  <button type="button"
-                    onClick={() => setForm({...form, isActive:!form.isActive})}
-                    style={{
-                      padding:'6px 16px', borderRadius:999,
-                      fontFamily:'Poppins,sans-serif', fontWeight:600,
-                      fontSize:'0.8rem', cursor:'pointer',
-                      border: form.isActive
-                        ? '2px solid #10B981' : '2px solid #EF4444',
-                      background: form.isActive
-                        ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                      color: form.isActive ? '#059669' : '#DC2626',
-                    }}>
-                    {form.isActive ? '✅ Active' : '❌ Inactive'}
-                  </button>
-                </div>
-              )}
             </div>
 
             <div style={{ display:'flex', gap:10, marginTop:24 }}>
-              <button onClick={() => setModal(false)}
+              <button onClick={() => setAddModal(false)}
                 className="btn-ghost" style={{ flex:1 }}>
                 Cancel
               </button>
-              <button onClick={handleSave} disabled={saving}
+              <button onClick={handleAdd} disabled={saving}
                 className="btn-primary"
                 style={{ flex:1, display:'flex',
                   alignItems:'center', justifyContent:'center', gap:8 }}>
                 {saving
-                  ? <><div className="spinner"/>Saving...</>
-                  : <><Check size={16}/>{editData ? 'Update' : 'Add Employee'}</>}
+                  ? <><div className="spinner"/>Adding...</>
+                  : <><Check size={16}/> Add Employee</>}
               </button>
             </div>
+
           </div>
         </div>
       )}
+
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>
   )
 }
