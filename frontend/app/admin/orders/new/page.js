@@ -158,7 +158,7 @@ export default function NewOrder() {
   const [loadingPage, setLoadingPage] = useState(true)
 
   const [voiceNote, setVoiceNote] = useState({ data:'', mimeType:'audio/webm', duration:0 })
-
+  const [totalEmpRate, setTotalEmpRate] = useState(0)
   const [form, setForm] = useState({
     quantity:      1,
     unitCost:      0,
@@ -237,6 +237,25 @@ export default function NewOrder() {
   // Auto-apply saved measurements whenever cloth type is selected
 // and saved measurements exist
 
+  useEffect(() => {
+  const typeEmpCost = selectedType?.empCost || 0
+  const subEmpCost = selectedSubtype?.empCost || 0
+
+  const altEmpCost = (form.alteration?.selectedOptions || []).reduce(
+    (sum, optName) => {
+      const opt = alterationOptions.find(o => o.name === optName)
+      return sum + (opt?.empCost || 0)
+    },
+    0
+  )
+
+  setTotalEmpRate(typeEmpCost + subEmpCost + altEmpCost)
+}, [
+  selectedType,
+  selectedSubtype,
+  form.alteration?.selectedOptions,
+  alterationOptions
+])
 
   // ── Delivery date check ─────────────────────────────────────
   const checkDelivery = async (date) => {
@@ -282,9 +301,10 @@ export default function NewOrder() {
       const res = await API.post('/api/orders', {
         ...form,
         customerID: selected.customerID,
-        clothType:  clothTypeName,
-        unitCost:   form.unitCost,
-        voiceNote,   // ← ADD THIS
+        clothType: clothTypeName,
+        unitCost: form.unitCost,
+        voiceNote,
+        empRate: totalEmpRate,
       })
       router.push(`/admin/allotment/${res.data.order.orderID}`)
     } catch (e) {
@@ -704,6 +724,43 @@ export default function NewOrder() {
               </p>
             </div>
           )}
+          {selectedSubtype && (
+          <div style={{ padding:'12px 16px',
+            background:'rgba(16,185,129,0.06)',
+            border:'1.5px solid rgba(16,185,129,0.15)',
+            borderRadius:10, marginTop:10 }}>
+            <p style={{ fontSize:'0.78rem', fontWeight:700,
+              color:'#059669', marginBottom:6 }}>
+              💰 Cost Breakdown
+            </p>
+            <div style={{ display:'grid', gap:4 }}>
+              {[
+                { label:'Type rate',     value: selectedType?.empCost    || 0 },
+                { label:'Subtype rate',  value: selectedSubtype?.empCost || 0 },
+                { label:'Alteration',    value: (form.alteration?.selectedOptions||[]).reduce((s,n) => {
+                    const o = alterationOptions.find(x => x.name===n)
+                    return s + (o?.empCost||0)
+                  }, 0)
+                },
+              ].map((item,i) => item.value > 0 && (
+                <div key={i} style={{ display:'flex',
+                  justifyContent:'space-between', fontSize:'0.78rem' }}>
+                  <span style={{ color:'#6B7280' }}>{item.label}</span>
+                  <span style={{ color:'#059669', fontWeight:600 }}>
+                    ₹{item.value}
+                  </span>
+                </div>
+              ))}
+              <div style={{ display:'flex', justifyContent:'space-between',
+                fontSize:'0.88rem', fontWeight:700,
+                borderTop:'1px solid rgba(16,185,129,0.2)',
+                paddingTop:6, marginTop:4 }}>
+                <span style={{ color:'#059669' }}>Total Emp Rate</span>
+                <span style={{ color:'#059669' }}>₹{totalEmpRate}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
           {/* Step 4 — Alteration (shows only after subtype selected) */}
           {selectedClothType && selectedType && selectedSubtype && (

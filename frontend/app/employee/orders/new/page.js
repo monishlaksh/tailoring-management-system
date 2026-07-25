@@ -168,8 +168,10 @@ export default function EmployeeNewOrder() {
       const res = await API.post('/api/orders', {
         ...form,
         customerID: selected.customerID,
-        clothType:  clothTypeName,
+        clothType: clothTypeName,
+        unitCost: form.unitCost,
         voiceNote,
+        empRate: totalEmpRate,
       })
       router.push(`/employee/allotment/${res.data.order.orderID}`)
     } catch (e) {

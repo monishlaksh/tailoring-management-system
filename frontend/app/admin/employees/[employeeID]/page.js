@@ -1,21 +1,17 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter, useParams, usePathname } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { adminAPI as API } from '../../../../lib/api'
 import { Eye, EyeOff, Save, ArrowLeft, RefreshCw } from 'lucide-react'
 
 export default function EmployeeEditPage() {
-  const router   = useRouter()
-  const params   = useParams()
-  const pathname = usePathname()
-
-  // Get employeeID from params OR fallback to pathname
-  const empID = params?.employeeID || pathname?.split('/').pop()
+  const router = useRouter()
+  const params = useParams()
+  const empID  = params?.employeeID
 
   const [emp, setEmp]         = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving]   = useState(false)
-  const [error, setError]     = useState('')
   const [msg, setMsg]         = useState({ text:'', err:false })
 
   const [newPass, setNewPass]         = useState('')
@@ -26,48 +22,34 @@ export default function EmployeeEditPage() {
   useEffect(() => {
     const token = localStorage.getItem('adminToken')
     if (!token) { router.push('/admin/login'); return }
-    if (!empID || empID === 'undefined') {
-      setError('Invalid employee ID')
-      setLoading(false)
-      return
-    }
+    if (!empID || empID === 'undefined') { setLoading(false); return }
     fetchEmployee()
   }, [empID])
 
   const fetchEmployee = async () => {
     setLoading(true)
-    setError('')
     try {
-      console.log('[EMP EDIT] Fetching:', empID)
       const res = await API.get(`/api/employees/${empID}`)
-      console.log('[EMP EDIT] Got:', res.data)
       if (res.data.success) {
         setEmp(res.data.employee)
       } else {
-        setError(res.data.message || 'Employee not found')
+        showMsg('Employee not found', true)
       }
     } catch (e) {
-      console.error('[EMP EDIT] Error:', e.response?.status, e.response?.data)
-      const status = e.response?.status
-      if (status === 401) {
-        router.push('/admin/login')
-        return
-      }
-      setError(
-        e.response?.data?.message || `Failed to load employee (${status || 'network error'})`
-      )
+      if (e.response?.status === 401) { router.push('/admin/login'); return }
+      showMsg(e.response?.data?.message || 'Failed to load employee', true)
     } finally {
-      setLoading(false) // ← ALWAYS called
+      setLoading(false)
     }
   }
 
   const showMsg = (text, err = false) => {
     setMsg({ text, err })
-    setTimeout(() => setMsg({ text:'', err:false }), 3500)
+    setTimeout(() => setMsg({ text:'', err:false }), 4000)
   }
 
   const handleSave = async () => {
-    if (!emp.name?.trim()) { showMsg('Name is required', true); return }
+    if (!emp?.name?.trim()) { showMsg('Name is required', true); return }
     setSaving(true)
     try {
       await API.put(`/api/employees/${empID}`, {
@@ -75,9 +57,9 @@ export default function EmployeeEditPage() {
         phone:      emp.phone      || '',
         role:       emp.role       || 'all',
         accessRole: emp.accessRole || 'employee',
-        bonus:      emp.bonus      || 0,
+        bonus:      Number(emp.bonus) || 0,
       })
-      showMsg('✅ Employee updated successfully!')
+      showMsg('Employee updated successfully!')
       fetchEmployee()
     } catch (e) {
       showMsg(e.response?.data?.message || 'Failed to save', true)
@@ -98,7 +80,7 @@ export default function EmployeeEditPage() {
       })
       setEmp(prev => ({ ...prev, plainPassword: newPass.trim() }))
       setNewPass('')
-      showMsg('✅ Password updated!')
+      showMsg('Password updated!')
     } catch (e) {
       showMsg(e.response?.data?.message || 'Failed to update password', true)
     } finally {
@@ -106,41 +88,29 @@ export default function EmployeeEditPage() {
     }
   }
 
-  // ── Loading state ─────────────────────────────────────────
   if (loading) return (
-    <main style={{ minHeight:'100vh', display:'flex',
-      alignItems:'center', justifyContent:'center',
-      fontFamily:'Poppins,sans-serif' }}>
+    <main style={{ minHeight:'100vh', display:'flex', alignItems:'center',
+      justifyContent:'center', fontFamily:'Poppins,sans-serif' }}>
       <div style={{ textAlign:'center' }}>
         <div style={{ width:40, height:40,
           border:'3px solid rgba(79,70,229,0.2)',
           borderTopColor:'#4F46E5', borderRadius:'50%',
-          animation:'spin 0.8s linear infinite',
-          margin:'0 auto 12px' }}/>
-        <p style={{ color:'#6B7280', fontSize:'0.88rem' }}>
-          Loading employee...
-        </p>
-        <p style={{ color:'#C4C9D4', fontSize:'0.75rem', marginTop:4 }}>
-          {empID}
-        </p>
+          animation:'spin 0.8s linear infinite', margin:'0 auto 12px' }}/>
+        <p style={{ color:'#6B7280', fontSize:'0.88rem' }}>Loading employee...</p>
+        <p style={{ color:'#C4C9D4', fontSize:'0.75rem', marginTop:4 }}>{empID}</p>
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>
   )
 
-  // ── Error state ───────────────────────────────────────────
-  if (error || !emp) return (
-    <main style={{ minHeight:'100vh', display:'flex',
-      alignItems:'center', justifyContent:'center',
-      padding:24, fontFamily:'Poppins,sans-serif' }}>
-      <div style={{ maxWidth:360, width:'100%', textAlign:'center' }}>
-        <p style={{ fontSize:'2rem', marginBottom:12 }}>👤</p>
-        <p style={{ fontWeight:700, color:'#1E1B4B', marginBottom:6 }}>
-          {error || 'Employee not found'}
-        </p>
-        <p style={{ fontSize:'0.78rem', color:'#9CA3AF',
-          background:'#F8F7FF', padding:'8px 14px',
-          borderRadius:8, marginBottom:16 }}>
+  if (!emp) return (
+    <main style={{ minHeight:'100vh', display:'flex', alignItems:'center',
+      justifyContent:'center', padding:24, fontFamily:'Poppins,sans-serif' }}>
+      <div style={{ textAlign:'center' }}>
+        <p style={{ fontSize:'2rem', marginBottom:10 }}>👤</p>
+        <p style={{ fontWeight:700, color:'#DC2626', marginBottom:8 }}>Employee not found</p>
+        <p style={{ fontSize:'0.8rem', color:'#9CA3AF', background:'#F8F7FF',
+          padding:'8px 14px', borderRadius:8, marginBottom:16 }}>
           ID: {empID}
         </p>
         <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
@@ -148,18 +118,15 @@ export default function EmployeeEditPage() {
             style={{ padding:'9px 20px',
               background:'linear-gradient(135deg,#4F46E5,#6366F1)',
               color:'white', border:'none', borderRadius:10,
-              fontFamily:'Poppins,sans-serif', fontWeight:600,
-              cursor:'pointer' }}>
-            🔄 Retry
+              fontFamily:'Poppins,sans-serif', fontWeight:600, cursor:'pointer' }}>
+            Retry
           </button>
           <button onClick={() => router.push('/admin/employees')}
-            style={{ padding:'9px 20px',
-              background:'rgba(79,70,229,0.08)',
-              color:'#4F46E5',
-              border:'1.5px solid rgba(79,70,229,0.2)',
+            style={{ padding:'9px 20px', background:'rgba(79,70,229,0.08)',
+              color:'#4F46E5', border:'1.5px solid rgba(79,70,229,0.2)',
               borderRadius:10, fontFamily:'Poppins,sans-serif',
               fontWeight:600, cursor:'pointer' }}>
-            ← Back
+            Back
           </button>
         </div>
       </div>
@@ -167,17 +134,14 @@ export default function EmployeeEditPage() {
     </main>
   )
 
-  // ── Main page ─────────────────────────────────────────────
   return (
-    <main style={{ minHeight:'100vh', padding:'20px',
-      maxWidth:600, margin:'0 auto',
-      fontFamily:'Poppins,sans-serif' }}>
+    <main style={{ minHeight:'100vh', padding:'20px', maxWidth:600,
+      margin:'0 auto', fontFamily:'Poppins,sans-serif' }}>
 
       {/* Header */}
-      <div className="glass" style={{ display:'flex',
-        alignItems:'center', justifyContent:'space-between',
-        padding:'14px 20px', marginBottom:20,
-        flexWrap:'wrap', gap:10 }}>
+      <div className="glass" style={{ display:'flex', alignItems:'center',
+        justifyContent:'space-between', padding:'14px 20px',
+        marginBottom:20, flexWrap:'wrap', gap:10 }}>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <button onClick={() => router.push('/admin/employees')}
             style={{ width:36, height:36, borderRadius:10,
@@ -187,9 +151,7 @@ export default function EmployeeEditPage() {
             <ArrowLeft size={18}/>
           </button>
           <div>
-            <p style={{ fontWeight:800, color:'#1E1B4B', fontSize:'1rem' }}>
-              {emp.name}
-            </p>
+            <p style={{ fontWeight:800, color:'#1E1B4B', fontSize:'1rem' }}>{emp.name}</p>
             <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
               {emp.employeeID} · @{emp.username}
             </p>
@@ -197,30 +159,24 @@ export default function EmployeeEditPage() {
         </div>
         <button onClick={handleSave} disabled={saving}
           style={{ padding:'9px 20px',
-            background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+            background: saving ? '#C4C9D4' : 'linear-gradient(135deg,#4F46E5,#6366F1)',
             color:'white', border:'none', borderRadius:10,
-            fontFamily:'Poppins,sans-serif', fontWeight:700,
-            fontSize:'0.85rem',
+            fontFamily:'Poppins,sans-serif', fontWeight:700, fontSize:'0.85rem',
             cursor: saving ? 'not-allowed' : 'pointer',
-            display:'flex', alignItems:'center', gap:6,
-            opacity: saving ? 0.8 : 1 }}>
+            display:'flex', alignItems:'center', gap:6 }}>
           {saving ? '⏳ Saving...' : <><Save size={14}/>Save Changes</>}
         </button>
       </div>
 
-      {/* Flash message */}
+      {/* Message */}
       {msg.text && (
         <div style={{ padding:'12px 16px',
-          background: msg.err
-            ? 'rgba(239,68,68,0.08)'
-            : 'rgba(16,185,129,0.08)',
-          border: `1.5px solid ${msg.err
-            ? 'rgba(239,68,68,0.2)'
-            : 'rgba(16,185,129,0.2)'}`,
+          background: msg.err ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)',
+          border: `1.5px solid ${msg.err ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}`,
           borderRadius:10, marginBottom:16,
           color: msg.err ? '#DC2626' : '#059669',
           fontSize:'0.87rem', fontWeight:500 }}>
-          {msg.text}
+          {msg.err ? '⚠️' : '✅'} {msg.text}
         </div>
       )}
 
@@ -228,49 +184,39 @@ export default function EmployeeEditPage() {
 
         {/* Basic Info */}
         <div className="glass" style={{ padding:20 }}>
-          <p style={{ fontSize:'0.78rem', fontWeight:700,
-            color:'#4F46E5', textTransform:'uppercase',
-            letterSpacing:'0.5px', marginBottom:16 }}>
+          <p style={{ fontSize:'0.78rem', fontWeight:700, color:'#4F46E5',
+            textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:16 }}>
             👤 Basic Info
           </p>
           <div style={{ display:'grid', gap:12 }}>
+
             <div>
               <label className="input-label">NAME *</label>
-              <input
-                value={emp.name || ''}
+              <input value={emp.name || ''}
                 onChange={e => setEmp({...emp, name:e.target.value})}
-                className="input-field"
-                placeholder="Employee name"
-              />
+                className="input-field" placeholder="Employee name"/>
             </div>
+
             <div>
               <label className="input-label">PHONE</label>
-              <input
-                value={emp.phone || ''}
+              <input value={emp.phone || ''}
                 onChange={e => setEmp({...emp, phone:e.target.value})}
-                className="input-field"
-                placeholder="Phone number"
-              />
+                className="input-field" placeholder="Phone number"/>
             </div>
+
             <div>
-              <label className="input-label">USERNAME</label>
-              <input
-                value={emp.username || ''}
-                readOnly
+              <label className="input-label">USERNAME (read only)</label>
+              <input value={emp.username || ''} readOnly
                 style={{ width:'100%', padding:'12px 14px',
                   background:'rgba(79,70,229,0.03)',
                   border:'1.5px solid rgba(79,70,229,0.1)',
                   borderRadius:10, fontFamily:'Poppins,sans-serif',
-                  fontSize:'0.9rem', color:'#9CA3AF', outline:'none' }}
-              />
-              <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:3 }}>
-                Username cannot be changed
-              </p>
+                  fontSize:'0.9rem', color:'#9CA3AF', outline:'none' }}/>
             </div>
+
             <div>
               <label className="input-label">WORK ROLE</label>
-              <select
-                value={emp.role || 'all'}
+              <select value={emp.role || 'all'}
                 onChange={e => setEmp({...emp, role:e.target.value})}
                 className="input-field">
                 <option value="cutting">✂️ Cutting</option>
@@ -279,56 +225,47 @@ export default function EmployeeEditPage() {
                 <option value="all">⭐ All Stages</option>
               </select>
             </div>
+
             <div>
               <label className="input-label">ACCESS ROLE</label>
-              <select
-                value={emp.accessRole || 'employee'}
+              <select value={emp.accessRole || 'employee'}
                 onChange={e => setEmp({...emp, accessRole:e.target.value})}
                 className="input-field">
-                <option value="employee">
-                  👷 Employee — Scan only
-                </option>
-                <option value="receptionist">
-                  🎟️ Receptionist — Create orders & manage customers
-                </option>
-                <option value="manager">
-                  ⭐ Manager — Full admin access
-                </option>
+                <option value="employee">👷 Employee — Scan only</option>
+                <option value="receptionist">🎟️ Receptionist — Create orders & customers</option>
+                <option value="manager">⭐ Manager — Full admin access</option>
               </select>
               <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:4 }}>
                 {emp.accessRole === 'manager'
                   ? '⭐ Full access to all admin features'
                   : emp.accessRole === 'receptionist'
                     ? '🎟️ Can create orders and manage customers'
-                    : '👷 Can only scan QR codes and view assigned work'}
+                    : '👷 Can only scan QR and view assigned work'}
               </p>
             </div>
+
             <div>
               <label className="input-label">BONUS PER ORDER (₹)</label>
-              <input
-                type="number"
-                min="0"
+              <input type="number" min="0"
                 value={emp.bonus || 0}
-                onChange={e => setEmp({
-                  ...emp, bonus:Number(e.target.value) || 0
-                })}
-                className="input-field"
-              />
+                onChange={e => setEmp({...emp, bonus:Number(e.target.value)||0})}
+                className="input-field"/>
               <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:3 }}>
                 Added on top of emp rate when a stage is approved
               </p>
             </div>
+
           </div>
         </div>
 
         {/* Password */}
         <div className="glass" style={{ padding:20 }}>
-          <p style={{ fontSize:'0.78rem', fontWeight:700,
-            color:'#4F46E5', textTransform:'uppercase',
-            letterSpacing:'0.5px', marginBottom:16 }}>
+          <p style={{ fontSize:'0.78rem', fontWeight:700, color:'#4F46E5',
+            textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:16 }}>
             🔐 Password
           </p>
 
+          {/* Current password display */}
           <div style={{ marginBottom:16 }}>
             <label className="input-label">CURRENT PASSWORD</label>
             {emp.plainPassword ? (
@@ -337,23 +274,20 @@ export default function EmployeeEditPage() {
                   readOnly
                   type={showCurPass ? 'text' : 'password'}
                   value={emp.plainPassword}
-                  style={{ width:'100%',
-                    padding:'12px 44px 12px 14px',
+                  style={{ width:'100%', padding:'12px 44px 12px 14px',
                     background:'rgba(16,185,129,0.05)',
                     border:'1.5px solid rgba(16,185,129,0.25)',
-                    borderRadius:10,
-                    fontFamily:'Poppins,sans-serif',
-                    fontSize:'0.9rem', color:'#059669',
-                    fontWeight:600, outline:'none',
+                    borderRadius:10, fontFamily:'Poppins,sans-serif',
+                    fontSize:'0.9rem', color:'#059669', fontWeight:600,
+                    outline:'none',
                     letterSpacing: showCurPass ? 'normal' : '0.2em' }}
                 />
                 <button type="button"
                   onClick={() => setShowCurPass(p => !p)}
-                  style={{ position:'absolute', right:12,
-                    top:'50%', transform:'translateY(-50%)',
-                    background:'none', border:'none',
-                    cursor:'pointer', color:'#9CA3AF',
-                    display:'flex', padding:0 }}>
+                  style={{ position:'absolute', right:12, top:'50%',
+                    transform:'translateY(-50%)', background:'none',
+                    border:'none', cursor:'pointer', color:'#9CA3AF',
+                    display:'flex', alignItems:'center', padding:0 }}>
                   {showCurPass ? <EyeOff size={16}/> : <Eye size={16}/>}
                 </button>
               </div>
@@ -369,6 +303,7 @@ export default function EmployeeEditPage() {
             )}
           </div>
 
+          {/* New password */}
           <div>
             <label className="input-label">SET NEW PASSWORD</label>
             <div style={{ position:'relative', marginBottom:12 }}>
@@ -379,36 +314,33 @@ export default function EmployeeEditPage() {
                 placeholder="Type new password..."
                 className="input-field"
                 style={{ paddingRight:44 }}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') handlePasswordUpdate()
-                }}
+                onKeyDown={e => e.key === 'Enter' && handlePasswordUpdate()}
               />
               <button type="button"
                 onClick={() => setShowNewPass(p => !p)}
-                style={{ position:'absolute', right:12,
-                  top:'50%', transform:'translateY(-50%)',
-                  background:'none', border:'none',
-                  cursor:'pointer', color:'#9CA3AF',
-                  display:'flex', padding:0 }}>
+                style={{ position:'absolute', right:12, top:'50%',
+                  transform:'translateY(-50%)', background:'none',
+                  border:'none', cursor:'pointer', color:'#9CA3AF',
+                  display:'flex', alignItems:'center', padding:0 }}>
                 {showNewPass ? <EyeOff size={16}/> : <Eye size={16}/>}
               </button>
             </div>
-            <button
+
+            <button type="button"
               onClick={handlePasswordUpdate}
               disabled={passLoading || !newPass.trim()}
               style={{ width:'100%', padding:'12px',
                 background: newPass.trim()
-                  ? 'linear-gradient(135deg,#4F46E5,#6366F1)'
-                  : '#E5E7EB',
+                  ? 'linear-gradient(135deg,#4F46E5,#6366F1)' : '#E5E7EB',
                 color: newPass.trim() ? 'white' : '#9CA3AF',
                 border:'none', borderRadius:10,
                 fontFamily:'Poppins,sans-serif', fontWeight:700,
                 fontSize:'0.9rem',
-                cursor: newPass.trim() ? 'pointer' : 'not-allowed',
-                display:'flex', alignItems:'center',
-                justifyContent:'center', gap:6 }}>
+                cursor: (passLoading || !newPass.trim()) ? 'not-allowed' : 'pointer',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                gap:6, opacity: passLoading ? 0.7 : 1 }}>
               {passLoading
-                ? '⏳ Updating...'
+                ? '⏳ Updating password...'
                 : <><RefreshCw size={14}/>Update Password</>}
             </button>
           </div>
