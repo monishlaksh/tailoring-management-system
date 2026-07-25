@@ -1,323 +1,419 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import { ArrowLeft, Search, ChevronRight, X } from 'lucide-react'
+import { useRouter, useParams, usePathname } from 'next/navigation'
 import { adminAPI as API } from '../../../../lib/api'
+import { Eye, EyeOff, Save, ArrowLeft, RefreshCw } from 'lucide-react'
 
-const STAGE_ICONS = {
-  'Booking':'📘','Cutting':'✂️','Stitching':'🧵',
-  'Finishing':'🚩','Ready For Delivery':'✅',
-}
+export default function EmployeeEditPage() {
+  const router   = useRouter()
+  const params   = useParams()
+  const pathname = usePathname()
 
-export default function EmployeeDetailPage() {
-  const router     = useRouter()
-  const pathname   = usePathname()
-  const employeeID = pathname?.split('/').pop()
+  // Get employeeID from params OR fallback to pathname
+  const empID = params?.employeeID || pathname?.split('/').pop()
 
-  const [employee, setEmployee] = useState(null)
-  const [orders, setOrders]     = useState([])
-  const [stats, setStats]       = useState(null)
-  const [search, setSearch]     = useState('')
-  const [loading, setLoading]   = useState(true)
+  const [emp, setEmp]         = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving]   = useState(false)
+  const [error, setError]     = useState('')
+  const [msg, setMsg]         = useState({ text:'', err:false })
+
+  const [newPass, setNewPass]         = useState('')
+  const [showNewPass, setShowNewPass] = useState(false)
+  const [showCurPass, setShowCurPass] = useState(false)
+  const [passLoading, setPassLoading] = useState(false)
 
   useEffect(() => {
-    if (!localStorage.getItem('adminToken')) { router.push('/admin/login'); return }
-    fetchData()
-  }, [employeeID])
-
-  const fetchData = async () => {
-    try {
-      const [empRes, ordersRes, statsRes] = await Promise.all([
-        API.get('/api/employees'),
-        API.get('/api/orders'),
-        API.get(`/api/employees/${employeeID}/stats`),
-      ])
-      const emp = empRes.data.employees.find(e => e.employeeID === employeeID)
-      setEmployee(emp || null)
-      const empOrders = ordersRes.data.orders.filter(
-        o => o.createdBy?.employeeID === employeeID
-      )
-      setOrders(empOrders)
-      setStats(statsRes.data.stats)
-    } catch (e) { console.error(e) }
-    finally { setLoading(false) }
-  }
-
-  const getStatusBadge = (status) => {
-    const map = {
-      'Booking':            { bg:'rgba(79,70,229,0.12)',  color:'#4F46E5' },
-      'Cutting':            { bg:'rgba(245,158,11,0.12)', color:'#D97706' },
-      'Stitching':          { bg:'rgba(59,130,246,0.12)', color:'#2563EB' },
-      'Finishing':          { bg:'rgba(168,85,247,0.12)', color:'#9333EA' },
-      'Ready For Delivery': { bg:'rgba(16,185,129,0.12)', color:'#059669' },
+    const token = localStorage.getItem('adminToken')
+    if (!token) { router.push('/admin/login'); return }
+    if (!empID || empID === 'undefined') {
+      setError('Invalid employee ID')
+      setLoading(false)
+      return
     }
-    const s = map[status] || map['Booking']
-    return (
-      <span style={{ fontSize:'0.73rem', fontWeight:600,
-        padding:'3px 10px', borderRadius:999,
-        background:s.bg, color:s.color }}>
-        {STAGE_ICONS[status]} {status}
-      </span>
-    )
+    fetchEmployee()
+  }, [empID])
+
+  const fetchEmployee = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      console.log('[EMP EDIT] Fetching:', empID)
+      const res = await API.get(`/api/employees/${empID}`)
+      console.log('[EMP EDIT] Got:', res.data)
+      if (res.data.success) {
+        setEmp(res.data.employee)
+      } else {
+        setError(res.data.message || 'Employee not found')
+      }
+    } catch (e) {
+      console.error('[EMP EDIT] Error:', e.response?.status, e.response?.data)
+      const status = e.response?.status
+      if (status === 401) {
+        router.push('/admin/login')
+        return
+      }
+      setError(
+        e.response?.data?.message || `Failed to load employee (${status || 'network error'})`
+      )
+    } finally {
+      setLoading(false) // ← ALWAYS called
+    }
   }
 
-  const filtered = orders.filter(o =>
-    (o.orderID?.toLowerCase()||'').includes(search.toLowerCase()) ||
-    (o.customerID?.toLowerCase()||'').includes(search.toLowerCase()) ||
-    (o.clothType?.toLowerCase()||'').includes(search.toLowerCase()) ||
-    (o.customerRef?.name?.toLowerCase()||'').includes(search.toLowerCase())
-  )
+  const showMsg = (text, err = false) => {
+    setMsg({ text, err })
+    setTimeout(() => setMsg({ text:'', err:false }), 3500)
+  }
 
+  const handleSave = async () => {
+    if (!emp.name?.trim()) { showMsg('Name is required', true); return }
+    setSaving(true)
+    try {
+      await API.put(`/api/employees/${empID}`, {
+        name:       emp.name,
+        phone:      emp.phone      || '',
+        role:       emp.role       || 'all',
+        accessRole: emp.accessRole || 'employee',
+        bonus:      emp.bonus      || 0,
+      })
+      showMsg('✅ Employee updated successfully!')
+      fetchEmployee()
+    } catch (e) {
+      showMsg(e.response?.data?.message || 'Failed to save', true)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handlePasswordUpdate = async () => {
+    if (!newPass.trim()) { showMsg('Enter a new password', true); return }
+    if (newPass.trim().length < 4) {
+      showMsg('Password must be at least 4 characters', true); return
+    }
+    setPassLoading(true)
+    try {
+      await API.patch(`/api/employees/${empID}/password`, {
+        password: newPass.trim(),
+      })
+      setEmp(prev => ({ ...prev, plainPassword: newPass.trim() }))
+      setNewPass('')
+      showMsg('✅ Password updated!')
+    } catch (e) {
+      showMsg(e.response?.data?.message || 'Failed to update password', true)
+    } finally {
+      setPassLoading(false)
+    }
+  }
+
+  // ── Loading state ─────────────────────────────────────────
   if (loading) return (
-    <main style={{ minHeight:'100vh', display:'flex', alignItems:'center',
-      justifyContent:'center' }}>
-      <div style={{ width:36, height:36,
-        border:'3px solid rgba(245,158,11,0.2)',
-        borderTopColor:'#F59E0B', borderRadius:'50%',
-        animation:'spin 0.8s linear infinite' }} />
+    <main style={{ minHeight:'100vh', display:'flex',
+      alignItems:'center', justifyContent:'center',
+      fontFamily:'Poppins,sans-serif' }}>
+      <div style={{ textAlign:'center' }}>
+        <div style={{ width:40, height:40,
+          border:'3px solid rgba(79,70,229,0.2)',
+          borderTopColor:'#4F46E5', borderRadius:'50%',
+          animation:'spin 0.8s linear infinite',
+          margin:'0 auto 12px' }}/>
+        <p style={{ color:'#6B7280', fontSize:'0.88rem' }}>
+          Loading employee...
+        </p>
+        <p style={{ color:'#C4C9D4', fontSize:'0.75rem', marginTop:4 }}>
+          {empID}
+        </p>
+      </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>
   )
 
+  // ── Error state ───────────────────────────────────────────
+  if (error || !emp) return (
+    <main style={{ minHeight:'100vh', display:'flex',
+      alignItems:'center', justifyContent:'center',
+      padding:24, fontFamily:'Poppins,sans-serif' }}>
+      <div style={{ maxWidth:360, width:'100%', textAlign:'center' }}>
+        <p style={{ fontSize:'2rem', marginBottom:12 }}>👤</p>
+        <p style={{ fontWeight:700, color:'#1E1B4B', marginBottom:6 }}>
+          {error || 'Employee not found'}
+        </p>
+        <p style={{ fontSize:'0.78rem', color:'#9CA3AF',
+          background:'#F8F7FF', padding:'8px 14px',
+          borderRadius:8, marginBottom:16 }}>
+          ID: {empID}
+        </p>
+        <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
+          <button onClick={fetchEmployee}
+            style={{ padding:'9px 20px',
+              background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+              color:'white', border:'none', borderRadius:10,
+              fontFamily:'Poppins,sans-serif', fontWeight:600,
+              cursor:'pointer' }}>
+            🔄 Retry
+          </button>
+          <button onClick={() => router.push('/admin/employees')}
+            style={{ padding:'9px 20px',
+              background:'rgba(79,70,229,0.08)',
+              color:'#4F46E5',
+              border:'1.5px solid rgba(79,70,229,0.2)',
+              borderRadius:10, fontFamily:'Poppins,sans-serif',
+              fontWeight:600, cursor:'pointer' }}>
+            ← Back
+          </button>
+        </div>
+      </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </main>
+  )
+
+  // ── Main page ─────────────────────────────────────────────
   return (
-    <main style={{ minHeight:'100vh', padding:'24px',
-      maxWidth:1100, margin:'0 auto' }}>
+    <main style={{ minHeight:'100vh', padding:'20px',
+      maxWidth:600, margin:'0 auto',
+      fontFamily:'Poppins,sans-serif' }}>
 
       {/* Header */}
-      <div className="glass" style={{ display:'flex', alignItems:'center',
-        justifyContent:'space-between', padding:'14px 24px',
-        marginBottom:24, flexWrap:'wrap', gap:12,
-        borderTop:'3px solid #F59E0B' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+      <div className="glass" style={{ display:'flex',
+        alignItems:'center', justifyContent:'space-between',
+        padding:'14px 20px', marginBottom:20,
+        flexWrap:'wrap', gap:10 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <button onClick={() => router.push('/admin/employees')}
-            style={{ background:'none', border:'none',
-              cursor:'pointer', color:'#D97706', display:'flex' }}>
-            <ArrowLeft size={20} />
+            style={{ width:36, height:36, borderRadius:10,
+              background:'rgba(79,70,229,0.08)', border:'none',
+              cursor:'pointer', display:'flex', alignItems:'center',
+              justifyContent:'center', color:'#4F46E5' }}>
+            <ArrowLeft size={18}/>
           </button>
           <div>
-            <h1 style={{ fontSize:'1rem', fontWeight:700, color:'#1E1B4B' }}>
-              {employee?.name || employeeID}
-            </h1>
+            <p style={{ fontWeight:800, color:'#1E1B4B', fontSize:'1rem' }}>
+              {emp.name}
+            </p>
             <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
-              {employeeID} · {employee?.role || '—'} stage
+              {emp.employeeID} · @{emp.username}
             </p>
           </div>
         </div>
+        <button onClick={handleSave} disabled={saving}
+          style={{ padding:'9px 20px',
+            background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+            color:'white', border:'none', borderRadius:10,
+            fontFamily:'Poppins,sans-serif', fontWeight:700,
+            fontSize:'0.85rem',
+            cursor: saving ? 'not-allowed' : 'pointer',
+            display:'flex', alignItems:'center', gap:6,
+            opacity: saving ? 0.8 : 1 }}>
+          {saving ? '⏳ Saving...' : <><Save size={14}/>Save Changes</>}
+        </button>
       </div>
 
-      {/* ── Admin-Only Stats (Awards visible) ── */}
-      <div className="glass" style={{ padding:24, marginBottom:20,
-        background:'rgba(245,158,11,0.02)',
-        border:'1.5px solid rgba(245,158,11,0.2)' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16 }}>
-          <span style={{ fontSize:'1rem' }}>🔐</span>
-          <p style={{ fontWeight:700, color:'#1E1B4B', fontSize:'0.95rem' }}>
-            Admin View — Performance & Awards
+      {/* Flash message */}
+      {msg.text && (
+        <div style={{ padding:'12px 16px',
+          background: msg.err
+            ? 'rgba(239,68,68,0.08)'
+            : 'rgba(16,185,129,0.08)',
+          border: `1.5px solid ${msg.err
+            ? 'rgba(239,68,68,0.2)'
+            : 'rgba(16,185,129,0.2)'}`,
+          borderRadius:10, marginBottom:16,
+          color: msg.err ? '#DC2626' : '#059669',
+          fontSize:'0.87rem', fontWeight:500 }}>
+          {msg.text}
+        </div>
+      )}
+
+      <div style={{ display:'grid', gap:16 }}>
+
+        {/* Basic Info */}
+        <div className="glass" style={{ padding:20 }}>
+          <p style={{ fontSize:'0.78rem', fontWeight:700,
+            color:'#4F46E5', textTransform:'uppercase',
+            letterSpacing:'0.5px', marginBottom:16 }}>
+            👤 Basic Info
           </p>
-          <span style={{ fontSize:'0.68rem', padding:'2px 8px',
-            borderRadius:999, background:'rgba(239,68,68,0.1)',
-            color:'#DC2626', fontWeight:600 }}>
-            NOT visible to employee
-          </span>
-        </div>
-
-        <div style={{ display:'grid',
-          gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',
-          gap:14, marginBottom:20 }}>
-          {[
-            { label:'Total Stages Completed', value:stats?.totalCompleted||0,
-              color:'#4F46E5', bg:'rgba(79,70,229,0.07)', icon:'✅' },
-            { label:'Total Awards Earned',
-              value:`₹${(stats?.totalAwarded||0).toLocaleString('en-IN')}`,
-              color:'#059669', bg:'rgba(16,185,129,0.07)', icon:'💰' },
-            { label:'Orders Created',    value:orders.length,
-              color:'#D97706', bg:'rgba(245,158,11,0.07)', icon:'📋' },
-          ].map((s,i) => (
-            <div key={i} className="glass"
-              style={{ padding:'18px 16px', background:s.bg }}>
-              <p style={{ fontSize:'1.4rem', marginBottom:4 }}>{s.icon}</p>
-              <p style={{ fontSize:'0.7rem', color:'#6B7280',
-                fontWeight:500, marginBottom:4 }}>
-                {s.label}
-              </p>
-              <p style={{ fontSize:'1.4rem', fontWeight:800,
-                color:s.color, lineHeight:1 }}>
-                {s.value}
+          <div style={{ display:'grid', gap:12 }}>
+            <div>
+              <label className="input-label">NAME *</label>
+              <input
+                value={emp.name || ''}
+                onChange={e => setEmp({...emp, name:e.target.value})}
+                className="input-field"
+                placeholder="Employee name"
+              />
+            </div>
+            <div>
+              <label className="input-label">PHONE</label>
+              <input
+                value={emp.phone || ''}
+                onChange={e => setEmp({...emp, phone:e.target.value})}
+                className="input-field"
+                placeholder="Phone number"
+              />
+            </div>
+            <div>
+              <label className="input-label">USERNAME</label>
+              <input
+                value={emp.username || ''}
+                readOnly
+                style={{ width:'100%', padding:'12px 14px',
+                  background:'rgba(79,70,229,0.03)',
+                  border:'1.5px solid rgba(79,70,229,0.1)',
+                  borderRadius:10, fontFamily:'Poppins,sans-serif',
+                  fontSize:'0.9rem', color:'#9CA3AF', outline:'none' }}
+              />
+              <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:3 }}>
+                Username cannot be changed
               </p>
             </div>
-          ))}
-        </div>
-
-        {/* Stage breakdown with awards */}
-        {stats && (
-          <div>
-            <p style={{ fontSize:'0.75rem', color:'#9CA3AF',
-              fontWeight:600, marginBottom:10 }}>
-              STAGE BREAKDOWN
-            </p>
-            <div style={{ display:'grid',
-              gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
-              {[
-                { key:'cutting',   icon:'✂️', label:'Cutting',   color:'#D97706' },
-                { key:'stitching', icon:'🧵', label:'Stitching',  color:'#2563EB' },
-                { key:'finishing', icon:'🚩', label:'Finishing',  color:'#9333EA' },
-              ].map(s => (
-                <div key={s.key} style={{ background:'rgba(255,255,255,0.7)',
-                  borderRadius:12, padding:'14px',
-                  border:`1.5px solid ${s.color}22` }}>
-                  <p style={{ fontSize:'1.1rem', marginBottom:6 }}>{s.icon}</p>
-                  <p style={{ fontSize:'0.72rem', color:'#6B7280',
-                    fontWeight:600, marginBottom:4 }}>
-                    {s.label}
-                  </p>
-                  <p style={{ fontSize:'1.2rem', fontWeight:800,
-                    color:s.color, lineHeight:1, marginBottom:4 }}>
-                    {stats.stageBreakdown?.[s.key] || 0}
-                    <span style={{ fontSize:'0.72rem', color:'#9CA3AF',
-                      fontWeight:400, marginLeft:3 }}>
-                      done
-                    </span>
-                  </p>
-                  <p style={{ fontSize:'0.78rem', fontWeight:700,
-                    color:'#059669' }}>
-                    ₹{(stats.awardBreakdown?.[s.key]||0).toLocaleString('en-IN')}
-                  </p>
-                </div>
-              ))}
+            <div>
+              <label className="input-label">WORK ROLE</label>
+              <select
+                value={emp.role || 'all'}
+                onChange={e => setEmp({...emp, role:e.target.value})}
+                className="input-field">
+                <option value="cutting">✂️ Cutting</option>
+                <option value="stitching">🧵 Stitching</option>
+                <option value="finishing">🚩 Finishing</option>
+                <option value="all">⭐ All Stages</option>
+              </select>
+            </div>
+            <div>
+              <label className="input-label">ACCESS ROLE</label>
+              <select
+                value={emp.accessRole || 'employee'}
+                onChange={e => setEmp({...emp, accessRole:e.target.value})}
+                className="input-field">
+                <option value="employee">
+                  👷 Employee — Scan only
+                </option>
+                <option value="receptionist">
+                  🎟️ Receptionist — Create orders & manage customers
+                </option>
+                <option value="manager">
+                  ⭐ Manager — Full admin access
+                </option>
+              </select>
+              <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:4 }}>
+                {emp.accessRole === 'manager'
+                  ? '⭐ Full access to all admin features'
+                  : emp.accessRole === 'receptionist'
+                    ? '🎟️ Can create orders and manage customers'
+                    : '👷 Can only scan QR codes and view assigned work'}
+              </p>
+            </div>
+            <div>
+              <label className="input-label">BONUS PER ORDER (₹)</label>
+              <input
+                type="number"
+                min="0"
+                value={emp.bonus || 0}
+                onChange={e => setEmp({
+                  ...emp, bonus:Number(e.target.value) || 0
+                })}
+                className="input-field"
+              />
+              <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:3 }}>
+                Added on top of emp rate when a stage is approved
+              </p>
             </div>
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Orders Table */}
-      <div className="glass" style={{ padding:24 }}>
-        <div style={{ display:'flex', alignItems:'center',
-          justifyContent:'space-between', marginBottom:18,
-          flexWrap:'wrap', gap:12 }}>
-          <h2 style={{ fontSize:'0.95rem', fontWeight:700, color:'#1E1B4B' }}>
-            Orders Created by {employee?.name}
-          </h2>
-          <div style={{ position:'relative' }}>
-            <Search size={14} style={{ position:'absolute', left:10,
-              top:'50%', transform:'translateY(-50%)', color:'#9CA3AF' }} />
-            <input type="text" placeholder="Search..." value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ padding:'8px 30px 8px 30px',
-                background:'rgba(255,255,255,0.8)',
-                border:'1.5px solid rgba(245,158,11,0.2)',
-                borderRadius:8, fontFamily:'Poppins,sans-serif',
-                fontSize:'0.82rem', outline:'none',
-                width:180, color:'#1E1B4B' }} />
-            {search && (
-              <button onClick={() => setSearch('')}
-                style={{ position:'absolute', right:8, top:'50%',
-                  transform:'translateY(-50%)', background:'none',
-                  border:'none', cursor:'pointer', color:'#9CA3AF',
-                  display:'flex' }}>
-                <X size={13} />
-              </button>
+        {/* Password */}
+        <div className="glass" style={{ padding:20 }}>
+          <p style={{ fontSize:'0.78rem', fontWeight:700,
+            color:'#4F46E5', textTransform:'uppercase',
+            letterSpacing:'0.5px', marginBottom:16 }}>
+            🔐 Password
+          </p>
+
+          <div style={{ marginBottom:16 }}>
+            <label className="input-label">CURRENT PASSWORD</label>
+            {emp.plainPassword ? (
+              <div style={{ position:'relative' }}>
+                <input
+                  readOnly
+                  type={showCurPass ? 'text' : 'password'}
+                  value={emp.plainPassword}
+                  style={{ width:'100%',
+                    padding:'12px 44px 12px 14px',
+                    background:'rgba(16,185,129,0.05)',
+                    border:'1.5px solid rgba(16,185,129,0.25)',
+                    borderRadius:10,
+                    fontFamily:'Poppins,sans-serif',
+                    fontSize:'0.9rem', color:'#059669',
+                    fontWeight:600, outline:'none',
+                    letterSpacing: showCurPass ? 'normal' : '0.2em' }}
+                />
+                <button type="button"
+                  onClick={() => setShowCurPass(p => !p)}
+                  style={{ position:'absolute', right:12,
+                    top:'50%', transform:'translateY(-50%)',
+                    background:'none', border:'none',
+                    cursor:'pointer', color:'#9CA3AF',
+                    display:'flex', padding:0 }}>
+                  {showCurPass ? <EyeOff size={16}/> : <Eye size={16}/>}
+                </button>
+              </div>
+            ) : (
+              <div style={{ padding:'12px 14px',
+                background:'rgba(245,158,11,0.05)',
+                border:'1.5px dashed rgba(245,158,11,0.3)',
+                borderRadius:10 }}>
+                <p style={{ fontSize:'0.82rem', color:'#D97706' }}>
+                  ⚠️ Password not on record — set a new one below.
+                </p>
+              </div>
             )}
           </div>
+
+          <div>
+            <label className="input-label">SET NEW PASSWORD</label>
+            <div style={{ position:'relative', marginBottom:12 }}>
+              <input
+                type={showNewPass ? 'text' : 'password'}
+                value={newPass}
+                onChange={e => setNewPass(e.target.value)}
+                placeholder="Type new password..."
+                className="input-field"
+                style={{ paddingRight:44 }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handlePasswordUpdate()
+                }}
+              />
+              <button type="button"
+                onClick={() => setShowNewPass(p => !p)}
+                style={{ position:'absolute', right:12,
+                  top:'50%', transform:'translateY(-50%)',
+                  background:'none', border:'none',
+                  cursor:'pointer', color:'#9CA3AF',
+                  display:'flex', padding:0 }}>
+                {showNewPass ? <EyeOff size={16}/> : <Eye size={16}/>}
+              </button>
+            </div>
+            <button
+              onClick={handlePasswordUpdate}
+              disabled={passLoading || !newPass.trim()}
+              style={{ width:'100%', padding:'12px',
+                background: newPass.trim()
+                  ? 'linear-gradient(135deg,#4F46E5,#6366F1)'
+                  : '#E5E7EB',
+                color: newPass.trim() ? 'white' : '#9CA3AF',
+                border:'none', borderRadius:10,
+                fontFamily:'Poppins,sans-serif', fontWeight:700,
+                fontSize:'0.9rem',
+                cursor: newPass.trim() ? 'pointer' : 'not-allowed',
+                display:'flex', alignItems:'center',
+                justifyContent:'center', gap:6 }}>
+              {passLoading
+                ? '⏳ Updating...'
+                : <><RefreshCw size={14}/>Update Password</>}
+            </button>
+          </div>
         </div>
 
-        {filtered.length === 0 ? (
-          <div style={{ textAlign:'center', padding:'48px 0' }}>
-            <p style={{ fontSize:'2.5rem', marginBottom:12 }}>📋</p>
-            <p style={{ color:'#6B7280', fontSize:'0.9rem' }}>
-              No orders found.
-            </p>
-          </div>
-        ) : (
-          <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'separate',
-              borderSpacing:'0 6px' }}>
-              <thead>
-                <tr>
-                  {['Order ID','Customer','Cloth','Qty',
-                    'Status','Delivery','Cost','Action'].map(h => (
-                    <th key={h} style={{ textAlign:'left',
-                      fontSize:'0.66rem', fontWeight:600,
-                      color:'#9CA3AF', textTransform:'uppercase',
-                      letterSpacing:'0.5px', padding:'4px 12px',
-                      whiteSpace:'nowrap' }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(order => {
-                  const isOverdue = new Date(order.deliveryDate) < new Date()
-                    && order.status !== 'Ready For Delivery'
-                  return (
-                    <tr key={order._id} style={{ cursor:'pointer' }}
-                      onClick={() => router.push(`/admin/orders/${order.orderID}`)}>
-                      {[
-                        <span style={{ fontWeight:700, color:'#D97706',
-                          fontSize:'0.82rem' }}>
-                          {order.orderID}
-                        </span>,
-                        <div>
-                          <p style={{ fontWeight:600, fontSize:'0.82rem',
-                            color:'#1E1B4B' }}>
-                            {order.customerRef?.name||'—'}
-                          </p>
-                          <p style={{ fontSize:'0.68rem', color:'#9CA3AF' }}>
-                            {order.customerID}
-                          </p>
-                        </div>,
-                        <span style={{ fontSize:'0.82rem' }}>
-                          {order.clothType}
-                        </span>,
-                        <span style={{ fontSize:'0.82rem' }}>
-                          {order.quantity}
-                        </span>,
-                        getStatusBadge(order.status),
-                        <span style={{ fontSize:'0.8rem',
-                          color:isOverdue?'#DC2626':'#4B5563',
-                          fontWeight:isOverdue?600:400,
-                          whiteSpace:'nowrap' }}>
-                          {order.deliveryDate
-                            ? new Date(order.deliveryDate).toLocaleDateString(
-                                'en-IN',{day:'numeric',month:'short',year:'numeric'}
-                              )
-                            : '—'}
-                          {isOverdue && ' ⚠️'}
-                        </span>,
-                        <span style={{ fontSize:'0.82rem',
-                          fontWeight:600, color:'#059669' }}>
-                          {(order.unitCost||0)>0
-                            ? `₹${order.unitCost.toLocaleString('en-IN')}`
-                            : '—'}
-                        </span>,
-                        <button onClick={e => {
-                          e.stopPropagation()
-                          router.push(`/admin/orders/${order.orderID}`)
-                        }}
-                          style={{ display:'flex', alignItems:'center',
-                            gap:3, background:'rgba(245,158,11,0.1)',
-                            border:'1px solid rgba(245,158,11,0.25)',
-                            borderRadius:6, padding:'6px 10px',
-                            color:'#D97706', fontSize:'0.76rem',
-                            fontWeight:600, cursor:'pointer',
-                            fontFamily:'Poppins,sans-serif' }}>
-                          View <ChevronRight size={12}/>
-                        </button>,
-                      ].map((cell,ci) => (
-                        <td key={ci} style={{ padding:'11px 12px',
-                          background:'rgba(255,255,255,0.6)',
-                          borderRadius:ci===0?'10px 0 0 10px'
-                            :ci===7?'0 10px 10px 0':0 }}>
-                          {cell}
-                        </td>
-                      ))}
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </main>
