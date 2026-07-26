@@ -28,7 +28,7 @@ export default function ClothTypesPage() {
   const [msg, setMsg]               = useState({ text:'', err:false })
 
   // CORRECT — add empCost to both
-const [newSub, setNewSub]   = useState({ name:'', nameTa:'', cost:0, empCost:0 })
+const [newSub, setNewSub]   = useState({ name:'', nameTa:'', cost:0, empCost:0,image:'' })
 const [editSub, setEditSub] = useState({ name:'', nameTa:'', cost:0, empCost:0, image:'' })
 
   // New cloth type
@@ -1030,7 +1030,7 @@ const MEASUREMENT_PRESETS = {
                               }}
                             />
                           </div>
-                            <button onClick={()=>addSub(ct._id,type._id)}
+                            <button onClick={()=>newSub(ct._id,type._id)}
                               disabled={savingSub===`${ct._id}_${type._id}`}
                               style={{ padding:'7px 14px', background:'linear-gradient(135deg,#4F46E5,#6366F1)', color:'white', border:'none', borderRadius:10, cursor:'pointer', fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.8rem', display:'flex', alignItems:'center', gap:4 }}>
                               {savingSub===`${ct._id}_${type._id}`?<><div className="spinner"/>Adding...</>:<><Plus size={12}/>Add Subtype</>}
