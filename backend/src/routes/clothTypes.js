@@ -225,56 +225,59 @@ router.delete('/:id/types/:typeId', protect, async (req, res) => {
 // ── SUBTYPE routes ───────────────────────────────────────────
 
 // POST add subtype
+// POST add subtype
 router.post('/:id/types/:typeId/subtypes', protect, async (req, res) => {
   try {
-    const { name, nameTa, cost } = req.body
-    if (!name?.trim())
-      return res.status(400).json({ success:false, message:'Subtype name required' })
+    const { name, nameTa, cost, empCost } = req.body
+    if (!name)
+      return res.status(400).json({ success:false, message:'Name required' })
+
     const ct = await ClothType.findById(req.params.id)
-    if (!ct) return res.status(404).json({ success:false, message:'Not found' })
+    if (!ct) return res.status(404).json({ success:false, message:'Cloth type not found' })
+
     const type = ct.types.id(req.params.typeId)
     if (!type) return res.status(404).json({ success:false, message:'Type not found' })
-    const exists = type.subtypes.find(s => s.name.toLowerCase() === name.trim().toLowerCase())
-    if (exists)
-      return res.status(400).json({ success:false, message:'Subtype already exists' })
-    // In POST /:id/types/:typeId/subtypes
-      type.subtypes.push({
-        name:    name.trim(),
-        nameTa:  nameTa || '',
-        cost:    parseFloat(cost)    || 0,
-        empCost: parseFloat(empCost) || 0,  // ← add this
-        image:   '',
-      })
+
+    type.subtypes.push({
+      name:    name.trim(),
+      nameTa:  nameTa  || '',
+      cost:    parseFloat(cost)    || 0,
+      empCost: parseFloat(empCost) || 0,  // ← make sure this is here
+    })
+
     await ct.save()
     res.json({ success:true, clothType:ct })
   } catch (e) {
+    console.error('[ADD SUBTYPE]', e.message)
     res.status(500).json({ success:false, message:e.message })
   }
 })
 
 // PUT update subtype
-// PUT update subtype — already accepts req.body spread
 router.put('/:id/types/:typeId/subtypes/:subId', protect, async (req, res) => {
   try {
-    // In PUT /:id/types/:typeId/subtypes/:subId
     const { name, nameTa, cost, empCost, isActive, image } = req.body
-    if (empCost !== undefined) sub.empCost = parseFloat(empCost) || 0
+
     const ct = await ClothType.findById(req.params.id)
-    if (!ct) return res.status(404).json({ success:false, message:'Not found' })
+    if (!ct) return res.status(404).json({ success:false, message:'Cloth type not found' })
+
     const type = ct.types.id(req.params.typeId)
     if (!type) return res.status(404).json({ success:false, message:'Type not found' })
+
     const sub = type.subtypes.id(req.params.subId)
     if (!sub) return res.status(404).json({ success:false, message:'Subtype not found' })
 
-    if (name)                          sub.name     = name.trim()
-    if (nameTa !== undefined)          sub.nameTa   = nameTa
-    if (cost !== undefined)            sub.cost     = parseFloat(cost)||0
+    if (name    !== undefined) sub.name    = name.trim()
+    if (nameTa  !== undefined) sub.nameTa  = nameTa
+    if (cost    !== undefined) sub.cost    = parseFloat(cost)    || 0
+    if (empCost !== undefined) sub.empCost = parseFloat(empCost) || 0
     if (typeof isActive === 'boolean') sub.isActive = isActive
-    if (image !== undefined)           sub.image    = image  // ← save URL
+    if (image   !== undefined) sub.image   = image
 
     await ct.save()
     res.json({ success:true, clothType:ct })
   } catch (e) {
+    console.error('[UPDATE SUBTYPE]', e.message)
     res.status(500).json({ success:false, message:e.message })
   }
 })

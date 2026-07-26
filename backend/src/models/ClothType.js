@@ -3,8 +3,8 @@ const mongoose = require('mongoose')
 const subtypeSchema = new mongoose.Schema({
   name:     { type:String, required:true, trim:true },
   nameTa:   { type:String, default:'' },
-  cost:     { type:Number, default:0 },   // customer price
-  empCost:  { type:Number, default:0 },   // ← employee rate
+  cost:     { type:Number, default:0 },
+  empCost:  { type:Number, default:0 },   // ← must be here
   image:    { type:String, default:'' },
   isActive: { type:Boolean, default:true },
 }, { _id:true })

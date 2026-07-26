@@ -27,6 +27,10 @@ export default function ClothTypesPage() {
   const [expandedType, setExpandedType] = useState(null)
   const [msg, setMsg]               = useState({ text:'', err:false })
 
+  // CORRECT — add empCost to both
+const [newSub, setNewSub]   = useState({ name:'', nameTa:'', cost:0, empCost:0 })
+const [editSub, setEditSub] = useState({ name:'', nameTa:'', cost:0, empCost:0, image:'' })
+
   // New cloth type
   const [showNew, setShowNew]       = useState(false)
   const [newName, setNewName]       = useState('')
@@ -48,20 +52,11 @@ export default function ClothTypesPage() {
 const [editType, setEditType] = useState({ name:'', nameTa:'', cost:0, empCost:0, image:'' })
 
   // New subtype
-  const [newSub, setNewSub]         = useState({})
   const [savingSub, setSavingSub]   = useState(null)
   const [editingSub, setEditingSub] = useState(null)
   
 
   // Edit subtype
-const [editSub, setEditSub] = useState({
-  name:'',
-  nameTa:'',
-  cost:0,
-  empCost:0,
-  image:''
-})
-
   const [copied, setCopied] = useState(null)
 
   const [customMeasurement, setCustomMeasurement] = useState({ key:'', label:'', labelTa:'' })
@@ -169,34 +164,51 @@ const MEASUREMENT_PRESETS = {
   }
 
   // ── Subtype CRUD ─────────────────────────────────────────────
-  const addSub = async (ctId, typeId) => {
-    const key = `${ctId}_${typeId}`
-    const s   = newSub[key] || {}
-    if (!s.name?.trim()) { showMsg('Subtype name required', true); return }
-    setSavingSub(key)
-    try {
-      await API.post(`/api/cloth-types/${ctId}/types/${typeId}/subtypes`, s)
-      setNewSub(p => ({ ...p, [key]:{ name:'', nameTa:'', cost:0 } }))
-      fetchData(); showMsg('Subtype added!')
-    } catch (e) { showMsg(e.response?.data?.message||'Failed', true) }
-    finally { setSavingSub(null) }
+  const addSubtype = async (ctId, typeId) => {
+  if (!newSub.name.trim()) {
+    showMsg('Subtype name required', true); return
   }
-
-  const updateSub = async (ctId, typeId, subId) => {
-    try {
-      await API.put(
-  `/api/cloth-types/${ctId}/types/${typeId}/subtypes/${subId}`,
+  try {
+    await API.post(
+      `/api/cloth-types/${ctId}/types/${typeId}/subtypes`,
       {
-        name:editSub.name,
-        nameTa:editSub.nameTa,
-        cost:editSub.cost,
-        empCost:editSub.empCost,
-        image:editSub.image
+        name:    newSub.name.trim(),
+        nameTa:  newSub.nameTa || '',
+        cost:    parseFloat(newSub.cost)    || 0,
+        empCost: parseFloat(newSub.empCost) || 0,  // ← add
       }
     )
-      setEditingSub(null); fetchData(); showMsg('Subtype updated!')
-    } catch (e) { showMsg('Failed', true) }
+    setNewSub({ name:'', nameTa:'', cost:0, empCost:0 })
+    setAddingSub(null)
+    fetchData()
+    showMsg('Subtype added!')
+  } catch (e) {
+    showMsg(e.response?.data?.message || 'Failed to add subtype', true)
   }
+}
+
+  const updateSub = async (ctId, typeId, subId) => {
+  if (!editSub.name.trim()) {
+    showMsg('Name required', true); return
+  }
+  try {
+    await API.put(
+      `/api/cloth-types/${ctId}/types/${typeId}/subtypes/${subId}`,
+      {
+        name:    editSub.name.trim(),
+        nameTa:  editSub.nameTa  || '',
+        cost:    parseFloat(editSub.cost)    || 0,
+        empCost: parseFloat(editSub.empCost) || 0,  // ← add
+        image:   editSub.image   || '',
+      }
+    )
+    setEditingSub(null)
+    fetchData()
+    showMsg('Subtype updated!')
+  } catch (e) {
+    showMsg(e.response?.data?.message || 'Failed to update subtype', true)
+  }
+}
 
   const deleteSub = async (ctId, typeId, subId, name) => {
     if (!confirm(`Remove "${name}"?`)) return
@@ -670,7 +682,7 @@ const MEASUREMENT_PRESETS = {
                                   labelTa:  customMeasurementEdit.labelTa.trim(),
                                   required: false,
                                 },
-                              ]
+                              ] 
                               try {
                                 await API.put(`/api/cloth-types/${ct._id}`, { measurements:updated })
                                 setCustomMeasurementEdit({ key:'', label:'', labelTa:'' })
