@@ -11,7 +11,7 @@ const orderSchema = new mongoose.Schema({
   fabricNotes:   { type:String, default:'' },
   specialInstructions: { type:String, default:'' },
   // Add to orderSchema:
-empRate: { type:Number, default:0 }, // total emp rate = type + subtype + alterations
+  empRate: { type:Number, default:0 }, // total emp rate = type + subtype + alterations
 
   // Flexible measurements — any key/value pair
   measurements: {

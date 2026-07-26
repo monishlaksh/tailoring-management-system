@@ -50,49 +50,43 @@ const [delivering, setDelivering]       = useState(false)
   
   const [empBonuses, setEmpBonuses] = useState({ cutting:0, stitching:0, finishing:0 })
     // Inside fetchData, after setting order:
-    const fetchData = async () => {
-  try {
-    const [allotRes, empRes] = await Promise.all([
-      API.get(`/api/allotment/${orderID}`),
-      API.get('/api/employees'),
-    ])
-    const allotData = allotRes.data.allotment
-    const orderData = allotRes.data.order
-    setAllotment(allotData)
-    setOrder(orderData)
-    setEmployees(empRes.data.employees.filter(e => e.isActive))
+    const fetchData = async (retries = 3) => {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const [allotRes, empRes] = await Promise.all([
+            API.get(`/api/allotment/${orderID}`),
+            API.get('/api/employees'),
+          ])
+          setAllotment(allotRes.data.allotment)
+          setOrder(allotRes.data.order)
+          setEmployees(empRes.data.employees.filter(e => e.isActive))
 
-    // Get emp rate from cloth type
-    const clothTypeFull = orderData?.clothType || ''
-    const [ctName, typeName] = clothTypeFull.split(' - ').map(s => s?.trim())
-    if (ctName && typeName) {
-      try {
-        const ctRes       = await API.get('/api/cloth-types/all')
-        const matchedCT   = ctRes.data.clothTypes?.find(c => c.name === ctName)
-        const matchedType = matchedCT?.types?.find(t => t.name === typeName)
-        const rate = matchedType?.empCost || 0
-        setEmpRates({ cutting:rate, stitching:rate, finishing:rate })
-      } catch (e) { console.error('cloth type fetch:', e) }
-    }
-
-    // Get employee bonus for each assigned stage
-    const bonuses = { cutting:0, stitching:0, finishing:0 }
-    for (const stage of ['cutting','stitching','finishing']) {
-      const empID = allotData?.[stage]?.employeeID
-      if (empID) {
-        const emp = empRes.data.employees.find(e => e.employeeID === empID)
-        bonuses[stage] = emp?.bonus || 0
+          // Only fetch employee bonuses — empRate comes from order.empRate
+          const bonuses = { cutting:0, stitching:0, finishing:0 }
+          for (const stage of ['cutting','stitching','finishing']) {
+            const empID = allotRes.data.allotment?.[stage]?.employeeID
+            if (empID) {
+              const emp = empRes.data.employees.find(e => e.employeeID === empID)
+              bonuses[stage] = emp?.bonus || 0
+            }
+          }
+          setEmpBonuses(bonuses)
+          return
+        } catch (e) {
+          if (e.response?.status === 401) {
+            localStorage.removeItem('adminToken')
+            router.push('/admin/login')
+            return
+          }
+          if (i < retries - 1) {
+            await new Promise(r => setTimeout(r, 800))
+          } else {
+            setError('Failed to load allotment')
+          }
+        }
       }
+      setLoading(false)
     }
-    setEmpBonuses(bonuses)
-
-  } catch (e) {
-    setError('Failed to load allotment')
-    console.error(e)
-  } finally {
-    setLoading(false)
-  }
-}
       const showMsg = (msg, isErr = false) => {
         if (isErr) { setError(msg);   setTimeout(() => setError(''),   4000) }
         else       { setSuccess(msg); setTimeout(() => setSuccess(''), 3000) }
@@ -806,84 +800,58 @@ const handleUndoDeliver = async () => {
         {/* Pending */}
         {/* PENDING → approve (no manual award input) */}
         {stageData.status === 'pending' && (
-          <div>
-            {/* Employee info */}
-            <div style={{ padding:'14px', background:info.bg, borderRadius:12,
-              border:`1px solid ${info.border}`, marginBottom:16 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <div style={{ width:40, height:40, borderRadius:12,
-                  background:info.color, display:'flex', alignItems:'center',
-                  justifyContent:'center', fontSize:'1.1rem', flexShrink:0 }}>
-                  {info.icon}
-                </div>
-                <div>
-                  <p style={{ fontWeight:700, color:info.color, fontSize:'0.9rem',
-                    marginBottom:2 }}>
-                    {stageData.employeeName}
-                  </p>
-                  <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
-                    {stageData.employeeID} · Assigned{' '}
-                    {stageData.assignedAt
-                      ? new Date(stageData.assignedAt).toLocaleDateString('en-IN')
-                      : ''}
-                  </p>
-                </div>
-              </div>
-              {stageData.notes && (
-                <p style={{ fontSize:'0.78rem', color:'#4B5563', marginTop:10,
-                  padding:'8px 10px', background:'rgba(255,255,255,0.6)',
-                  borderRadius:8, fontStyle:'italic' }}>
-                  "{stageData.notes}"
+        <div>
+          <div style={{ padding:'12px 14px',
+            background:'rgba(16,185,129,0.06)',
+            border:'1.5px solid rgba(16,185,129,0.2)',
+            borderRadius:12, marginBottom:14 }}>
+            <div style={{ display:'flex', alignItems:'center',
+              justifyContent:'space-between' }}>
+              <div>
+                <p style={{ fontSize:'0.68rem', color:'#059669',
+                  fontWeight:700, textTransform:'uppercase', marginBottom:4 }}>
+                  Will Be Awarded
                 </p>
-              )}
-            </div>
-
-            <div style={{ padding:'12px 14px', background:'rgba(16,185,129,0.06)',
-              border:'1.5px solid rgba(16,185,129,0.2)', borderRadius:12,
-              marginBottom:14 }}>
-              <div style={{ display:'flex', alignItems:'center',
-                justifyContent:'space-between' }}>
-                <div>
-                  <p style={{ fontSize:'0.68rem', color:'#059669', fontWeight:700,
-                    textTransform:'uppercase', marginBottom:2 }}>
-                    Will Be Awarded
-                  </p>
-                  <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
-                    Emp rate: ₹{empRates[stage]} + Bonus: ₹{empBonuses[stage] || 0}
-                  </p>
-                </div>
-                <p style={{ fontSize:'1.4rem', fontWeight:800, color:'#059669' }}>
-                  ₹{(empRates[stage] || 0) + (empBonuses[stage] || 0)}
+                <p style={{ fontSize:'0.72rem', color:'#6B7280' }}>
+                  Emp rate: ₹{order?.empRate || 0}
+                  {(empBonuses[stage] || 0) > 0 && ` + Bonus: ₹${empBonuses[stage]}`}
                 </p>
               </div>
-            </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:10 }}>
-              <button onClick={() => handleApprove(stage)}
-                disabled={approving===stage}
-                style={{ padding:'14px',
-                  background:'linear-gradient(135deg,#10B981,#059669)',
-                  color:'white', border:'none', borderRadius:12,
-                  fontFamily:'Poppins,sans-serif', fontWeight:700,
-                  fontSize:'0.9rem', cursor:'pointer',
-                  display:'flex', alignItems:'center',
-                  justifyContent:'center', gap:8 }}>
-                {approving===stage
-                  ? <><div style={{ width:18,height:18,
-                      border:'2px solid rgba(255,255,255,0.3)',
-                      borderTopColor:'white', borderRadius:'50%',
-                      animation:'spin 0.8s linear infinite' }}/> Approving...</>
-                  : <><Check size={17}/>Approve (₹{empRates[stage]||0} to employee)</>}
-              </button>
-              <button onClick={() => handleUnassign(stage)}
-                style={{ width:48, height:48, background:'#FEF2F2',
-                  border:'1.5px solid #FECACA', borderRadius:12, cursor:'pointer',
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  color:'#DC2626' }}>
-                <X size={18}/>
-              </button>
+              <p style={{ fontSize:'1.4rem', fontWeight:800, color:'#059669' }}>
+                ₹{(order?.empRate || 0) + (empBonuses[stage] || 0)}
+              </p>
             </div>
           </div>
-        )}
+
+          <div style={{ display:'grid',
+            gridTemplateColumns:'1fr auto', gap:10 }}>
+            <button onClick={() => handleApprove(stage)}
+              disabled={approving === stage}
+              style={{ padding:'13px',
+                background:'linear-gradient(135deg,#10B981,#059669)',
+                color:'white', border:'none', borderRadius:12,
+                fontFamily:'Poppins,sans-serif', fontWeight:700,
+                fontSize:'0.9rem', cursor:'pointer',
+                display:'flex', alignItems:'center',
+                justifyContent:'center', gap:8 }}>
+              {approving === stage
+                ? <><div style={{ width:18, height:18,
+                    border:'2px solid rgba(255,255,255,0.3)',
+                    borderTopColor:'white', borderRadius:'50%',
+                    animation:'spin 0.8s linear infinite' }}/>
+                    Approving...</>
+                : <>✅ Approve</>}
+            </button>
+            <button onClick={() => handleUnassign(stage)}
+              style={{ width:48, height:48, background:'#FEF2F2',
+                border:'1.5px solid #FECACA', borderRadius:12,
+                cursor:'pointer', display:'flex', alignItems:'center',
+                justifyContent:'center', color:'#DC2626' }}>
+              <X size={18}/>
+            </button>
+          </div>
+        </div>
+      )}
 
         {/* COMPLETED */}
         {stageData.status === 'completed' && (
