@@ -168,426 +168,364 @@ const handleUndoDeliver = async () => {
   }
 }
 
-  const handlePrint = async () => {
-  if (!order || !allotment) return
+  const handlePrint = () => {
+  // Get measurements from cloth type
+  const measurementRows = selectedClothType?.measurements
+    ?.map(m => {
+      const val = order?.measurements?.[m.key] || '—'
+      return `
+        <tr>
+          <td>${m.label}</td>
+          <td>${m.labelTa || ''}</td>
+          <td><strong>${val}"</strong></td>
+        </tr>`
+    }).join('') || ''
 
-  // ── Fetch Tamil names from cloth type ──────────────────────
-  let clothTypeTa   = ''
-  let typeTa        = ''
-  let subtypeTa     = ''
-  let measurementsTa = {} // { key: labelTa }
-
-  try {
-    const parts         = (order.clothType || '').split(' - ').map(s => s.trim())
-    const ctName        = parts[0] || ''
-    const typeName      = parts[1] || ''
-    const subtypeName   = parts[2] || ''
-
-    const ctRes = await API.get('/api/cloth-types/all')
-    const ctDoc = ctRes.data.clothTypes?.find(c => c.name === ctName)
-
-    if (ctDoc) {
-      clothTypeTa = ctDoc.nameTa || ''
-
-      // Build measurement Tamil map
-      ;(ctDoc.measurements || []).forEach(m => {
-        measurementsTa[m.key] = {
-          label:   m.label,
-          labelTa: m.labelTa || m.label,
-        }
-      })
-
-      const typeDoc = ctDoc.types?.find(t => t.name === typeName)
-      if (typeDoc) {
-        typeTa = typeDoc.nameTa || ''
-        const subDoc = typeDoc.subtypes?.find(s => s.name === subtypeName)
-        if (subDoc) subtypeTa = subDoc.nameTa || ''
-      }
-    }
-  } catch (e) {
-    console.error('Failed to fetch Tamil names:', e)
-  }
-
-  // ── Build print content ─────────────────────────────────────
-  const measurements = order.measurements || {}
-  const hasMeasurements = Object.entries(measurements).some(([,v]) => v)
-  const alterations = order.alteration?.selectedOptions || []
-  const hasAlteration = order.alteration?.required && alterations.length > 0
-
-  // Cloth type display — English / Tamil
-  const clothParts   = (order.clothType || '').split(' - ').map(s => s.trim())
-  const clothMain    = clothParts[0] || ''
-  const clothType    = clothParts[1] || ''
-  const clothSubtype = clothParts[2] || ''
-
-  const stageRows = ['cutting','stitching','finishing'].map(stage => {
-    const s = allotment[stage]
-    const statusLabel = (s?.status || 'not_assigned').replace(/_/g,' ')
-    const statusTa = {
-      'not assigned': 'நியமிக்கப்படவில்லை',
-      'pending':      'நிலுவையில் உள்ளது',
-      'completed':    'முடிந்தது',
-    }[statusLabel] || statusLabel
-
-    const stageTa = {
-      cutting:   'வெட்டுதல்',
-      stitching: 'தையல்',
-      finishing: 'இறுதி பணி',
-    }[stage] || stage
-
-    const stageIcon = stage==='cutting'?'✂️':stage==='stitching'?'🧵':'🚩'
-
-    return `
-      <tr>
-        <td>
-          <span style="font-size:14px">${stageIcon}</span>
-          <span class="en">${stage.charAt(0).toUpperCase()+stage.slice(1)}</span>
-          <span class="ta">${stageTa}</span>
-        </td>
-        <td>${s?.employeeName || '—'}</td>
-        <td>
-          <span class="en">${statusLabel}</span>
-          <span class="ta">${statusTa}</span>
-        </td>
-      </tr>
-    `
-  }).join('')
-
-  const measurementRows = hasMeasurements
-    ? Object.entries(measurements)
-        .filter(([,v]) => v)
-        .map(([key, val]) => {
-          const info   = measurementsTa[key]
-          const label  = info?.label  || key
-          const labelT = info?.labelTa || key
-          return `
-            <td class="meas-cell">
-              <div class="meas-en">${label}</div>
-              <div class="meas-ta">${labelT}</div>
-              <div class="meas-val">${val}<span class="meas-unit">"</span></div>
-            </td>
-          `
-        }).join('')
-    : ''
-
-  const alterationHtml = hasAlteration ? `
-    <div class="section">
-      <div class="section-title">
-        ⚠️ <span class="en">Alterations</span>
-        <span class="ta">மாற்றங்கள்</span>
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px">
-        ${alterations.map(a => `
-          <span class="tag">${a}</span>
-        `).join('')}
-      </div>
-      ${order.alteration?.notes ? `
-        <p style="font-size:9px;font-style:italic;color:#333;margin-top:4px">
-          <span class="en">Note:</span> <span class="ta">குறிப்பு:</span> ${order.alteration.notes}
-        </p>` : ''}
-    </div>
-  ` : ''
-
-  const voiceNoteHtml = order.voiceNote?.data ? `
-    <div style="border:2px dashed #4F46E5;padding:7px 10px;border-radius:6px;margin:8px 0">
-      <p style="font-size:10px;font-weight:bold;color:#4F46E5;margin:0">
-        🎙️ <span class="en">Voice Note Attached</span>
-        <span class="ta">குரல் குறிப்பு இணைக்கப்பட்டுள்ளது</span>
-      </p>
-      <p style="font-size:9px;color:#555;margin:3px 0 0">
-        <span class="en">Duration: ${Math.floor((order.voiceNote.duration||0)/60)}:${String((order.voiceNote.duration||0)%60).padStart(2,'0')} — Scan QR to play</span>
-        <br/><span class="ta">QR ஸ்கேன் செய்து குரல் குறிப்பை கேளுங்கள்</span>
-      </p>
-    </div>
-  ` : ''
-
-  const qrHtml = allotment.qrCode ? `
-    <div style="text-align:center;padding-top:10px;border-top:1px solid #ccc;margin-top:10px">
-      <p style="font-size:10px;font-weight:bold;margin-bottom:6px">
-        📱 <span class="en">Scan QR to view work order</span>
-        <span class="ta">QR ஸ்கேன் செய்யவும்</span>
-      </p>
-      <img src="${allotment.qrCode}" alt="QR"
-        style="width:110px;height:110px;border:2px solid #000;border-radius:5px" />
-      <p style="font-size:9px;color:#666;margin-top:3px;font-weight:bold">${order.orderID}</p>
-    </div>
-  ` : ''
-
-  const deliveryDate = order.deliveryDate
-    ? new Date(order.deliveryDate).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' })
-    : '—'
+  const alterationList = (order?.alteration?.selectedOptions || [])
+    .map(o => `<li>${o}</li>`).join('')
 
   const html = `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="UTF-8"/>
-      <title>Work Order — ${order.orderID}</title>
+      <title>Order ${order?.orderID}</title>
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700&display=swap');
-
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; }
-
         body {
-          font-family: 'Noto Sans Tamil', Georgia, serif;
-          font-size: 11px;
-          color: #000;
-          padding: 10mm;
+          font-family: 'Poppins', sans-serif;
+          width: 148mm;
+          min-height: 210mm;
+          padding: 12mm 10mm;
+          color: #1E1B4B;
           background: white;
-        }
-
-        /* Tamil text style */
-        .ta {
-          font-family: 'Noto Sans Tamil', serif;
-          font-size: 9px;
-          color: #444;
-          display: block;
-          line-height: 1.4;
-        }
-        .en {
           font-size: 11px;
-          font-weight: 600;
-          display: block;
-          line-height: 1.3;
-        }
-
-        /* Header */
-        .header {
-          text-align: center;
-          border-bottom: 2px solid #000;
-          padding-bottom: 8px;
-          margin-bottom: 10px;
-        }
-        .header h1 { font-size: 18px; font-weight: bold; }
-        .header .subtitle { font-size: 10px; color: #555; margin-top: 2px; }
-
-        /* Info table */
-        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-        .info-table td { padding: 4px 6px; font-size: 10px; vertical-align: top; border-bottom: 1px solid #eee; }
-        .info-table .lbl { font-weight: bold; color: #000; width: 28%; background: #f5f5f5; }
-
-        /* Cloth type box */
-        .cloth-box {
-          background: #f0f0f0;
-          border: 1px solid #ccc;
-          border-radius: 5px;
-          padding: 8px 10px;
-          margin-bottom: 10px;
           display: flex;
-          gap: 0;
+          flex-direction: column;
         }
-        .cloth-part {
-          flex: 1;
-          text-align: center;
-          border-right: 1px solid #ccc;
-          padding: 4px 6px;
-        }
-        .cloth-part:last-child { border-right: none; }
-        .cloth-lbl { font-size: 8px; color: #777; text-transform: uppercase; margin-bottom: 3px; }
-        .cloth-val-en { font-size: 12px; font-weight: bold; }
-        .cloth-val-ta { font-size: 10px; color: #444; margin-top: 1px; }
 
-        /* Section title */
-        .section-title {
-          font-size: 11px;
-          font-weight: bold;
-          border-bottom: 1px solid #000;
-          padding-bottom: 3px;
-          margin: 8px 0 6px;
+        /* ── HEADER ── */
+        .header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding-bottom: 10px;
+          border-bottom: 2.5px solid #4F46E5;
+          margin-bottom: 12px;
         }
-        .section-title .ta { display: inline; font-size: 9px; color: #555; margin-left: 4px; }
-        .section-title .en { display: inline; font-size: 11px; }
-
-        /* Measurements */
-        .meas-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-        .meas-cell {
-          border: 1px solid #ccc;
-          padding: 5px 6px;
-          text-align: center;
-          width: 25%;
-          vertical-align: top;
+        .logo {
+          width: 56px;
+          height: 56px;
+          border-radius: 12px;
+          object-fit: cover;
+          border: 2px solid #4F46E5;
+          flex-shrink: 0;
         }
-        .meas-en  { font-size: 9px; font-weight: 600; color: #333; }
-        .meas-ta  { font-size: 8px; color: #777; margin-bottom: 3px; font-family:'Noto Sans Tamil',serif; }
-        .meas-val { font-size: 18px; font-weight: bold; line-height: 1; }
-        .meas-unit{ font-size: 10px; color: #777; }
-
-        /* Stage table */
-        .stage-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-        .stage-table th {
-          background: #222; color: white;
-          padding: 5px 8px; font-size: 10px; text-align: left;
+        .logo-fallback {
+          width: 56px;
+          height: 56px;
+          border-radius: 12px;
+          background: linear-gradient(135deg, #4F46E5, #00D4FF);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 28px;
+          flex-shrink: 0;
         }
-        .stage-table td { padding: 5px 8px; font-size: 10px; border-bottom: 1px solid #eee; }
-        .stage-table tr:nth-child(even) td { background: #f9f9f9; }
-
-        /* Alteration tags */
-        .tag {
-          border: 1px solid #333;
-          padding: 2px 7px;
+        .shop-info h1 {
+          font-size: 16px;
+          font-weight: 800;
+          color: #1E1B4B;
+          line-height: 1.2;
+        }
+        .shop-info p {
+          font-size: 9.5px;
+          color: #6B7280;
+          margin-top: 2px;
+        }
+        .shop-info .tagline {
           font-size: 9px;
-          border-radius: 3px;
-          display: inline-block;
+          color: #4F46E5;
+          font-weight: 600;
+          margin-top: 3px;
         }
 
-        /* Footer */
-        .footer {
-          border-top: 1px solid #000;
-          padding-top: 6px;
-          margin-top: 8px;
+        /* ── QR + ORDER ID row ── */
+        .order-header {
           display: flex;
           justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 12px;
+          gap: 10px;
+        }
+        .order-meta h2 {
+          font-size: 13px;
+          font-weight: 800;
+          color: #4F46E5;
+        }
+        .order-meta p {
+          font-size: 9.5px;
+          color: #6B7280;
+          margin-top: 2px;
+          line-height: 1.5;
+        }
+        .qr-box {
+          text-align: center;
+        }
+        .qr-box img {
+          width: 72px;
+          height: 72px;
+          border: 2px solid #EEF2FF;
+          border-radius: 8px;
+        }
+        .qr-box p {
+          font-size: 8px;
+          color: #9CA3AF;
+          margin-top: 3px;
+        }
+
+        /* ── SECTION LABEL ── */
+        .section-label {
+          font-size: 8px;
+          font-weight: 700;
+          color: #9CA3AF;
+          text-transform: uppercase;
+          letter-spacing: 0.6px;
+          margin-bottom: 5px;
+          margin-top: 10px;
+        }
+
+        /* ── CLOTH TYPE BOX ── */
+        .cloth-box {
+          background: #EEF2FF;
+          border-radius: 8px;
+          padding: 8px 12px;
+          margin-bottom: 10px;
+        }
+        .cloth-box .cloth-name {
+          font-size: 13px;
+          font-weight: 800;
+          color: #1E1B4B;
+        }
+        .cloth-box .cloth-sub {
+          font-size: 9.5px;
+          color: #4F46E5;
+          font-weight: 600;
+          margin-top: 2px;
+        }
+        .cloth-box .cloth-qty {
           font-size: 9px;
-          color: #666;
+          color: #6B7280;
+          margin-top: 3px;
+        }
+
+        /* ── MEASUREMENTS TABLE ── */
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 10px;
+        }
+        th {
+          background: #4F46E5;
+          color: white;
+          font-size: 8.5px;
+          font-weight: 700;
+          text-align: left;
+          padding: 5px 8px;
+          text-transform: uppercase;
+          letter-spacing: 0.4px;
+        }
+        td {
+          font-size: 10px;
+          padding: 5px 8px;
+          border-bottom: 1px solid #F3F4F6;
+          color: #1E1B4B;
+        }
+        tr:nth-child(even) td { background: #F8F7FF; }
+
+        /* ── STAGES ── */
+        .stages {
+          display: flex;
+          gap: 5px;
+          margin-bottom: 10px;
+        }
+        .stage {
+          flex: 1;
+          text-align: center;
+          padding: 6px 3px;
+          border-radius: 6px;
+          font-size: 8px;
+          font-weight: 600;
+        }
+        .stage.done    { background:#DCFCE7; color:#059669; }
+        .stage.pending { background:#FEF3C7; color:#D97706; }
+        .stage.waiting { background:#F3F4F6; color:#9CA3AF; }
+
+        /* ── ALTERATION ── */
+        .alt-box {
+          background: #FEF3C7;
+          border: 1.5px solid #FDE68A;
+          border-radius: 8px;
+          padding: 8px 12px;
+          margin-bottom: 10px;
+        }
+        .alt-box h3 { font-size: 10px; font-weight: 700; color: #D97706; margin-bottom: 5px; }
+        .alt-box ul { padding-left: 14px; }
+        .alt-box li { font-size: 9.5px; color: #92400E; margin-bottom: 2px; }
+        .alt-box p  { font-size: 9px; color: #6B7280; margin-top: 4px; font-style: italic; }
+
+        /* ── VOICE NOTE NOTICE ── */
+        .voice-notice {
+          background: #EEF2FF;
+          border: 1.5px solid #C7D2FE;
+          border-radius: 8px;
+          padding: 6px 12px;
+          font-size: 9px;
+          color: #4338CA;
+          font-weight: 600;
+          margin-bottom: 10px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        /* ── FOOTER GREETING ── */
+        .footer {
+          margin-top: auto;
+          padding-top: 10px;
+          border-top: 1.5px dashed #E5E7EB;
+          text-align: center;
+        }
+        .footer .greeting {
+          font-size: 10px;
+          font-weight: 700;
+          color: #4F46E5;
+          margin-bottom: 3px;
+        }
+        .footer .greeting-ta {
+          font-size: 10px;
+          color: #6B7280;
+          margin-bottom: 5px;
+        }
+        .footer .tagline {
+          font-size: 8.5px;
+          color: #9CA3AF;
         }
 
         @media print {
-          @page {
-            size: A5 portrait;
-            margin: 8mm;
-          }
-          body { padding: 0; }
+          body { width:148mm; min-height:210mm; }
+          @page { size: A5 portrait; margin: 0; }
         }
       </style>
     </head>
     <body>
 
-      <!-- Header -->
+      <!-- HEADER WITH LOGO -->
       <div class="header">
-        <h1>✂️ Al-Ameen Tailors</h1>
-        <div class="subtitle">
-          Work Order Sheet &nbsp;|&nbsp; பணி ஆணை தாள்
+        <img
+          class="logo"
+          src="${window.location.origin}/logo.png"
+          alt="Logo"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"
+        />
+        <div class="logo-fallback" style="display:none">✂️</div>
+        <div class="shop-info">
+          <h1>Al-Ameen Tailors</h1>
+          <p>Master Tailoring & Alterations</p>
+          <p class="tagline">✂️ Crafting Perfect Fits Since 2004</p>
         </div>
       </div>
 
-      <!-- Order Info -->
-      <table class="info-table">
-        <tbody>
-          <tr>
-            <td class="lbl">
-              <span class="en">Order ID</span>
-              <span class="ta">ஆர்டர் எண்</span>
-            </td>
-            <td style="font-weight:bold;font-size:13px">${order.orderID}</td>
-            <td class="lbl">
-              <span class="en">Delivery</span>
-              <span class="ta">டெலிவரி தேதி</span>
-            </td>
-            <td style="font-weight:bold">${deliveryDate}</td>
-          </tr>
-          <tr>
-            <td class="lbl">
-              <span class="en">Customer</span>
-              <span class="ta">வாடிக்கையாளர்</span>
-            </td>
-            <td>${order.customerRef?.name || '—'}</td>
-            <td class="lbl">
-              <span class="en">Phone</span>
-              <span class="ta">தொலைபேசி</span>
-            </td>
-            <td style="font-weight:bold;font-size:12px">${order.customerRef?.phone || '—'}</td>
-          </tr>
-          <tr>
-            <td class="lbl">
-              <span class="en">Quantity</span>
-              <span class="ta">அளவு</span>
-            </td>
-            <td style="font-weight:bold">${order.quantity}</td>
-            <td class="lbl">
-              <span class="en">Status</span>
-              <span class="ta">நிலை</span>
-            </td>
-            <td>${order.status}</td>
-          </tr>
-          ${order.fabricNotes ? `
-          <tr>
-            <td class="lbl">
-              <span class="en">Fabric</span>
-              <span class="ta">துணி குறிப்பு</span>
-            </td>
-            <td colspan="3">${order.fabricNotes}</td>
-          </tr>` : ''}
-          ${order.specialInstructions ? `
-          <tr>
-            <td class="lbl">
-              <span class="en">Instructions</span>
-              <span class="ta">சிறப்பு அறிவுரை</span>
-            </td>
-            <td colspan="3">${order.specialInstructions}</td>
-          </tr>` : ''}
-        </tbody>
-      </table>
-
-      <!-- Cloth Type — 3 level display -->
-      <div class="section-title">
-        <span class="en">Cloth Type</span>
-        <span class="ta">துணி வகை</span>
+      <!-- ORDER + QR -->
+      <div class="order-header">
+        <div class="order-meta">
+          <h2>${order?.orderID}</h2>
+          <p>
+            👤 ${order?.customerRef?.name || '—'}<br/>
+            📞 ${order?.customerRef?.phone || '—'}<br/>
+            📅 Booked: ${order?.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN') : '—'}<br/>
+            🚚 Delivery: <strong>${order?.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' }) : '—'}</strong>
+          </p>
+        </div>
+        ${allotment?.qrCode ? `
+          <div class="qr-box">
+            <img src="${allotment.qrCode}" alt="QR"/>
+            <p>Scan to view</p>
+          </div>` : ''}
       </div>
+
+      <!-- CLOTH TYPE -->
+      <div class="section-label">Cloth / துணி</div>
       <div class="cloth-box">
-        <div class="cloth-part">
-          <div class="cloth-lbl">Type / வகை</div>
-          <div class="cloth-val-en">${clothMain}</div>
-          ${clothTypeTa ? `<div class="cloth-val-ta">${clothTypeTa}</div>` : ''}
-        </div>
-        <div class="cloth-part">
-          <div class="cloth-lbl">Style / பாணி</div>
-          <div class="cloth-val-en">${clothType || '—'}</div>
-          ${typeTa ? `<div class="cloth-val-ta">${typeTa}</div>` : ''}
-        </div>
-        <div class="cloth-part">
-          <div class="cloth-lbl">Finish / வகை</div>
-          <div class="cloth-val-en">${clothSubtype || '—'}</div>
-          ${subtypeTa ? `<div class="cloth-val-ta">${subtypeTa}</div>` : ''}
-        </div>
+        <div class="cloth-name">${order?.clothType?.split(' - ')[0] || order?.clothType || '—'}</div>
+        <div class="cloth-sub">${order?.clothType?.split(' - ').slice(1).join(' → ') || ''}</div>
+        <div class="cloth-qty">Qty: ${order?.quantity || 1} piece${(order?.quantity || 1) > 1 ? 's' : ''}</div>
       </div>
 
-      <!-- Measurements -->
-      ${hasMeasurements ? `
-        <div class="section-title">
-          <span class="en">📏 Measurements (inches)</span>
-          <span class="ta">அளவீடுகள் (இஞ்சி)</span>
-        </div>
-        <table class="meas-table">
-          <tbody>
-            <tr>${measurementRows}</tr>
-          </tbody>
-        </table>
-      ` : ''}
+      <!-- MEASUREMENTS -->
+      ${measurementRows ? `
+        <div class="section-label">Measurements / அளவுகள் (inches)</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Measurement</th>
+              <th>தமிழ்</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>${measurementRows}</tbody>
+        </table>` : ''}
 
-      <!-- Alterations -->
-      ${alterationHtml}
+      <!-- VOICE NOTE NOTICE -->
+      ${order?.voiceNote?.data ? `
+        <div class="voice-notice">
+          🎙️ Voice note from admin — scan QR to listen to special instructions
+        </div>` : ''}
 
-      
+      <!-- ALTERATIONS -->
+      ${order?.alteration?.required ? `
+        <div class="section-label">Alterations / மாற்றங்கள்</div>
+        <div class="alt-box">
+          <h3>⚠️ Alteration Required</h3>
+          ${alterationList ? `<ul>${alterationList}</ul>` : ''}
+          ${order?.alteration?.notes ? `<p>"${order.alteration.notes}"</p>` : ''}
+        </div>` : ''}
 
-      <!-- Voice Note Notice -->
-      ${voiceNoteHtml}
+      <!-- STAGE PROGRESS -->
+      <div class="section-label">Stage Progress / பணி நிலை</div>
+      <div class="stages">
+        ${['cutting','stitching','finishing'].map(s => {
+          const st = allotment?.[s]?.status || 'not_assigned'
+          const cls = st === 'completed' ? 'done' : st === 'pending' ? 'pending' : 'waiting'
+          const icons = { cutting:'✂️', stitching:'🧵', finishing:'🚩' }
+          const labels = { cutting:'Cutting', stitching:'Stitching', finishing:'Finishing' }
+          return `<div class="stage ${cls}">${icons[s]}<br/>${labels[s]}<br/>${st.replace('_',' ')}</div>`
+        }).join('')}
+      </div>
 
-      <!-- QR Code -->
-      ${qrHtml}
-
-      <!-- Footer -->
+      <!-- FOOTER GREETING -->
       <div class="footer">
-        <span>Printed: ${new Date().toLocaleString('en-IN')}</span>
-        <span>Al-Ameen Tailors — பணி ஆணை</span>
+        <p class="greeting">Thank you for choosing Al-Ameen Tailors! 🙏</p>
+        <p class="greeting-ta">அல்-அமீன் டெய்லர்ஸை தேர்ந்தெடுத்ததற்கு நன்றி!</p>
+        <p class="tagline">✂️ Al-Ameen Tailors — Crafting Perfect Fits Since 2004 | Quality You Can Trust</p>
       </div>
 
-      <script>
-        // Wait for Noto Sans Tamil font to load before printing
-        document.fonts.ready.then(function() {
-          setTimeout(function() {
-            window.print();
-            window.onafterprint = function() { window.close(); };
-          }, 500);
-        });
-      </script>
     </body>
     </html>
   `
 
-  const printWindow = window.open('', '_blank', 'width=600,height=820')
-  printWindow.document.write(html)
-  printWindow.document.close()
+  const win = window.open('', '_blank', 'width=600,height=800')
+  win.document.write(html)
+  win.document.close()
+  win.onload = () => {
+    setTimeout(() => {
+      win.print()
+      win.close()
+    }, 500)
+  }
 }
+
   // Get employees eligible for a stage
   const getEligibleEmployees = (stage) =>
     employees.filter(e => e.role === stage || e.role === 'all')
