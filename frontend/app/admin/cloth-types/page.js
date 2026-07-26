@@ -165,25 +165,44 @@ const MEASUREMENT_PRESETS = {
 
   // ── Subtype CRUD ─────────────────────────────────────────────
   const addSubtype = async (ctId, typeId) => {
-  if (!newSub.name.trim()) {
-    showMsg('Subtype name required', true); return
+  const sub = newSub[`${ctId}_${typeId}`] || {}
+
+  if (!sub.name?.trim()) {
+    showMsg('Subtype name required', true)
+    return
   }
+
+  setSavingSub(`${ctId}_${typeId}`)
+
   try {
     await API.post(
       `/api/cloth-types/${ctId}/types/${typeId}/subtypes`,
       {
-        name:    newSub.name.trim(),
-        nameTa:  newSub.nameTa || '',
-        cost:    parseFloat(newSub.cost)    || 0,
-        empCost: parseFloat(newSub.empCost) || 0,  // ← add
+        name: sub.name.trim(),
+        nameTa: sub.nameTa || '',
+        cost: parseFloat(sub.cost) || 0,
+        empCost: parseFloat(sub.empCost) || 0,
+        image: sub.image || '',
       }
     )
-    setNewSub({ name:'', nameTa:'', cost:0, empCost:0 })
-    setAddingSub(null)
+
+    setNewSub(prev => ({
+      ...prev,
+      [`${ctId}_${typeId}`]: {
+        name: '',
+        nameTa: '',
+        cost: 0,
+        empCost: 0,
+        image: '',
+      }
+    }))
+
     fetchData()
     showMsg('Subtype added!')
   } catch (e) {
     showMsg(e.response?.data?.message || 'Failed to add subtype', true)
+  } finally {
+    setSavingSub(null)
   }
 }
 
