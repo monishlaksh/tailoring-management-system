@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { ArrowLeft, Check, X, Users, ChevronDown, ChevronUp, Printer } from 'lucide-react'
 import { adminAPI as API } from '../../../../lib/api'
 import VoicePlayer from '../../../../components/VoicePlayer'
-import PaymentModal from '../../../../components/paymentModal'
+import PaymentModal from '../../../../components/PaymentModal'
 
 
 const STAGES = ['cutting', 'stitching', 'finishing']
