@@ -512,7 +512,7 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
                           ? new Date(h.paidAt).toLocaleString('en-IN',{
                               day:'numeric', month:'short',
                               hour:'2-digit', minute:'2-digit'
-                            })
+                            })    
                           : ''} 
                       </p>
                     </div>
