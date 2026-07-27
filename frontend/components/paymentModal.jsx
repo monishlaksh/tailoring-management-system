@@ -513,7 +513,7 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
                               day:'numeric', month:'short',
                               hour:'2-digit', minute:'2-digit'
                             })
-                          : ''}
+                          : ''} 
                       </p>
                     </div>
                     <p style={{ fontWeight:800, color:'#059669',
