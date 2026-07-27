@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { employeeAPI as API } from '../../../../lib/api'
 import VoicePlayer from '../../../../components/VoicePlayer'
-import PaymentModal from '../../../components/PaymentModal'
+import PaymentModal from '../../../../components/PaymentModal'
 
 const STAGE_INFO = {
   cutting:   { icon:'✂️', label:'Cutting',   color:'#D97706', bg:'rgba(245,158,11,0.08)'  },
