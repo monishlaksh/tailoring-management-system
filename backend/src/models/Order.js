@@ -39,6 +39,38 @@ const orderSchema = new mongoose.Schema({
     mimeType: { type:String, default:'audio/webm' },
     duration: { type:Number, default:0 },
   },
+  payment: {
+  method:        { type:String, enum:['cash','gpay','mixed','unpaid'], default:'unpaid' },
+  amountPaid:    { type:Number, default:0 },
+  amountDue:     { type:Number, default:0 },
+  paidAt:        { type:Date },
+  gpayRef:       { type:String, default:'' },
+  notes:         { type:String, default:'' },
+  cashBreakdown: {
+    coins: { type:Number, default:0 },
+    ten:   { type:Number, default:0 },
+    twenty:{ type:Number, default:0 },
+    fifty: { type:Number, default:0 },
+    hundred:{ type:Number, default:0 },
+    twoHundred:{ type:Number, default:0 },
+    fiveHundred:{ type:Number, default:0 },
+  },
+  history: [{
+    method:    String,
+    amount:    Number,
+    paidAt:    { type:Date, default:Date.now },
+    notes:     String,
+    cashBreakdown: {
+      coins:      Number,
+      ten:        Number,
+      twenty:     Number,
+      fifty:      Number,
+      hundred:    Number,
+      twoHundred: Number,
+      fiveHundred:Number,
+    },
+  }],
+},
 
   createdBy: {
     role:       { type:String, default:'admin' },

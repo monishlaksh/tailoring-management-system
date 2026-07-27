@@ -334,5 +334,85 @@ router.delete('/:orderID', protectAdminOrFullAccess, async (req, res) => {
     res.status(500).json({ success:false, message:e.message })
   }
 })
+// POST record payment for an order
+router.post('/:orderID/payment', protectAdminOrFullAccess, async (req, res) => {
+  try {
+    const {
+      method, amount, gpayRef, notes, cashBreakdown,
+    } = req.body
+
+    if (!method || !amount || amount <= 0)
+      return res.status(400).json({
+        success: false,
+        message: 'Payment method and amount required',
+      })
+
+    const order = await Order.findOne({ orderID: req.params.orderID })
+    if (!order)
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found',
+      })
+
+    const totalCost    = order.unitCost || 0
+    const alreadyPaid  = order.payment?.amountPaid || 0
+    const newTotal     = alreadyPaid + parseFloat(amount)
+    const due          = Math.max(totalCost - newTotal, 0)
+
+    // Push to history
+    order.payment.history = order.payment.history || []
+    order.payment.history.push({
+      method,
+      amount:        parseFloat(amount),
+      paidAt:        new Date(),
+      notes:         notes || '',
+      cashBreakdown: cashBreakdown || {},
+    })
+
+    // Update totals
+    order.payment.method     = method
+    order.payment.amountPaid = newTotal
+    order.payment.amountDue  = due
+    order.payment.paidAt     = new Date()
+    if (gpayRef) order.payment.gpayRef = gpayRef
+    if (notes)   order.payment.notes   = notes
+    if (cashBreakdown) order.payment.cashBreakdown = cashBreakdown
+
+    // Also update legacy amountSettled
+    order.amountSettled = newTotal
+
+    await order.save()
+
+    res.json({
+      success: true,
+      message: 'Payment recorded',
+      payment: order.payment,
+    })
+  } catch (e) {
+    console.error('[PAYMENT]', e.message)
+    res.status(500).json({ success: false, message: e.message })
+  }
+})
+
+// DELETE reset payment
+router.delete('/:orderID/payment', protectAdminOrFullAccess, async (req, res) => {
+  try {
+    const order = await Order.findOne({ orderID: req.params.orderID })
+    if (!order)
+      return res.status(404).json({ success:false, message:'Order not found' })
+
+    order.payment = {
+      method:'unpaid', amountPaid:0,
+      amountDue: order.unitCost || 0,
+      cashBreakdown:{}, history:[],
+    }
+    order.amountSettled = 0
+    await order.save()
+
+    res.json({ success:true, message:'Payment reset' })
+  } catch (e) {
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
 
 module.exports = router
