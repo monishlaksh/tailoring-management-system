@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { ArrowLeft, Check, X, Users, ChevronDown, ChevronUp, Printer } from 'lucide-react'
 import { adminAPI as API } from '../../../../lib/api'
 import VoicePlayer from '../../../../components/VoicePlayer'
+import PaymentModal from '../../../components/PaymentModal'
 
 
 const STAGES = ['cutting', 'stitching', 'finishing']
@@ -39,6 +40,7 @@ const [printing, setPrinting] = useState(false)
 const [deliveryModal, setDeliveryModal] = useState(false)
 const [deliveryNote, setDeliveryNote]   = useState('')
 const [delivering, setDelivering]       = useState(false)
+const [paymentModal, setPaymentModal] = useState(false)
 
 
   // Per-stage state
@@ -678,6 +680,78 @@ const handleUndoDeliver = async () => {
             </div>
           )}
 
+          {/* Payment Card */}
+          <div className="glass" style={{ padding:20 }}>
+            <div style={{ display:'flex', justifyContent:'space-between',
+              alignItems:'center', marginBottom:14 }}>
+              <p style={{ fontSize:'0.75rem', color:'#9CA3AF', fontWeight:700,
+                textTransform:'uppercase', letterSpacing:'0.5px' }}>
+                💳 Payment
+              </p>
+              <button onClick={() => setPaymentModal(true)}
+                style={{ padding:'7px 14px',
+                  background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+                  color:'white', border:'none', borderRadius:8,
+                  fontFamily:'Poppins,sans-serif', fontWeight:600,
+                  fontSize:'0.78rem', cursor:'pointer' }}>
+                + Record Payment
+              </button>
+            </div>
+
+            <div style={{ display:'grid', gap:6 }}>
+              {[
+                { label:'Total Cost',  value:`₹${(order.unitCost||0).toLocaleString('en-IN')}`,                              color:'#1E1B4B' },
+                { label:'Paid',        value:`₹${(order.payment?.amountPaid||order.amountSettled||0).toLocaleString('en-IN')}`, color:'#059669' },
+                { label:'Balance Due', value:`₹${Math.max((order.unitCost||0)-(order.payment?.amountPaid||order.amountSettled||0),0).toLocaleString('en-IN')}`,
+                  color: Math.max((order.unitCost||0)-(order.payment?.amountPaid||order.amountSettled||0),0) > 0 ? '#DC2626' : '#059669' },
+              ].map((s,i) => (
+                <div key={i} style={{ display:'flex',
+                  justifyContent:'space-between', padding:'8px 12px',
+                  background: i%2===0 ? 'rgba(79,70,229,0.04)' : 'transparent',
+                  borderRadius:8 }}>
+                  <span style={{ fontSize:'0.8rem', color:'#6B7280',
+                    fontWeight:600 }}>
+                    {s.label}
+                  </span>
+                  <span style={{ fontSize:'0.88rem', fontWeight:800,
+                    color:s.color }}>
+                    {s.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Method badge */}
+            {order.payment?.method && order.payment.method !== 'unpaid' && (
+              <div style={{ marginTop:10, display:'flex', alignItems:'center',
+                gap:6, padding:'6px 12px',
+                background: order.payment.method === 'cash'
+                  ? 'rgba(16,185,129,0.08)' : 'rgba(79,70,229,0.08)',
+                borderRadius:8, width:'fit-content' }}>
+                <span style={{ fontSize:'0.9rem' }}>
+                  {order.payment.method === 'cash' ? '💵' : '📱'}
+                </span>
+                <span style={{ fontSize:'0.75rem', fontWeight:700,
+                  color: order.payment.method === 'cash' ? '#059669' : '#4F46E5' }}>
+                  {order.payment.method === 'cash' ? 'Cash' : 'GPay'}
+                  {order.payment.gpayRef && ` · ${order.payment.gpayRef}`}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Payment Modal */}
+          {paymentModal && (
+            <PaymentModal
+              order={order}
+              API={API}
+              onClose={() => setPaymentModal(false)}
+              onSuccess={() => {
+                setPaymentModal(false)
+                fetchData()
+              }}
+            />
+          )}
         </div>
 
         {/* Right — Stage Allotment */}
