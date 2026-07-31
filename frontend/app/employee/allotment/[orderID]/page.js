@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { employeeAPI as API } from '../../../../lib/api'
 import VoicePlayer from '../../../../components/VoicePlayer'
@@ -20,8 +20,8 @@ const STATUS_BADGE = {
 
 export default function EmployeeAllotmentPage() {
   const router   = useRouter()
-  const pathname = usePathname()
-  const orderID  = pathname?.split('/').pop()
+  const params  = useParams()
+  const orderID = params?.orderID
 
   const [allotment, setAllotment] = useState(null)
   const [order, setOrder]         = useState(null)

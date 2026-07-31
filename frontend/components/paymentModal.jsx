@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { X, Smartphone, Banknote, Check } from 'lucide-react'
+import { X, Smartphone, Banknote } from 'lucide-react'
 
 const NOTES = [
   { key:'fiveHundred', label:'₹500', value:500 },
@@ -29,14 +29,12 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
 
-  // Auto-calculate total from notes
   const cashTotal = Object.entries(breakdown).reduce((sum, [key, qty]) => {
     if (key === 'coins') return sum + (parseFloat(qty) || 0)
     const note = NOTES.find(n => n.key === key)
     return sum + (note ? note.value * (parseInt(qty) || 0) : 0)
   }, 0)
 
-  // Sync amount with cash breakdown when using cash
   useEffect(() => {
     if (method === 'cash') setAmount(cashTotal)
   }, [cashTotal, method])
@@ -45,22 +43,22 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
     setBreakdown(p => ({ ...p, [key]: Math.max(0, parseInt(val) || 0) }))
   }
 
-  const change = method === 'cash'
-    ? Math.max(cashTotal - remaining, 0)
-    : 0
+  const change = method === 'cash' ? Math.max(cashTotal - remaining, 0) : 0
 
   const handleSubmit = async () => {
-    if (!amount || amount <= 0) {
+    if (method === 'gpay' && (!amount || amount <= 0)) {
       setError('Enter a valid amount'); return
     }
-    if (method === 'cash' && cashTotal < remaining) {
-      // Allow partial payment
+    if (method === 'cash' && cashTotal === 0) {
+      setError('Enter cash notes received'); return
     }
     setSaving(true); setError('')
     try {
       await API.post(`/api/orders/${order.orderID}/payment`, {
         method,
-        amount: method === 'cash' ? Math.min(cashTotal, remaining) : parseFloat(amount),
+        amount: method === 'cash'
+          ? Math.min(cashTotal, remaining)
+          : parseFloat(amount),
         gpayRef,
         notes,
         cashBreakdown: method === 'cash' ? breakdown : {},
@@ -75,30 +73,28 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
 
   return (
     <div style={{ position:'fixed', inset:0,
-      background:'rgba(30,27,75,0.4)',
+      background:'rgba(30,27,75,0.45)',
       backdropFilter:'blur(8px)',
       display:'flex', alignItems:'center',
-      justifyContent:'center', zIndex:2000,
-      padding:20 }}>
+      justifyContent:'center', zIndex:2000, padding:16 }}>
+
       <div style={{ background:'white', borderRadius:20,
-        width:'100%', maxWidth:480,
+        width:'100%', maxWidth:460,
         maxHeight:'92vh', overflowY:'auto',
         boxShadow:'0 24px 60px rgba(0,0,0,0.2)' }}>
 
         {/* Header */}
-        <div style={{ padding:'18px 22px',
-          borderBottom:'1.5px solid #F3F4F6',
+        <div style={{ padding:'16px 20px',
+          borderBottom:'1px solid #F3F4F6',
           display:'flex', justifyContent:'space-between',
           alignItems:'center', position:'sticky',
           top:0, background:'white', zIndex:1,
           borderRadius:'20px 20px 0 0' }}>
           <div>
-            <p style={{ fontWeight:800, fontSize:'1rem',
-              color:'#1E1B4B' }}>
+            <p style={{ fontWeight:800, fontSize:'1rem', color:'#1E1B4B' }}>
               💳 Record Payment
             </p>
-            <p style={{ fontSize:'0.75rem', color:'#6B7280',
-              marginTop:2 }}>
+            <p style={{ fontSize:'0.75rem', color:'#6B7280', marginTop:2 }}>
               {order?.orderID} · {order?.customerRef?.name || order?.customerID}
             </p>
           </div>
@@ -111,25 +107,25 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
           </button>
         </div>
 
-        <div style={{ padding:'18px 22px' }}>
+        <div style={{ padding:'16px 20px' }}>
 
           {/* Summary */}
           <div style={{ background:'#F8F7FF', borderRadius:12,
-            padding:'14px', marginBottom:18 }}>
+            padding:'12px', marginBottom:16 }}>
             <div style={{ display:'grid',
-              gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+              gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
               {[
-                { label:'Total Cost',  value:`₹${totalCost.toLocaleString('en-IN')}`,   color:'#1E1B4B' },
-                { label:'Paid',        value:`₹${alreadyPaid.toLocaleString('en-IN')}`,  color:'#059669' },
-                { label:'Remaining',   value:`₹${remaining.toLocaleString('en-IN')}`,    color: remaining>0?'#DC2626':'#059669' },
-              ].map((s,i) => (
+                { label:'Total',     value:`₹${totalCost.toLocaleString('en-IN')}`,   color:'#1E1B4B' },
+                { label:'Paid',      value:`₹${alreadyPaid.toLocaleString('en-IN')}`,  color:'#059669' },
+                { label:'Remaining', value:`₹${remaining.toLocaleString('en-IN')}`,
+                  color: remaining > 0 ? '#DC2626' : '#059669' },
+              ].map((s, i) => (
                 <div key={i} style={{ textAlign:'center' }}>
                   <p style={{ fontSize:'0.62rem', color:'#9CA3AF',
                     fontWeight:600, marginBottom:3 }}>
                     {s.label}
                   </p>
-                  <p style={{ fontSize:'0.95rem', fontWeight:800,
-                    color:s.color }}>
+                  <p style={{ fontSize:'0.92rem', fontWeight:800, color:s.color }}>
                     {s.value}
                   </p>
                 </div>
@@ -150,7 +146,7 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
           ) : (
             <>
               {/* Method selector */}
-              <div style={{ marginBottom:18 }}>
+              <div style={{ marginBottom:16 }}>
                 <p style={{ fontSize:'0.72rem', fontWeight:700,
                   color:'#9CA3AF', textTransform:'uppercase',
                   letterSpacing:'0.5px', marginBottom:10 }}>
@@ -159,27 +155,35 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
                 <div style={{ display:'grid',
                   gridTemplateColumns:'1fr 1fr', gap:10 }}>
                   {[
-                    { value:'cash',  label:'Cash',  icon:<Banknote size={20}/>,    color:'#059669', bg:'rgba(16,185,129,0.08)',  border:'rgba(16,185,129,0.3)'  },
-                    { value:'gpay',  label:'GPay',  icon:<Smartphone size={20}/>,  color:'#4F46E5', bg:'rgba(79,70,229,0.08)',   border:'rgba(79,70,229,0.3)'   },
+                    { value:'cash', label:'Cash',
+                      icon:<Banknote size={20}/>,
+                      color:'#059669',
+                      bg:'rgba(16,185,129,0.08)',
+                      border:'rgba(16,185,129,0.3)' },
+                    { value:'gpay', label:'GPay',
+                      icon:<Smartphone size={20}/>,
+                      color:'#4F46E5',
+                      bg:'rgba(79,70,229,0.08)',
+                      border:'rgba(79,70,229,0.3)' },
                   ].map(m => (
                     <button key={m.value} type="button"
                       onClick={() => setMethod(m.value)}
                       style={{ padding:'14px',
-                        border: method===m.value
+                        border: method === m.value
                           ? `2px solid ${m.border}`
                           : '1.5px solid #E5E7EB',
                         borderRadius:12, cursor:'pointer',
-                        background: method===m.value ? m.bg : 'white',
+                        background: method === m.value ? m.bg : 'white',
                         display:'flex', flexDirection:'column',
                         alignItems:'center', gap:6,
                         fontFamily:'Poppins,sans-serif',
                         transition:'all 0.2s' }}>
-                      <span style={{ color: method===m.value
+                      <span style={{ color: method === m.value
                         ? m.color : '#9CA3AF' }}>
                         {m.icon}
                       </span>
                       <span style={{ fontSize:'0.85rem', fontWeight:700,
-                        color: method===m.value ? m.color : '#6B7280' }}>
+                        color: method === m.value ? m.color : '#6B7280' }}>
                         {m.label}
                       </span>
                     </button>
@@ -193,41 +197,36 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
                   <p style={{ fontSize:'0.72rem', fontWeight:700,
                     color:'#9CA3AF', textTransform:'uppercase',
                     letterSpacing:'0.5px', marginBottom:10 }}>
-                    Cash Received — Enter number of notes
+                    Enter number of notes received
                   </p>
 
-                  <div style={{ display:'grid', gap:8, marginBottom:12 }}>
+                  <div style={{ display:'grid', gap:7, marginBottom:12 }}>
                     {NOTES.map(note => (
                       <div key={note.key} style={{ display:'flex',
                         alignItems:'center', gap:10,
                         background:'#F9FAFB', borderRadius:10,
-                        padding:'10px 14px' }}>
-                        {/* Note denomination label */}
-                        <div style={{ width:64, textAlign:'center',
+                        padding:'9px 12px' }}>
+
+                        <div style={{ width:58, textAlign:'center',
                           background: note.value >= 200
                             ? 'rgba(79,70,229,0.08)'
                             : 'rgba(16,185,129,0.08)',
                           border: `1px solid ${note.value >= 200
                             ? 'rgba(79,70,229,0.2)'
                             : 'rgba(16,185,129,0.2)'}`,
-                          borderRadius:8, padding:'5px 8px' }}>
-                          <p style={{ fontWeight:800, fontSize:'0.95rem',
+                          borderRadius:8, padding:'4px 6px' }}>
+                          <p style={{ fontWeight:800, fontSize:'0.9rem',
                             color: note.value >= 200 ? '#4F46E5' : '#059669' }}>
                             {note.label}
                           </p>
-                          <p style={{ fontSize:'0.6rem', color:'#9CA3AF' }}>
-                            note
-                          </p>
                         </div>
 
-                        {/* Qty controls */}
                         <div style={{ display:'flex', alignItems:'center',
-                          gap:8, flex:1 }}>
+                          gap:7, flex:1 }}>
                           <button type="button"
                             onClick={() => setNote(note.key,
-                              (breakdown[note.key]||0) - 1)}
-                            style={{ width:32, height:32,
-                              borderRadius:'50%',
+                              (breakdown[note.key] || 0) - 1)}
+                            style={{ width:30, height:30, borderRadius:'50%',
                               background:'rgba(239,68,68,0.08)',
                               border:'1px solid rgba(239,68,68,0.2)',
                               cursor:'pointer', fontWeight:800,
@@ -236,24 +235,21 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
                               justifyContent:'center' }}>
                             −
                           </button>
-                          <input
-                            type="number" min="0"
+                          <input type="number" min="0"
                             value={breakdown[note.key] || ''}
                             onChange={e => setNote(note.key, e.target.value)}
                             placeholder="0"
-                            style={{ width:50, textAlign:'center',
-                              padding:'6px 4px',
+                            style={{ width:44, textAlign:'center',
+                              padding:'5px 2px',
                               border:'1.5px solid #E5E7EB',
                               borderRadius:8,
                               fontFamily:'Poppins,sans-serif',
                               fontSize:'0.95rem', fontWeight:700,
-                              color:'#1E1B4B', outline:'none' }}
-                          />
+                              color:'#1E1B4B', outline:'none' }}/>
                           <button type="button"
                             onClick={() => setNote(note.key,
-                              (breakdown[note.key]||0) + 1)}
-                            style={{ width:32, height:32,
-                              borderRadius:'50%',
+                              (breakdown[note.key] || 0) + 1)}
+                            style={{ width:30, height:30, borderRadius:'50%',
                               background:'rgba(16,185,129,0.08)',
                               border:'1px solid rgba(16,185,129,0.2)',
                               cursor:'pointer', fontWeight:800,
@@ -264,25 +260,25 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
                           </button>
                         </div>
 
-                        {/* Sub-total */}
-                        <p style={{ fontSize:'0.88rem', fontWeight:700,
-                          color:'#1E1B4B', minWidth:50, textAlign:'right' }}>
-                          {(breakdown[note.key]||0) > 0
-                            ? `₹${(note.value * breakdown[note.key]).toLocaleString('en-IN')}`
+                        <p style={{ fontSize:'0.85rem', fontWeight:700,
+                          color:'#1E1B4B', minWidth:48, textAlign:'right' }}>
+                          {(breakdown[note.key] || 0) > 0
+                            ? `₹${(note.value * breakdown[note.key])
+                                .toLocaleString('en-IN')}`
                             : '—'}
                         </p>
                       </div>
                     ))}
 
-                    {/* Coins row */}
+                    {/* Coins */}
                     <div style={{ display:'flex', alignItems:'center',
                       gap:10, background:'#F9FAFB', borderRadius:10,
-                      padding:'10px 14px' }}>
-                      <div style={{ width:64, textAlign:'center',
+                      padding:'9px 12px' }}>
+                      <div style={{ width:58, textAlign:'center',
                         background:'rgba(245,158,11,0.08)',
                         border:'1px solid rgba(245,158,11,0.2)',
-                        borderRadius:8, padding:'5px 8px' }}>
-                        <p style={{ fontWeight:800, fontSize:'0.95rem',
+                        borderRadius:8, padding:'4px 6px' }}>
+                        <p style={{ fontWeight:800, fontSize:'0.9rem',
                           color:'#D97706' }}>🪙</p>
                         <p style={{ fontSize:'0.6rem', color:'#9CA3AF' }}>
                           coins
@@ -290,79 +286,60 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
                       </div>
                       <div style={{ flex:1, display:'flex',
                         alignItems:'center', gap:6 }}>
-                        <span style={{ fontSize:'0.8rem',
-                          color:'#6B7280' }}>₹</span>
-                        <input
-                          type="number" min="0" step="0.5"
+                        <span style={{ fontSize:'0.82rem', color:'#6B7280' }}>
+                          ₹
+                        </span>
+                        <input type="number" min="0" step="0.5"
                           value={breakdown.coins || ''}
                           onChange={e => setBreakdown(p => ({
-                            ...p,
-                            coins: parseFloat(e.target.value) || 0
+                            ...p, coins: parseFloat(e.target.value) || 0
                           }))}
                           placeholder="0"
-                          style={{ flex:1, padding:'8px 10px',
-                            border:'1.5px solid #E5E7EB',
-                            borderRadius:8,
+                          style={{ flex:1, padding:'7px 8px',
+                            border:'1.5px solid #E5E7EB', borderRadius:8,
                             fontFamily:'Poppins,sans-serif',
                             fontSize:'0.95rem', fontWeight:700,
-                            color:'#1E1B4B', outline:'none' }}
-                        />
+                            color:'#1E1B4B', outline:'none' }}/>
                       </div>
-                      <p style={{ fontSize:'0.88rem', fontWeight:700,
-                        color:'#1E1B4B', minWidth:50, textAlign:'right' }}>
-                        {(breakdown.coins||0) > 0
-                          ? `₹${breakdown.coins}`
-                          : '—'}
+                      <p style={{ fontSize:'0.85rem', fontWeight:700,
+                        color:'#1E1B4B', minWidth:48, textAlign:'right' }}>
+                        {(breakdown.coins || 0) > 0
+                          ? `₹${breakdown.coins}` : '—'}
                       </p>
                     </div>
                   </div>
 
                   {/* Cash summary */}
                   <div style={{ background: cashTotal >= remaining
-                    ? 'rgba(16,185,129,0.06)'
-                    : 'rgba(245,158,11,0.06)',
+                      ? 'rgba(16,185,129,0.06)'
+                      : 'rgba(245,158,11,0.06)',
                     border: `1.5px solid ${cashTotal >= remaining
                       ? 'rgba(16,185,129,0.2)'
                       : 'rgba(245,158,11,0.2)'}`,
-                    borderRadius:12, padding:'12px 16px',
+                    borderRadius:12, padding:'12px 14px',
                     marginBottom:14 }}>
                     <div style={{ display:'grid',
                       gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-                      <div style={{ textAlign:'center' }}>
-                        <p style={{ fontSize:'0.62rem', color:'#9CA3AF',
-                          fontWeight:600, marginBottom:2 }}>
-                          Cash Given
-                        </p>
-                        <p style={{ fontSize:'1rem', fontWeight:800,
-                          color:'#1E1B4B' }}>
-                          ₹{cashTotal.toLocaleString('en-IN')}
-                        </p>
-                      </div>
-                      <div style={{ textAlign:'center' }}>
-                        <p style={{ fontSize:'0.62rem', color:'#9CA3AF',
-                          fontWeight:600, marginBottom:2 }}>
-                          Amount Due
-                        </p>
-                        <p style={{ fontSize:'1rem', fontWeight:800,
-                          color:'#DC2626' }}>
-                          ₹{remaining.toLocaleString('en-IN')}
-                        </p>
-                      </div>
-                      <div style={{ textAlign:'center' }}>
-                        <p style={{ fontSize:'0.62rem',
-                          color: change > 0 ? '#D97706' : '#9CA3AF',
-                          fontWeight:600, marginBottom:2 }}>
-                          {change > 0 ? '↩ Return' : 'Change'}
-                        </p>
-                        <p style={{ fontSize:'1rem', fontWeight:800,
-                          color: change > 0 ? '#D97706' : '#9CA3AF' }}>
-                          {change > 0
-                            ? `₹${change.toLocaleString('en-IN')}`
-                            : '—'}
-                        </p>
-                      </div>
+                      {[
+                        { label:'Cash Given', value:`₹${cashTotal.toLocaleString('en-IN')}`,     color:'#1E1B4B' },
+                        { label:'Amount Due', value:`₹${remaining.toLocaleString('en-IN')}`,     color:'#DC2626' },
+                        { label: change > 0 ? '↩ Return' : 'Change',
+                          value: change > 0 ? `₹${change.toLocaleString('en-IN')}` : '—',
+                          color: change > 0 ? '#D97706' : '#9CA3AF' },
+                      ].map((s, i) => (
+                        <div key={i} style={{ textAlign:'center' }}>
+                          <p style={{ fontSize:'0.62rem', color: i===2 && change>0
+                            ? '#D97706' : '#9CA3AF',
+                            fontWeight:600, marginBottom:2 }}>
+                            {s.label}
+                          </p>
+                          <p style={{ fontSize:'0.95rem', fontWeight:800,
+                            color:s.color }}>
+                            {s.value}
+                          </p>
+                        </div>
+                      ))}
                     </div>
-
                     {change > 0 && (
                       <p style={{ textAlign:'center', fontSize:'0.75rem',
                         color:'#D97706', fontWeight:600, marginTop:8 }}>
@@ -395,16 +372,14 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
                       display:'block', marginBottom:6 }}>
                       Amount Received (₹)
                     </label>
-                    <input
-                      type="number" min="0"
+                    <input type="number" min="0"
                       value={amount}
-                      onChange={e => setAmount(parseFloat(e.target.value)||0)}
+                      onChange={e => setAmount(parseFloat(e.target.value) || 0)}
                       style={{ width:'100%', padding:'12px 14px',
                         border:'1.5px solid rgba(79,70,229,0.2)',
                         borderRadius:10, fontFamily:'Poppins,sans-serif',
                         fontSize:'1.1rem', fontWeight:700,
-                        color:'#4F46E5', outline:'none' }}
-                    />
+                        color:'#4F46E5', outline:'none' }}/>
                   </div>
 
                   <div style={{ marginBottom:12 }}>
@@ -413,21 +388,19 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
                       display:'block', marginBottom:6 }}>
                       GPay Reference / UTR (optional)
                     </label>
-                    <input
-                      type="text" value={gpayRef}
+                    <input type="text" value={gpayRef}
                       onChange={e => setGpayRef(e.target.value)}
                       placeholder="e.g. UPI123456789"
                       style={{ width:'100%', padding:'11px 14px',
                         border:'1.5px solid rgba(79,70,229,0.2)',
                         borderRadius:10, fontFamily:'Poppins,sans-serif',
-                        fontSize:'0.9rem', color:'#1E1B4B', outline:'none' }}
-                    />
+                        fontSize:'0.9rem', color:'#1E1B4B', outline:'none' }}/>
                   </div>
                 </div>
               )}
 
               {/* Notes */}
-              <div style={{ marginBottom:16 }}>
+              <div style={{ marginBottom:14 }}>
                 <label style={{ fontSize:'0.72rem', fontWeight:700,
                   color:'#9CA3AF', textTransform:'uppercase',
                   display:'block', marginBottom:6 }}>
@@ -439,30 +412,29 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
                   style={{ width:'100%', padding:'10px 14px',
                     border:'1.5px solid #E5E7EB', borderRadius:10,
                     fontFamily:'Poppins,sans-serif', fontSize:'0.88rem',
-                    color:'#1E1B4B', outline:'none' }}
-                />
+                    color:'#1E1B4B', outline:'none' }}/>
               </div>
 
               {error && (
-                <p style={{ color:'#DC2626', fontSize:'0.82rem',
-                  marginBottom:12 }}>
+                <p style={{ color:'#DC2626', fontSize:'0.82rem', marginBottom:12 }}>
                   ⚠️ {error}
                 </p>
               )}
 
               {/* Submit */}
               <button type="button" onClick={handleSubmit}
-                disabled={saving || (method==='cash' && cashTotal===0)
-                  || (method==='gpay' && !amount)}
+                disabled={saving
+                  || (method === 'cash' && cashTotal === 0)
+                  || (method === 'gpay' && !amount)}
                 style={{ width:'100%', padding:'14px',
-                  background: (method==='cash' && cashTotal===0)
-                    || (method==='gpay' && !amount)
+                  background: (method === 'cash' && cashTotal === 0)
+                    || (method === 'gpay' && !amount)
                     ? '#E5E7EB'
-                    : method==='cash'
+                    : method === 'cash'
                       ? 'linear-gradient(135deg,#059669,#10B981)'
                       : 'linear-gradient(135deg,#4F46E5,#6366F1)',
-                  color: (method==='cash' && cashTotal===0)
-                    || (method==='gpay' && !amount)
+                  color: (method === 'cash' && cashTotal === 0)
+                    || (method === 'gpay' && !amount)
                     ? '#9CA3AF' : 'white',
                   border:'none', borderRadius:12,
                   fontFamily:'Poppins,sans-serif', fontWeight:700,
@@ -473,8 +445,10 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
                 {saving
                   ? '⏳ Recording...'
                   : method === 'cash'
-                    ? `✅ Confirm ₹${Math.min(cashTotal,remaining).toLocaleString('en-IN')} Cash`
-                    : `✅ Confirm ₹${(parseFloat(amount)||0).toLocaleString('en-IN')} GPay`}
+                    ? `✅ Confirm ₹${Math.min(cashTotal, remaining)
+                        .toLocaleString('en-IN')} Cash`
+                    : `✅ Confirm ₹${(parseFloat(amount) || 0)
+                        .toLocaleString('en-IN')} GPay`}
               </button>
             </>
           )}
@@ -495,30 +469,28 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
                     alignItems:'center' }}>
                     <div>
                       <p style={{ fontSize:'0.82rem', fontWeight:600,
-                        color:'#1E1B4B', display:'flex',
-                        alignItems:'center', gap:6 }}>
-                        {h.method === 'cash' ? '💵' : '📱'}
-                        {h.method === 'cash' ? 'Cash' : 'GPay'}
+                        color:'#1E1B4B' }}>
+                        {h.method === 'cash' ? '💵 Cash' : '📱 GPay'}
                         {h.notes && (
                           <span style={{ fontSize:'0.72rem',
-                            color:'#9CA3AF', fontWeight:400 }}>
+                            color:'#9CA3AF', fontWeight:400,
+                            marginLeft:6 }}>
                             · {h.notes}
                           </span>
                         )}
                       </p>
-                      <p style={{ fontSize:'0.7rem', color:'#9CA3AF',
-                        marginTop:2 }}>
+                      <p style={{ fontSize:'0.7rem', color:'#9CA3AF', marginTop:2 }}>
                         {h.paidAt
-                          ? new Date(h.paidAt).toLocaleString('en-IN',{
+                          ? new Date(h.paidAt).toLocaleString('en-IN', {
                               day:'numeric', month:'short',
-                              hour:'2-digit', minute:'2-digit'
-                            })    
-                          : ''} 
+                              hour:'2-digit', minute:'2-digit',
+                            })
+                          : ''}
                       </p>
                     </div>
                     <p style={{ fontWeight:800, color:'#059669',
                       fontSize:'0.95rem' }}>
-                      +₹{(h.amount||0).toLocaleString('en-IN')}
+                      +₹{(h.amount || 0).toLocaleString('en-IN')}
                     </p>
                   </div>
                 ))}
