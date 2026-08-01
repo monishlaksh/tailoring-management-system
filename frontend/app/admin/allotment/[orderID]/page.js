@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
-import { employeeAPI as API } from '../../../../lib/api'
+import { adminAPI as API } from '../../../../lib/api'
 import VoicePlayer from '../../../../components/VoicePlayer'
 import PaymentModal from '../../../../components/PaymentModal'
 
