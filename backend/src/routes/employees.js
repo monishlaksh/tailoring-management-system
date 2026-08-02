@@ -128,6 +128,39 @@ router.post('/', protect, async (req, res) => {
 
 // ── Dynamic routes — employeeID param ────────────────────────
 
+// Fix counter to match highest existing employeeID
+router.post('/fix-counter', protect, async (req, res) => {
+  try {
+    const Counter = require('../models/Counter')
+
+    // Find the highest employeeID in DB
+    const last = await Employee.findOne({ employeeID: /^EMP/ })
+      .sort({ employeeID: -1 })
+      .select('employeeID')
+      .lean()
+
+    let maxSeq = 0
+    if (last?.employeeID) {
+      const n = parseInt(last.employeeID.replace('EMP', ''), 10)
+      if (!isNaN(n)) maxSeq = n
+    }
+
+    // Update counter to match
+    await Counter.findOneAndUpdate(
+      { _id: 'employeeID' },
+      { $set: { seq: maxSeq } },
+      { upsert: true }
+    )
+
+    res.json({
+      success: true,
+      message: `Counter synced to ${maxSeq}. Next employee will be EMP${String(maxSeq+1).padStart(6,'0')}`,
+    })
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message })
+  }
+})
+
 // GET single employee by employeeID string (e.g. EMP000001)
 router.get('/:employeeID', protect, async (req, res) => {
   try {
