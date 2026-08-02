@@ -161,7 +161,7 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
       unitCost, amountSettled,
       fabricNotes, specialInstructions,
       measurements, alteration, deliveryDate,empRate:clientEmpRate,
-      voiceNote,
+      voiceNote,empRate, 
     } = req.body
 
     // In POST create order route:
@@ -199,6 +199,7 @@ const createdByID   = req.employee?.employeeID || ''
         measurements:        measurements || {},
         alteration:          alteration  || { required:false, selectedOptions:[], notes:'', extraCost:0 },
         deliveryDate,
+        empRate: parseFloat(empRate) || 0,
         voiceNote:           voiceNote   || { data:'', mimeType:'audio/webm', duration:0 },
         createdBy: {
     role:       createdByRole,
