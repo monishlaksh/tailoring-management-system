@@ -240,7 +240,6 @@ router.post('/:orderID/approve', protectAdminOrFullAccess, async (req, res) => {
     // Get order empRate
     const order    = await Order.findOne({ orderID:req.params.orderID }).lean()
     const empRate  = order?.empRate || 0
-    const empBonus = employee?.bonus || 0
     // Total award = empRate (from order) + bonus
     const totalAward = empRate + empBonus
 
