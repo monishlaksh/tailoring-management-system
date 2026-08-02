@@ -307,7 +307,7 @@ router.get('/:customerID/measurements', protectAdminOrEmployee, async (req, res)
 router.patch('/:orderID/status', protect, async (req, res) => {
   try {
     const { status } = req.body
-    const valid = ['Booking','Cutting','Stitching','Finishing','Ready For Delivery']
+    const valid = ['Booking','Cutting','Stitching','Finishing','Ready For Delivery','Delivered']
     if (!valid.includes(status))
       return res.status(400).json({ success:false, message:'Invalid status' })
     const order = await Order.findOneAndUpdate(

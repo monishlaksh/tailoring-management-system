@@ -140,7 +140,363 @@ export default function AdminAllotmentPage() {
       showMsg(e.response?.data?.message || 'Failed to approve', true)
     } finally { setApproving(null) }
   }
+  const handlePrint = () => {
+  // Get measurements from cloth type
+  const measurementRows = selectedClothType?.measurements
+    ?.map(m => {
+      const val = order?.measurements?.[m.key] || '—'
+      return `
+        <tr>
+          <td>${m.label}</td>
+          <td>${m.labelTa || ''}</td>
+          <td><strong>${val}"</strong></td>
+        </tr>`
+    }).join('') || ''
 
+  const alterationList = (order?.alteration?.selectedOptions || [])
+    .map(o => `<li>${o}</li>`).join('')
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8"/>
+      <title>Order ${order?.orderID}</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+          font-family: 'Poppins', sans-serif;
+          width: 148mm;
+          min-height: 210mm;
+          padding: 12mm 10mm;
+          color: #1E1B4B;
+          background: white;
+          font-size: 11px;
+          display: flex;
+          flex-direction: column;
+        }
+
+        /* ── HEADER ── */
+        .header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding-bottom: 10px;
+          border-bottom: 2.5px solid #4F46E5;
+          margin-bottom: 12px;
+        }
+        .logo {
+          width: 56px;
+          height: 56px;
+          border-radius: 12px;
+          object-fit: cover;
+          border: 2px solid #4F46E5;
+          flex-shrink: 0;
+        }
+        .logo-fallback {
+          width: 56px;
+          height: 56px;
+          border-radius: 12px;
+          background: linear-gradient(135deg, #4F46E5, #00D4FF);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 28px;
+          flex-shrink: 0;
+        }
+        .shop-info h1 {
+          font-size: 16px;
+          font-weight: 800;
+          color: #1E1B4B;
+          line-height: 1.2;
+        }
+        .shop-info p {
+          font-size: 9.5px;
+          color: #6B7280;
+          margin-top: 2px;
+        }
+        .shop-info .tagline {
+          font-size: 9px;
+          color: #4F46E5;
+          font-weight: 600;
+          margin-top: 3px;
+        }
+
+        /* ── QR + ORDER ID row ── */
+        .order-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 12px;
+          gap: 10px;
+        }
+        .order-meta h2 {
+          font-size: 13px;
+          font-weight: 800;
+          color: #4F46E5;
+        }
+        .order-meta p {
+          font-size: 9.5px;
+          color: #6B7280;
+          margin-top: 2px;
+          line-height: 1.5;
+        }
+        .qr-box {
+          text-align: center;
+        }
+        .qr-box img {
+          width: 72px;
+          height: 72px;
+          border: 2px solid #EEF2FF;
+          border-radius: 8px;
+        }
+        .qr-box p {
+          font-size: 8px;
+          color: #9CA3AF;
+          margin-top: 3px;
+        }
+
+        /* ── SECTION LABEL ── */
+        .section-label {
+          font-size: 8px;
+          font-weight: 700;
+          color: #9CA3AF;
+          text-transform: uppercase;
+          letter-spacing: 0.6px;
+          margin-bottom: 5px;
+          margin-top: 10px;
+        }
+
+        /* ── CLOTH TYPE BOX ── */
+        .cloth-box {
+          background: #EEF2FF;
+          border-radius: 8px;
+          padding: 8px 12px;
+          margin-bottom: 10px;
+        }
+        .cloth-box .cloth-name {
+          font-size: 13px;
+          font-weight: 800;
+          color: #1E1B4B;
+        }
+        .cloth-box .cloth-sub {
+          font-size: 9.5px;
+          color: #4F46E5;
+          font-weight: 600;
+          margin-top: 2px;
+        }
+        .cloth-box .cloth-qty {
+          font-size: 9px;
+          color: #6B7280;
+          margin-top: 3px;
+        }
+
+        /* ── MEASUREMENTS TABLE ── */
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 10px;
+        }
+        th {
+          background: #4F46E5;
+          color: white;
+          font-size: 8.5px;
+          font-weight: 700;
+          text-align: left;
+          padding: 5px 8px;
+          text-transform: uppercase;
+          letter-spacing: 0.4px;
+        }
+        td {
+          font-size: 10px;
+          padding: 5px 8px;
+          border-bottom: 1px solid #F3F4F6;
+          color: #1E1B4B;
+        }
+        tr:nth-child(even) td { background: #F8F7FF; }
+
+        /* ── STAGES ── */
+        .stages {
+          display: flex;
+          gap: 5px;
+          margin-bottom: 10px;
+        }
+        .stage {
+          flex: 1;
+          text-align: center;
+          padding: 6px 3px;
+          border-radius: 6px;
+          font-size: 8px;
+          font-weight: 600;
+        }
+        .stage.done    { background:#DCFCE7; color:#059669; }
+        .stage.pending { background:#FEF3C7; color:#D97706; }
+        .stage.waiting { background:#F3F4F6; color:#9CA3AF; }
+
+        /* ── ALTERATION ── */
+        .alt-box {
+          background: #FEF3C7;
+          border: 1.5px solid #FDE68A;
+          border-radius: 8px;
+          padding: 8px 12px;
+          margin-bottom: 10px;
+        }
+        .alt-box h3 { font-size: 10px; font-weight: 700; color: #D97706; margin-bottom: 5px; }
+        .alt-box ul { padding-left: 14px; }
+        .alt-box li { font-size: 9.5px; color: #92400E; margin-bottom: 2px; }
+        .alt-box p  { font-size: 9px; color: #6B7280; margin-top: 4px; font-style: italic; }
+
+        /* ── VOICE NOTE NOTICE ── */
+        .voice-notice {
+          background: #EEF2FF;
+          border: 1.5px solid #C7D2FE;
+          border-radius: 8px;
+          padding: 6px 12px;
+          font-size: 9px;
+          color: #4338CA;
+          font-weight: 600;
+          margin-bottom: 10px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        /* ── FOOTER GREETING ── */
+        .footer {
+          margin-top: auto;
+          padding-top: 10px;
+          border-top: 1.5px dashed #E5E7EB;
+          text-align: center;
+        }
+        .footer .greeting {
+          font-size: 10px;
+          font-weight: 700;
+          color: #4F46E5;
+          margin-bottom: 3px;
+        }
+        .footer .greeting-ta {
+          font-size: 10px;
+          color: #6B7280;
+          margin-bottom: 5px;
+        }
+        .footer .tagline {
+          font-size: 8.5px;
+          color: #9CA3AF;
+        }
+
+        @media print {
+          body { width:148mm; min-height:210mm; }
+          @page { size: A5 portrait; margin: 0; }
+        }
+      </style>
+    </head>
+    <body>
+
+      <!-- HEADER WITH LOGO -->
+      <div class="header">
+        <img
+          class="logo"
+          src="${window.location.origin}/logo.png"
+          alt="Logo"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"
+        />
+        <div class="logo-fallback" style="display:none">✂️</div>
+        <div class="shop-info">
+          <h1>Al-Ameen Tailors</h1>
+          <p>Master Tailoring & Alterations</p>
+          <p class="tagline">✂️ Crafting Perfect Fits Since 2004</p>
+        </div>
+      </div>
+
+      <!-- ORDER + QR -->
+      <div class="order-header">
+        <div class="order-meta">
+          <h2>${order?.orderID}</h2>
+          <p>
+            👤 ${order?.customerRef?.name || '—'}<br/>
+            📞 ${order?.customerRef?.phone || '—'}<br/>
+            📅 Booked: ${order?.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN') : '—'}<br/>
+            🚚 Delivery: <strong>${order?.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' }) : '—'}</strong>
+          </p>
+        </div>
+        ${allotment?.qrCode ? `
+          <div class="qr-box">
+            <img src="${allotment.qrCode}" alt="QR"/>
+            <p>Scan to view</p>
+          </div>` : ''}
+      </div>
+
+      <!-- CLOTH TYPE -->
+      <div class="section-label">Cloth / துணி</div>
+      <div class="cloth-box">
+        <div class="cloth-name">${order?.clothType?.split(' - ')[0] || order?.clothType || '—'}</div>
+        <div class="cloth-sub">${order?.clothType?.split(' - ').slice(1).join(' → ') || ''}</div>
+        <div class="cloth-qty">Qty: ${order?.quantity || 1} piece${(order?.quantity || 1) > 1 ? 's' : ''}</div>
+      </div>
+
+      <!-- MEASUREMENTS -->
+      ${measurementRows ? `
+        <div class="section-label">Measurements / அளவுகள் (inches)</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Measurement</th>
+              <th>தமிழ்</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>${measurementRows}</tbody>
+        </table>` : ''}
+
+      <!-- VOICE NOTE NOTICE -->
+      ${order?.voiceNote?.data ? `
+        <div class="voice-notice">
+          🎙️ Voice note from admin — scan QR to listen to special instructions
+        </div>` : ''}
+
+      <!-- ALTERATIONS -->
+      ${order?.alteration?.required ? `
+        <div class="section-label">Alterations / மாற்றங்கள்</div>
+        <div class="alt-box">
+          <h3>⚠️ Alteration Required</h3>
+          ${alterationList ? `<ul>${alterationList}</ul>` : ''}
+          ${order?.alteration?.notes ? `<p>"${order.alteration.notes}"</p>` : ''}
+        </div>` : ''}
+
+      <!-- STAGE PROGRESS -->
+      <div class="section-label">Stage Progress / பணி நிலை</div>
+      <div class="stages">
+        ${['cutting','stitching','finishing'].map(s => {
+          const st = allotment?.[s]?.status || 'not_assigned'
+          const cls = st === 'completed' ? 'done' : st === 'pending' ? 'pending' : 'waiting'
+          const icons = { cutting:'✂️', stitching:'🧵', finishing:'🚩' }
+          const labels = { cutting:'Cutting', stitching:'Stitching', finishing:'Finishing' }
+          return `<div class="stage ${cls}">${icons[s]}<br/>${labels[s]}<br/>${st.replace('_',' ')}</div>`
+        }).join('')}
+      </div>
+
+      <!-- FOOTER GREETING -->
+      <div class="footer">
+        <p class="greeting">Thank you for choosing Al-Ameen Tailors! 🙏</p>
+        <p class="greeting-ta">அல்-அமீன் டெய்லர்ஸை தேர்ந்தெடுத்ததற்கு நன்றி!</p>
+        <p class="tagline">✂️ Al-Ameen Tailors — Crafting Perfect Fits Since 2004 | Quality You Can Trust</p>
+      </div>
+
+    </body>
+    </html>
+  `
+
+  const win = window.open('', '_blank', 'width=600,height=800')
+  win.document.write(html)
+  win.document.close()
+  win.onload = () => {
+    setTimeout(() => {
+      win.print()
+      win.close()
+    }, 500)
+  }
+}
   const handleDeliver = async () => {
     setDelivering(true)
     try {
@@ -265,17 +621,64 @@ export default function AdminAllotmentPage() {
             </p>
           </div>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <span style={{ fontSize:'0.8rem', color:'#6B7280' }}>{stagesCompleted}/3</span>
-          <div style={{ width:80, height:6, background:'rgba(79,70,229,0.1)',
-            borderRadius:999, overflow:'hidden' }}>
-            <div style={{ height:'100%', width:`${progressPct}%`,
-              background:'linear-gradient(90deg,#4F46E5,#00D4FF)',
-              borderRadius:999, transition:'width 0.5s' }}/>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+
+          {/* Print Button */}
+          <button
+            onClick={handlePrint}
+            style={{
+              padding:'8px 16px',
+              background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+              color:'white',
+              border:'none',
+              borderRadius:10,
+              fontFamily:'Poppins,sans-serif',
+              fontWeight:600,
+              fontSize:'0.82rem',
+              cursor:'pointer',
+              display:'flex',
+              alignItems:'center',
+              gap:6,
+              boxShadow:'0 2px 8px rgba(79,70,229,0.25)'
+            }}
+          >
+            🖨️ Print
+          </button>
+
+          <span style={{ fontSize:'0.8rem', color:'#6B7280' }}>
+            {stagesCompleted}/3
+          </span>
+
+          <div
+            style={{
+              width:80,
+              height:6,
+              background:'rgba(79,70,229,0.1)',
+              borderRadius:999,
+              overflow:'hidden'
+            }}
+          >
+            <div
+              style={{
+                height:'100%',
+                width:`${progressPct}%`,
+                background:'linear-gradient(90deg,#4F46E5,#00D4FF)',
+                borderRadius:999,
+                transition:'width 0.5s'
+              }}
+            />
           </div>
-          <span style={{ fontSize:'0.8rem', fontWeight:700, color:'#4F46E5' }}>
+
+          <span
+            style={{
+              fontSize:'0.8rem',
+              fontWeight:700,
+              color:'#4F46E5'
+            }}
+          >
             {progressPct}%
           </span>
+
         </div>
       </div>
 
