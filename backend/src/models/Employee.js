@@ -25,15 +25,19 @@ const employeeSchema = new mongoose.Schema({
 // Auto-generate employeeID
 employeeSchema.pre('save', async function (next) {
   if (this.isNew && !this.employeeID) {
-    const Counter  = require('./Counter')
-    const counter  = await Counter.findOneAndUpdate(
-      { name:'employeeID' },
-      { $inc:{ seq:1 } },
-      { new:true, upsert:true }
-    )
-    this.employeeID = `EMP${String(counter.seq).padStart(3,'0')}`
+    try {
+      const Counter = require('./Counter')
+      const counter = await Counter.findOneAndUpdate(
+        { _id: 'employeeID' },   // ← use _id not name
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      )
+      this.employeeID = `EMP${String(counter.seq).padStart(6, '0')}`
+    } catch (e) {
+      // Fallback
+      this.employeeID = `EMP${Date.now().toString().slice(-6)}`
+    }
   }
   next()
 })
-
 module.exports = mongoose.model('Employee', employeeSchema)
