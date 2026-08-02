@@ -103,16 +103,23 @@ router.post('/', protect, async (req, res) => {
     const hashed = await bcrypt.hash(password.trim(), 10)
 
     // Generate employeeID
-    const last = await Employee.findOne()
-      .sort({ createdAt: -1 })
-      .select('employeeID')
-      .lean()
-    let nextNum = 1
-    if (last?.employeeID) {
-      const n = parseInt(last.employeeID.replace('EMP', ''), 10)
-      if (!isNaN(n)) nextNum = n + 1
-    }
-    const employeeID = `EMP${String(nextNum).padStart(6, '0')}`
+   // Generate employeeID — robust version
+let employeeID
+try {
+  const last = await Employee.findOne({ employeeID: /^EMP/ })
+    .sort({ employeeID: -1 })
+    .select('employeeID')
+    .lean()
+  let nextNum = 1
+  if (last?.employeeID) {
+    const n = parseInt(last.employeeID.replace('EMP', ''), 10)
+    if (!isNaN(n)) nextNum = n + 1
+  }
+  employeeID = `EMP${String(nextNum).padStart(6, '0')}`
+} catch (e) {
+  // Fallback to timestamp-based ID
+  employeeID = `EMP${Date.now().toString().slice(-6)}`
+}
 
     const employee = await Employee.create({
       employeeID,
@@ -132,6 +139,7 @@ router.post('/', protect, async (req, res) => {
     delete obj.password
     res.status(201).json({ success: true, employee: obj })
   } catch (e) {
+    console.error('[CREATE EMPLOYEE]', e.message, e.stack)
     res.status(500).json({ success: false, message: e.message })
   }
 })
