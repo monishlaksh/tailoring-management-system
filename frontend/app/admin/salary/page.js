@@ -12,6 +12,259 @@ export default function SalaryPage() {
   const [period, setPeriod]     = useState('daily')
   const [showHistory, setShowHistory] = useState(false)
 
+  const [printEmp, setPrintEmp]         = useState(null)
+const [printData, setPrintData]       = useState(null)
+const [printLoading, setPrintLoading] = useState(false)
+const [dateFrom, setDateFrom]         = useState('')
+const [dateTo, setDateTo]             = useState('')
+
+const fetchAndPrint = async (employee) => {
+  setPrintLoading(true)
+  setPrintEmp(employee)
+  try {
+    const params = new URLSearchParams()
+    if (dateFrom) params.append('from', dateFrom)
+    if (dateTo)   params.append('to',   dateTo)
+
+    const res = await API.get(
+      `/api/salary/employee/${employee.employeeID}/detail?${params}`
+    )
+    setPrintData(res.data)
+    // Auto open print after data loads
+    setTimeout(() => openPrint(res.data), 300)
+  } catch (e) {
+    alert('Failed to load salary details')
+  } finally {
+    setPrintLoading(false)
+  }
+}
+
+const openPrint = (data) => {
+  const emp    = data.employee
+  const stages = data.completedStages
+  const total  = data.totalAward
+
+  const stageIcon = { cutting:'✂️', stitching:'🧵', finishing:'🚩' }
+  const stageLabel = { cutting:'Cutting', stitching:'Stitching', finishing:'Finishing' }
+
+  const rows = stages.map((s, i) => `
+    <tr style="background:${i%2===0?'#F8F7FF':'white'}">
+      <td style="padding:7px 10px;font-size:11px;color:#4F46E5;font-weight:600">
+        ${s.orderID}
+      </td>
+      <td style="padding:7px 10px;font-size:11px;color:#1E1B4B">
+        ${s.clothType}
+      </td>
+      <td style="padding:7px 10px;font-size:11px;color:#6B7280">
+        ${s.customerName}
+      </td>
+      <td style="padding:7px 10px;font-size:11px;text-align:center">
+        ${stageIcon[s.stage]} ${stageLabel[s.stage]}
+      </td>
+      <td style="padding:7px 10px;font-size:11px;color:#6B7280;text-align:center">
+        ${new Date(s.completedAt).toLocaleDateString('en-IN',{
+          day:'numeric', month:'short', year:'numeric'
+        })}
+      </td>
+      <td style="padding:7px 10px;font-size:12px;font-weight:700;
+        color:#059669;text-align:right">
+        ₹${(s.award||0).toLocaleString('en-IN')}
+      </td>
+    </tr>
+  `).join('')
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8"/>
+      <title>Salary — ${emp.name}</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+          font-family: 'Poppins', Arial, sans-serif;
+          padding: 20mm 15mm;
+          color: #1E1B4B;
+          font-size: 12px;
+        }
+        @media print {
+          @page { size: A4 portrait; margin: 0; }
+          body { padding: 15mm; }
+        }
+      </style>
+    </head>
+    <body>
+
+      <!-- Shop Header -->
+      <div style="display:flex;align-items:center;
+        justify-content:space-between;padding-bottom:14px;
+        border-bottom:2.5px solid #4F46E5;margin-bottom:18px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <img src="${window.location.origin}/logo.png" alt="Logo"
+            style="width:52px;height:52px;border-radius:10px;
+              object-fit:cover;border:2px solid #4F46E5"
+            onerror="this.style.display='none'"
+          />
+          <div>
+            <h1 style="font-size:18px;font-weight:800;color:#1E1B4B">
+              Al-Ameen Tailors
+            </h1>
+            <p style="font-size:10px;color:#6B7280">
+              Employee Salary Report
+            </p>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <p style="font-size:10px;color:#9CA3AF">
+            Printed: ${new Date().toLocaleDateString('en-IN',{
+              day:'numeric', month:'long', year:'numeric'
+            })}
+          </p>
+          ${dateFrom || dateTo ? `
+            <p style="font-size:10px;color:#4F46E5;font-weight:600;margin-top:3px">
+              Period: ${dateFrom
+                ? new Date(dateFrom).toLocaleDateString('en-IN')
+                : 'Start'} — ${dateTo
+                ? new Date(dateTo).toLocaleDateString('en-IN')
+                : 'Today'}
+            </p>` : ''}
+        </div>
+      </div>
+
+      <!-- Employee Info -->
+      <div style="background:#EEF2FF;border-radius:12px;
+        padding:14px 18px;margin-bottom:20px;
+        display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <p style="font-size:16px;font-weight:800;color:#1E1B4B;margin-bottom:4px">
+            ${emp.name}
+          </p>
+          <p style="font-size:11px;color:#4F46E5;font-weight:600">
+            ${emp.employeeID}
+          </p>
+          <p style="font-size:11px;color:#6B7280;margin-top:2px">
+            Role: ${emp.role} · Bonus per order: ₹${emp.bonus||0}
+          </p>
+        </div>
+        <div style="text-align:right">
+          <p style="font-size:11px;color:#9CA3AF;font-weight:600;margin-bottom:4px">
+            TOTAL EARNED
+          </p>
+          <p style="font-size:26px;font-weight:800;color:#059669;line-height:1">
+            ₹${total.toLocaleString('en-IN')}
+          </p>
+          <p style="font-size:10px;color:#6B7280;margin-top:3px">
+            ${stages.length} stage${stages.length!==1?'s':''} completed
+          </p>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;
+        gap:10px;margin-bottom:20px">
+        ${['cutting','stitching','finishing'].map(st => {
+          const stStages = stages.filter(s => s.stage === st)
+          const stTotal  = stStages.reduce((s,r) => s+r.award, 0)
+          return `
+            <div style="background:white;border:1.5px solid #E5E7EB;
+              border-radius:10px;padding:12px;text-align:center">
+              <p style="font-size:16px;margin-bottom:4px">
+                ${stageIcon[st]}
+              </p>
+              <p style="font-size:11px;font-weight:700;color:#1E1B4B;margin-bottom:4px">
+                ${stageLabel[st]}
+              </p>
+              <p style="font-size:13px;font-weight:800;color:#4F46E5">
+                ${stStages.length} orders
+              </p>
+              <p style="font-size:11px;color:#059669;font-weight:600;margin-top:3px">
+                ₹${stTotal.toLocaleString('en-IN')}
+              </p>
+            </div>`
+        }).join('')}
+      </div>
+
+      <!-- Orders Table -->
+      ${stages.length === 0 ? `
+        <div style="text-align:center;padding:40px;color:#9CA3AF">
+          No completed stages in this period.
+        </div>
+      ` : `
+        <p style="font-size:11px;font-weight:700;color:#9CA3AF;
+          text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">
+          Completed Stages — All Orders
+        </p>
+        <table style="width:100%;border-collapse:collapse;
+          border:1px solid #E5E7EB;border-radius:10px;overflow:hidden">
+          <thead>
+            <tr style="background:#4F46E5">
+              <th style="padding:9px 10px;text-align:left;font-size:10px;
+                font-weight:700;color:white;text-transform:uppercase">
+                Order ID
+              </th>
+              <th style="padding:9px 10px;text-align:left;font-size:10px;
+                font-weight:700;color:white;text-transform:uppercase">
+                Cloth Type
+              </th>
+              <th style="padding:9px 10px;text-align:left;font-size:10px;
+                font-weight:700;color:white;text-transform:uppercase">
+                Customer
+              </th>
+              <th style="padding:9px 10px;text-align:center;font-size:10px;
+                font-weight:700;color:white;text-transform:uppercase">
+                Stage
+              </th>
+              <th style="padding:9px 10px;text-align:center;font-size:10px;
+                font-weight:700;color:white;text-transform:uppercase">
+                Date
+              </th>
+              <th style="padding:9px 10px;text-align:right;font-size:10px;
+                font-weight:700;color:white;text-transform:uppercase">
+                Earned
+              </th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+          <tfoot>
+            <tr style="background:#F0FDF4;border-top:2px solid #10B981">
+              <td colspan="5" style="padding:10px;font-size:12px;
+                font-weight:700;color:#059669">
+                Total Earnings
+              </td>
+              <td style="padding:10px;font-size:14px;font-weight:800;
+                color:#059669;text-align:right">
+                ₹${total.toLocaleString('en-IN')}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      `}
+
+      <!-- Footer -->
+      <div style="margin-top:30px;padding-top:12px;
+        border-top:1.5px dashed #E5E7EB;
+        display:flex;justify-content:space-between;align-items:flex-end">
+        <p style="font-size:10px;color:#9CA3AF">
+          ✂️ Al-Ameen Tailors — Official Salary Record
+        </p>
+        <div style="text-align:center">
+          <div style="width:140px;border-top:1px solid #1E1B4B;
+            padding-top:6px;margin-top:40px">
+            <p style="font-size:10px;color:#6B7280">Authorized Signature</p>
+          </div>
+        </div>
+      </div>
+
+    </body>
+    </html>
+  `
+
+  const win = window.open('', '_blank', 'width=800,height:900')
+  win.document.write(html)
+  win.document.close()
+  win.onload = () => setTimeout(() => { win.print(); win.close() }, 500)
+}
+
 // In fetchSalaries, pass custom range when history toggled:
 const fetchSalaries = async () => {
   setLoading(true)
@@ -86,6 +339,47 @@ useEffect(() => {
           ))}
         </div>
       </div>
+      {/* Date filter — add near the top of salary page */}
+      <div style={{ display:'flex', gap:10, flexWrap:'wrap',
+        marginBottom:16, alignItems:'center' }}>
+        <div>
+          <label className="input-label">FROM DATE</label>
+          <input type="date" value={dateFrom}
+            onChange={e => setDateFrom(e.target.value)}
+            className="input-field" style={{ padding:'8px 12px' }}/>
+        </div>
+        <div>
+          <label className="input-label">TO DATE</label>
+          <input type="date" value={dateTo}
+            onChange={e => setDateTo(e.target.value)}
+            className="input-field" style={{ padding:'8px 12px' }}/>
+        </div>
+        {(dateFrom || dateTo) && (
+          <button onClick={() => { setDateFrom(''); setDateTo('') }}
+            style={{ padding:'8px 14px', background:'rgba(239,68,68,0.08)',
+              border:'1px solid rgba(239,68,68,0.2)', borderRadius:8,
+              color:'#DC2626', cursor:'pointer', fontSize:'0.8rem',
+              fontFamily:'Poppins,sans-serif', fontWeight:600,
+              alignSelf:'flex-end' }}>
+            ✕ Clear
+          </button>
+        )}
+      </div>
+
+      {/* Print button — add inside each employee card */}
+      <button
+        onClick={e => { e.stopPropagation(); fetchAndPrint(employee) }}
+        disabled={printLoading && printEmp?.employeeID === employee.employeeID}
+        style={{ padding:'7px 14px',
+          background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+          color:'white', border:'none', borderRadius:8,
+          fontFamily:'Poppins,sans-serif', fontWeight:600,
+          fontSize:'0.78rem', cursor:'pointer',
+          display:'flex', alignItems:'center', gap:5 }}>
+        {printLoading && printEmp?.employeeID === employee.employeeID
+          ? '⏳ Loading...'
+          : '🖨️ Print Salary'}
+      </button>
 
       {/* Range hint */}
         <p style={{ fontSize:'0.75rem', color:'#9CA3AF', marginBottom:16 }}>

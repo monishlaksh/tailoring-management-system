@@ -115,7 +115,92 @@ router.get('/', protect, async (req, res) => {
     res.status(500).json({ success:false, message:e.message })
   }
 })
+// GET employee salary detail — orders completed + breakdown
+router.get('/employee/:employeeID/detail', protect, async (req, res) => {
+  try {
+    const { employeeID } = req.params
+    const { from, to }   = req.query
 
+    const employee = await Employee.findOne({ employeeID }).lean()
+    if (!employee)
+      return res.status(404).json({ success:false, message:'Employee not found' })
+
+    // Build date filter
+    const dateFilter = {}
+    if (from) dateFilter.$gte = new Date(from)
+    if (to)   dateFilter.$lte = new Date(new Date(to).setHours(23,59,59,999))
+
+    // Find all allotments where this employee worked
+    const stageFilter = {
+      $or: [
+        { 'cutting.employeeID':   employeeID },
+        { 'stitching.employeeID': employeeID },
+        { 'finishing.employeeID': employeeID },
+      ]
+    }
+
+    const allotments = await Allotment.find(stageFilter).lean()
+
+    const completedStages = []
+
+    for (const allot of allotments) {
+      for (const stage of ['cutting','stitching','finishing']) {
+        const s = allot[stage]
+        if (
+          s?.employeeID === employeeID &&
+          s?.status     === 'completed' &&
+          s?.adminApproved
+        ) {
+          // Apply date filter on completedAt
+          if (from || to) {
+            const completedAt = new Date(s.completedAt)
+            if (from && completedAt < new Date(from)) continue
+            if (to   && completedAt > new Date(new Date(to).setHours(23,59,59,999))) continue
+          }
+
+          // Get order details
+          const order = await Order.findOne({ orderID: allot.orderID })
+            .populate('customerRef','name phone')
+            .lean()
+
+          completedStages.push({
+            orderID:       allot.orderID,
+            clothType:     order?.clothType     || '—',
+            customerName:  order?.customerRef?.name || '—',
+            stage,
+            completedAt:   s.completedAt,
+            award:         s.award    || 0,
+            empRate:       s.empRate  || 0,
+            empBonus:      s.empBonus || 0,
+          })
+        }
+      }
+    }
+
+    // Sort by completedAt desc
+    completedStages.sort((a,b) =>
+      new Date(b.completedAt) - new Date(a.completedAt)
+    )
+
+    const totalAward = completedStages.reduce((s,r) => s + r.award, 0)
+
+    res.json({
+      success: true,
+      employee: {
+        employeeID: employee.employeeID,
+        name:       employee.name,
+        role:       employee.role,
+        bonus:      employee.bonus || 0,
+      },
+      completedStages,
+      totalAward,
+      totalStages: completedStages.length,
+    })
+  } catch (e) {
+    console.error('[SALARY DETAIL]', e.message)
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
 // GET single employee salary detail
 router.get('/:employeeID', protect, async (req, res) => {
   try {
