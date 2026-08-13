@@ -365,22 +365,6 @@ useEffect(() => {
           </button>
         )}
       </div>
-
-      {/* Print button — add inside each employee card */}
-      <button
-        onClick={e => { e.stopPropagation(); fetchAndPrint(employee) }}
-        disabled={printLoading && printEmp?.employeeID === employee.employeeID}
-        style={{ padding:'7px 14px',
-          background:'linear-gradient(135deg,#4F46E5,#6366F1)',
-          color:'white', border:'none', borderRadius:8,
-          fontFamily:'Poppins,sans-serif', fontWeight:600,
-          fontSize:'0.78rem', cursor:'pointer',
-          display:'flex', alignItems:'center', gap:5 }}>
-        {printLoading && printEmp?.employeeID === employee.employeeID
-          ? '⏳ Loading...'
-          : '🖨️ Print Salary'}
-      </button>
-
       {/* Range hint */}
         <p style={{ fontSize:'0.75rem', color:'#9CA3AF', marginBottom:16 }}>
         {showHistory ? (
@@ -458,6 +442,19 @@ useEffect(() => {
                   {expanded===emp.employeeID ? <ChevronUp size={18} color="#9CA3AF"/> : <ChevronDown size={18} color="#9CA3AF"/>}
                 </div>
               </button>
+               <button
+                  onClick={e => { e.stopPropagation(); fetchAndPrint(emp) }}
+                  disabled={printLoading && printEmp?.employeeID === emp.employeeID}
+                  style={{ padding:'7px 14px', marginLeft:10,
+                    background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+                    color:'white', border:'none', borderRadius:8,
+                    fontFamily:'Poppins,sans-serif', fontWeight:600,
+                    fontSize:'0.78rem', cursor:'pointer', flexShrink:0,
+                    display:'flex', alignItems:'center', gap:5 }}>
+                  {printLoading && printEmp?.employeeID === emp.employeeID
+                    ? '⏳ Loading...'
+                    : '🖨️ Print'}
+                </button>
 
               {expanded === emp.employeeID && (
                 <div style={{ borderTop:'1px solid rgba(79,70,229,0.08)', padding:'14px 20px' }}>
