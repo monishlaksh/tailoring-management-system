@@ -142,17 +142,15 @@ export default function AdminAllotmentPage() {
   }
   const handlePrint = () => {
   // Get measurements from cloth type
-  const measurementRows = selectedClothType?.measurements
-    ?.map(m => {
-      const val = order?.measurements?.[m.key] || '—'
-      return `
-        <tr>
-          <td>${m.label}</td>
-          <td>${m.labelTa || ''}</td>
-          <td><strong>${val}"</strong></td>
-        </tr>`
-    }).join('') || ''
-
+  const measurementRows = Object.entries(order.measurements || {})
+  .filter(([, v]) => v)
+  .map(([key, val], i) => `
+    <tr>
+      <td>${key}</td>
+      <td></td>
+      <td><strong>${val}"</strong></td>
+    </tr>
+  `).join('')
   const alterationList = (order?.alteration?.selectedOptions || [])
     .map(o => `<li>${o}</li>`).join('')
 
