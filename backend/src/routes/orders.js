@@ -245,11 +245,8 @@ const createdByID   = req.employee?.employeeID || ''
         serialized.measurements = Object.fromEntries(serialized.measurements)
       }
       res.status(201).json({ success:true, message:'Order created', order:serialized })
-      res.status(201).json({ success:true, message:'Order created', order })
-    }
 
-    
-   catch (e) {
+  } catch (e) {
     res.status(500).json({ success:false, message:e.message })
   }
 })
