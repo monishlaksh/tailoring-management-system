@@ -160,17 +160,17 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
       customerID, clothType, quantity,
       unitCost, amountSettled,
       fabricNotes, specialInstructions,
-      measurements, alteration, deliveryDate,empRate:clientEmpRate,
-      voiceNote,empRate, 
+      measurements, alteration, deliveryDate,
+      voiceNote, empRate,
     } = req.body
 
     // In POST create order route:
-const createdByRole = req.role || 'admin'
-const createdByName = req.employee?.name || req.admin?.username || 'Admin'
-const createdByID   = req.employee?.employeeID || ''
- const Allotment = require('../models/Allotment')
-      const QRCode    = require('qrcode')
+    const Allotment = require('../models/Allotment')
+    const QRCode    = require('qrcode')
 
+    const createdByRole = req.role || 'admin'
+    const createdByName = req.employee?.name || req.admin?.username || 'Admin'
+    const createdByID   = req.employee?.employeeID || ''
      
 
     if (!customerID)
