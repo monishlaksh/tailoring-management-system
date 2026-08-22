@@ -2,6 +2,8 @@ const express          = require('express')
 const Order            = require('../models/Order')
 const Customer         = require('../models/Customer')
 const DeliveryCalendar = require('../models/DeliveryCalendar')
+const Allotment = require('../models/Allotment')
+const QRCode    = require('qrcode')
 const {
   protect,
   protectAdminOrEmployee,

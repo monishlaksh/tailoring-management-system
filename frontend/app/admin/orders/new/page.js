@@ -237,6 +237,16 @@ export default function NewOrder() {
   // Auto-apply saved measurements whenever cloth type is selected
 // and saved measurements exist
 
+useEffect(() => {
+  const typeEmpCost = selectedType?.empCost    || 0
+  const subEmpCost  = selectedSubtype?.empCost || 0
+  const altEmpCost  = (form.alteration?.selectedOptions || []).reduce((sum, optName) => {
+    const opt = alterationOptions.find(o => o.name === optName)
+    return sum + (opt?.empCost || 0)
+  }, 0)
+  setTotalEmpRate(typeEmpCost + subEmpCost + altEmpCost)
+}, [selectedType, selectedSubtype, form.alteration?.selectedOptions, alterationOptions])
+
   useEffect(() => {
   const typeEmpCost = selectedType?.empCost || 0
   const subEmpCost = selectedSubtype?.empCost || 0
