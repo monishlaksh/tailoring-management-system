@@ -687,10 +687,7 @@ useEffect(() => {
                       .filter(s => s.isActive)
                       .map(sub => (
                       <div key={sub._id}
-                        onClick={() => {
-                          setSelectedSubtype(sub)
-                          setForm(f => ({ ...f, unitCost: sub.cost || 0 }))
-                        }}
+                        onClick={()=>{ setSelectedSubtype(sub); setForm(f=>({...f,unitCost:(selectedType?.cost||0)+(sub.cost||0)})) }}
                         style={{ padding:'14px 16px', borderRadius:12,
                           cursor:'pointer', transition:'all 0.2s',
                           border:   selectedSubtype?._id===sub._id

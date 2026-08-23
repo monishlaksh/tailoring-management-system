@@ -311,7 +311,7 @@ export default function EmployeeNewOrder() {
               <label className="input-label">STEP 3 — SUBTYPE</label>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:10 }}>
                 {(selectedType.subtypes||[]).filter(s=>s.isActive).map(sub=>(
-                  <div key={sub._id} onClick={()=>{ setSelectedSubtype(sub); setForm(f=>({...f,unitCost:sub.cost||0})) }}
+                  <div key={sub._id} onClick={()=>{ setSelectedSubtype(sub); setForm(f=>({...f,unitCost:(selectedType?.cost||0)+(sub.cost||0)})) }}
                     style={{ padding:'12px 14px', borderRadius:12, cursor:'pointer', border:selectedSubtype?._id===sub._id?'2px solid #10B981':'1.5px solid rgba(79,70,229,0.15)', background:selectedSubtype?._id===sub._id?'rgba(16,185,129,0.08)':'rgba(255,255,255,0.7)' }}>
                     <p style={{ fontWeight:700, fontSize:'0.9rem', color:selectedSubtype?._id===sub._id?'#059669':'#1E1B4B' }}>{sub.name}</p>
                     <p style={{ fontWeight:700, fontSize:'0.88rem', color:'#059669', marginTop:4 }}>₹{(sub.cost||0).toLocaleString('en-IN')}</p>
