@@ -42,16 +42,18 @@ export default function AdminAllotmentPage() {
   const [deliveryModal, setDeliveryModal] = useState(false)
   const [deliveryNote, setDeliveryNote]   = useState('')
   const [paymentModal, setPaymentModal]   = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (silent = false) => {
     if (!orderID || orderID === 'undefined') {
       setPageError('Invalid order ID')
       setLoading(false)
       return
     }
 
-    setLoading(true)
-    setPageError('')
+    if (!silent) setLoading(true)
+     else setRefreshing(true)
+      setPageError('')
 
     try {
       const allotRes = await API.get(`/api/allotment/${orderID}`)
@@ -92,9 +94,11 @@ export default function AdminAllotmentPage() {
         return
       }
       setPageError(e.response?.data?.message || `Failed to load (${status || 'network error'})`)
-    } finally {
-      setLoading(false)
-    }
+    }finally {
+  setLoading(false)
+  setRefreshing(false)
+}
+    
   }, [orderID])
 
   useEffect(() => {
@@ -122,8 +126,7 @@ export default function AdminAllotmentPage() {
         stage, employeeID: selectedEmp[stage], notes: stageNotes[stage],
       })
       showMsg(`✅ ${STAGE_INFO[stage].label} assigned!`)
-      hasFetched.current = false
-      loadData()
+      hasFetched.current = false; loadData(true)
     } catch (e) {
       showMsg(e.response?.data?.message || 'Failed to assign', true)
     } finally { setAssigning(null) }
@@ -135,7 +138,7 @@ export default function AdminAllotmentPage() {
       const res = await API.post(`/api/allotment/${orderID}/approve`, { stage })
       showMsg(`✅ Approved! ₹${res.data.totalAward || 0} awarded`)
       hasFetched.current = false
-      loadData()
+      loadData(true)
     } catch (e) {
       showMsg(e.response?.data?.message || 'Failed to approve', true)
     } finally { setApproving(null) }
@@ -505,7 +508,7 @@ export default function AdminAllotmentPage() {
       showMsg('✅ Order marked as delivered!')
       setDeliveryModal(false)
       hasFetched.current = false
-      loadData()
+      loadData(true)
     } catch (e) {
       showMsg(e.response?.data?.message || 'Failed', true)
     } finally { setDelivering(false) }
@@ -679,6 +682,14 @@ export default function AdminAllotmentPage() {
 
         </div>
       </div>
+      {refreshing && (
+          <div style={{ textAlign:'center', padding:'8px',
+            fontSize:'0.78rem', color:'#4F46E5',
+            background:'rgba(79,70,229,0.05)',
+            borderRadius:8, marginBottom:8 }}>
+            🔄 Updating...
+          </div>
+        )}
 
       {/* Messages */}
       {pageError && (
@@ -1222,7 +1233,7 @@ export default function AdminAllotmentPage() {
         onSuccess={() => {
           setPaymentModal(false)
           hasFetched.current = false
-          loadData()
+          loadData(true)
         }}
       />
     )}
