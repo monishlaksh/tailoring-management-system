@@ -10,7 +10,13 @@ const UNITS = ['pcs','meters','kg','rolls','sets','dozens']
 export default function ProductsPage() {
   const router = useRouter()
   const [products, setProducts] = useState([])
-  const [stats, setStats]       = useState(null)
+  const [stats, setStats] = useState({
+  totalRevenue:  0,
+  totalSalary:   0,
+  totalExpenses: 0,
+  netProfit:     0,
+  chartData:     [],
+})
   const [loading, setLoading]   = useState(true)
   const [search, setSearch]     = useState('')
   const [filterLowStock, setFilterLowStock] = useState(false)
@@ -270,7 +276,7 @@ const handleCartCheckout = async () => {
           {[
             { label:'Total Products',     value:stats.totalProducts, color:'#4F46E5', bg:'rgba(79,70,229,0.07)', icon:<Package size={20}/> },
             { label:'Stock Value (Cost)', value:`₹${stats.totalStockValue.toLocaleString('en-IN')}`, color:'#D97706', bg:'rgba(245,158,11,0.07)', icon:<TrendingUp size={20}/> },
-            { label:'Revenue (from sales)',value:`₹${stats.totalRevenue.toLocaleString('en-IN')}`, color:'#059669', bg:'rgba(16,185,129,0.07)', icon:<ShoppingCart size={20}/> },
+            { label:'Revenue (from sales)',value:`₹${(stats?.totalRevenue || 0).toLocaleString('en-IN')}`, color:'#059669', bg:'rgba(16,185,129,0.07)', icon:<ShoppingCart size={20}/> },
             { label:'Units Sold',          value:stats.totalUnitsSold, color:'#2563EB', bg:'rgba(37,99,235,0.07)', icon:<ShoppingCart size={20}/> },
             { label:'Low Stock Items',     value:stats.lowStockCount, color:'#DC2626', bg:'rgba(239,68,68,0.07)', icon:<AlertTriangle size={20}/> },
           ].map((s,i) => (
