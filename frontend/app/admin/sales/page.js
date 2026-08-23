@@ -201,7 +201,7 @@ const renderChart = (chartData) => {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:14, marginBottom:24 }}>
         {[
           { label:'Total Sales',    value:`₹${totals.sales.toLocaleString('en-IN')}`,    color:'#2a78d6', bg:'rgba(42,120,214,0.07)' },
-          { label:'Total Expenses', value:`₹${totals.totalExpenses.toLocaleString('en-IN')}`, color:'#e34948', bg:'rgba(227,73,72,0.07)' },
+          { label:'Total Expenses', value:`₹${(totals.totalExpenses || 0).toLocaleString('en-IN')}`,color:'#e34948', bg:'rgba(227,73,72,0.07)' },
           { label:'Net Profit',     value:`₹${totals.profit.toLocaleString('en-IN')}`,   color:'#059669', bg:'rgba(16,185,129,0.07)' },
           { label:'Total Orders',   value:totals.orders,                                  color:'#D97706', bg:'rgba(245,158,11,0.07)' },
         ].map((s,i) => (
