@@ -170,11 +170,18 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
     const Allotment = require('../models/Allotment')
     const QRCode    = require('qrcode')
 
-    const createdByRole = req.role || 'admin'
-    const createdByName = req.employee?.name || req.admin?.username || 'Admin'
-    const createdByID   = req.employee?.employeeID || ''
-     
+    let createdByName = 'Admin'
+    let createdByRole = 'admin'
+    let createdByID   = ''
 
+    if (req.employee) {
+      createdByName = req.employee.name       || 'Employee'
+      createdByRole = req.employee.accessRole || 'employee'
+      createdByID   = req.employee.employeeID || ''
+    } else if (req.admin) {
+      createdByName = req.admin?.username || 'Admin'
+      createdByRole = 'admin'
+    }
     if (!customerID)
       return res.status(400).json({ success:false, message:'Customer ID required' })
     if (!clothType)
