@@ -171,7 +171,10 @@ export default function EmployeeNewOrder() {
         clothType: clothTypeName,
         unitCost: form.unitCost,
         voiceNote,
-        empRate: totalEmpRate,
+        empRate: (selectedType?.empCost || 0) + (selectedSubtype?.empCost || 0) + ((form.alteration?.selectedOptions || []).reduce((sum, optName) => {
+          const opt = alterationOptions.find(o => o.name === optName)
+          return sum + (opt?.empCost || 0)
+        }, 0)),
       })
       router.push(`/employee/allotment/${res.data.order.orderID}`)
     } catch (e) {
