@@ -213,4 +213,87 @@ router.delete('/:customerID', protect, async (req, res) => {
   }
 })
 
+// POST bulk payment across all customer orders
+router.post('/:customerID/pay', protectAdminOrFullAccess, async (req, res) => {
+  try {
+    const { customerID } = req.params
+    const { method, amount, gpayRef, notes, cashBreakdown } = req.body
+
+    if (!amount || amount <= 0)
+      return res.status(400).json({ success:false, message:'Invalid amount' })
+
+    // Get all unpaid/partial orders for this customer
+    const orders = await Order.find({
+      customerID,
+      isActive: { $ne: false },
+    }).sort({ createdAt: 1 }).lean() // oldest first
+
+    if (!orders.length)
+      return res.status(404).json({ success:false, message:'No orders found' })
+
+    let remaining   = parseFloat(amount)
+    const breakdown = []
+
+    for (const order of orders) {
+      if (remaining <= 0) break
+
+      const totalCost   = order.unitCost || 0
+      const alreadyPaid = order.payment?.amountPaid || order.amountSettled || 0
+      const orderDue    = Math.max(totalCost - alreadyPaid, 0)
+
+      if (orderDue <= 0) continue // already fully paid
+
+      const payThis = Math.min(remaining, orderDue)
+      remaining    -= payThis
+
+      const newPaid = alreadyPaid + payThis
+      const newDue  = Math.max(totalCost - newPaid, 0)
+
+      // Update this order
+      await Order.findOneAndUpdate(
+        { orderID: order.orderID },
+        {
+          $set: {
+            amountSettled:          newPaid,
+            'payment.amountPaid':   newPaid,
+            'payment.amountDue':    newDue,
+            'payment.method':       method,
+            'payment.paidAt':       new Date(),
+            'payment.gpayRef':      gpayRef || '',
+            'payment.notes':        notes   || '',
+          },
+          $push: {
+            'payment.history': {
+              method,
+              amount:        payThis,
+              paidAt:        new Date(),
+              notes:         notes || '',
+              cashBreakdown: cashBreakdown || {},
+            }
+          }
+        }
+      )
+
+      breakdown.push({
+        orderID:   order.orderID,
+        clothType: order.clothType,
+        paid:      payThis,
+        remaining: newDue,
+      })
+    }
+
+    const totalChange = Math.max(parseFloat(amount) - (parseFloat(amount) - remaining), 0)
+
+    res.json({
+      success: true,
+      message: `Payment of ₹${amount} distributed across ${breakdown.length} order(s)`,
+      breakdown,
+      change:  remaining, // excess amount to return to customer
+    })
+  } catch (e) {
+    console.error('[BULK PAY]', e.message)
+    res.status(500).json({ success:false, message:e.message })
+  }
+})
+
 module.exports = router
