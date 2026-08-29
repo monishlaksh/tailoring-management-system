@@ -48,30 +48,52 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
   const change = method === 'cash' ? Math.max(cashTotal - remaining, 0) : 0
 
   const handleSubmit = async () => {
-    if (method === 'gpay' && (!amount || amount <= 0)) {
-      setError('Enter a valid amount'); return
+  if (method === 'cash' && cashTotal === 0) { setError('Enter cash received'); return }
+  if (method === 'gpay' && (!amount || amount <= 0)) { setError('Enter amount'); return }
+
+  const payAmount = method === 'cash'
+    ? Math.min(cashTotal, remaining)
+    : parseFloat(amount)
+
+  if (payAmount <= 0) { setError('Amount must be greater than 0'); return }
+
+  setSaving(true); setError('')
+  try {
+    // Use fetch directly with whichever token exists
+    const token = localStorage.getItem('adminToken') ||
+                  localStorage.getItem('employeeToken')
+
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL || 'https://tailoring-management-apwh.onrender.com'}/api/orders/${order.orderID}/payment`,
+      {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          method,
+          amount:        payAmount,
+          gpayRef:       gpayRef || '',
+          notes:         notes   || '',
+          cashBreakdown: method === 'cash' ? breakdown : {},
+        }),
+      }
+    )
+
+    const data = await res.json()
+    if (!data.success) {
+      setError(data.message || 'Payment failed')
+      return
     }
-    if (method === 'cash' && cashTotal === 0) {
-      setError('Enter cash notes received'); return
-    }
-    setSaving(true); setError('')
-    try {
-      await API.post(`/api/orders/${order.orderID}/payment`, {
-        method,
-        amount: method === 'cash'
-          ? Math.min(cashTotal, remaining)
-          : parseFloat(amount),
-        gpayRef,
-        notes,
-        cashBreakdown: method === 'cash' ? breakdown : {},
-      })
-      onSuccess()
-    } catch (e) {
-      setError(e.response?.data?.message || 'Payment failed')
-    } finally {
-      setSaving(false)
-    }
+    onSuccess()
+  } catch (e) {
+    setError('Network error. Please try again.')
+    console.error('[PAYMENT]', e)
+  } finally {
+    setSaving(false)
   }
+}
 
   return (
     <div style={{ position:'fixed', inset:0,
