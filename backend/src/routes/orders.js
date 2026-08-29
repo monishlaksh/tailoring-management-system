@@ -367,7 +367,13 @@ router.post('/:orderID/payment', protectAdminOrFullAccess, async (req, res) => {
     const due          = Math.max(totalCost - newTotal, 0)
 
     // Push to history
-    order.payment.history = order.payment.history || []
+    if (!order.payment) {
+      order.payment = {
+        method: 'unpaid', amountPaid: 0, amountDue: order.unitCost || 0,
+        gpayRef: '', notes: '', cashBreakdown: {}, history: [],
+      }
+    }
+    if (!order.payment.history) order.payment.history = []
     order.payment.history.push({
       method,
       amount:        parseFloat(amount),
@@ -388,6 +394,7 @@ router.post('/:orderID/payment', protectAdminOrFullAccess, async (req, res) => {
     // Also update legacy amountSettled
     order.amountSettled = newTotal
 
+    order.markModified('payment')
     await order.save()
 
     res.json({
