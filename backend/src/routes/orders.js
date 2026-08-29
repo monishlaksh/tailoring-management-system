@@ -425,8 +425,9 @@ router.delete('/:orderID/payment', protectAdminOrFullAccess, async (req, res) =>
 
     res.json({ success:true, message:'Payment reset' })
   } catch (e) {
-    res.status(500).json({ success:false, message:e.message })
-  }
+  console.error('[PAYMENT ERROR]', e.message, e.stack)
+  res.status(500).json({ success:false, message:e.message })
+}
 })
 
 module.exports = router
