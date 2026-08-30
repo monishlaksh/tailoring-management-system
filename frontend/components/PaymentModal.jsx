@@ -64,7 +64,7 @@ export default function PaymentModal({ order, onClose, onSuccess, API }) {
                   localStorage.getItem('employeeToken')
 
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || 'https://tailoring-management-apwh.onrender.com'}/api/orders/${order.orderID}/payment`,
+      `${process.env.NEXT_PUBLIC_API_URL || 'https://tailoring-management-apwh.onrender.com'}api/orders/${order.orderID}/payment`,
       {
         method:  'POST',
         headers: {
