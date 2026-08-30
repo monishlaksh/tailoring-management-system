@@ -174,14 +174,16 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
     let createdByRole = 'admin'
     let createdByID   = ''
 
-    if (req.employee) {
-      createdByName = req.employee.name       || 'Employee'
-      createdByRole = req.employee.accessRole || 'employee'
+    if (req.employee && req.employee.name) {
+      createdByName = req.employee.name
+      createdByRole = req.employee.accessRole || req.role || 'employee'
       createdByID   = req.employee.employeeID || ''
     } else if (req.admin) {
       createdByName = req.admin?.username || 'Admin'
       createdByRole = 'admin'
     }
+
+console.log('[CREATED BY]', { createdByName, createdByRole, createdByID, role: req.role, employee: req.employee })
     if (!customerID)
       return res.status(400).json({ success:false, message:'Customer ID required' })
     if (!clothType)
