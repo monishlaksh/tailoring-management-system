@@ -111,8 +111,8 @@ useEffect(() => {
   if (user) {
     try {
       const emp  = JSON.parse(user)
-      const role = emp.accessRole || 'employee'
-      if (role !== 'manager' && role !== 'receptionist' && !emp.hasFullAccess) {
+      const role = emp.accessRole || emp.role || 'employee'
+      if (role === 'employee' && !emp.hasFullAccess) {
         router.push('/employee/dashboard')
         return
       }
