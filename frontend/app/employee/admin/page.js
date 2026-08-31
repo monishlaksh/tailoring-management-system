@@ -229,7 +229,7 @@ const handleBulkPay = async () => {
               <tbody>
                 {filtered.map(order => (
                   <tr key={order._id} style={{ cursor:'pointer' }}
-                    onClick={() => router.push(`/admin/orders/${order.orderID}`)}>
+                    onClick={() => router.push(`/employee/allotment/${order.orderID}`)}>
                     {[
                       <span style={{ fontWeight:700, color:'#F59E0B', fontSize:'0.82rem' }}>{order.orderID}</span>,
                       <div>
@@ -241,7 +241,11 @@ const handleBulkPay = async () => {
                       <span style={{ fontSize:'0.8rem', color:'#4B5563' }}>
                         {order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('en-IN') : '—'}
                       </span>,
-                      <button onClick={() => router.push(`/employee/allotment/${order.orderID}`)}
+                      <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/employee/allotment/${order.orderID}`)
+                          }}
                         style={{ display:'flex', alignItems:'center', gap:3, background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.2)', borderRadius:6, padding:'6px 10px', color:'#D97706', fontSize:'0.76rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif' }}>
                         allot <ChevronRight size={12}/>
                       </button>,
