@@ -27,6 +27,7 @@ export default function EmployeeAdminPage() {
   const [editingCustomer, setEditingCustomer] = useState(null)
   const [editForm, setEditForm]           = useState({ name:'', phone:'', address:'', notes:'' })
   const [editSaving, setEditSaving]       = useState(false)
+  const [activeTab, setActiveTab] = useState('orders')
 
 
   useEffect(() => {
