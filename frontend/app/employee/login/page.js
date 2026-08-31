@@ -51,15 +51,14 @@ export default function EmployeeLogin() {
 
         localStorage.setItem('employeeToken', res.data.token)
         localStorage.setItem('employeeUser', JSON.stringify({
-          employeeID:    emp.employeeID,
-          name:          emp.name,
-          username:      emp.username,
-          role:          emp.role          || 'employee',
-          employeeRole:  emp.employeeRole  || 'all',
-          accessRole:    emp.accessRole    || 'employee',
-          hasFullAccess: emp.hasFullAccess === true,
-        }))
-
+        employeeID:    emp.employeeID,
+        name:          emp.name,
+        username:      emp.username,
+        role:          emp.role          || 'employee',
+        employeeRole:  emp.employeeRole  || 'all',
+        accessRole:    emp.accessRole    || 'employee',
+        hasFullAccess: emp.accessRole === 'manager' || emp.hasFullAccess === true,
+      }))
         redirectByRole(emp)
       }
     } catch (err) {
