@@ -198,12 +198,13 @@ const handleBulkPay = async () => {
       <div className="glass" style={{ padding:24 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18, flexWrap:'wrap', gap:12 }}>
           <h2 style={{ fontWeight:700, color:'#1E1B4B', fontSize:'0.95rem' }}>All Orders</h2>
+          {activeTab === 'orders' && (
           <div style={{ position:'relative' }}>
-            <Search size={14} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#9CA3AF' }} />
+            <Search size={14} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#9CA3AF' }} /> 
             <input type="text" placeholder="Search..." value={search}
               onChange={e => setSearch(e.target.value)}
               style={{ padding:'8px 14px 8px 30px', background:'rgba(255,255,255,0.8)', border:'1.5px solid rgba(79,70,229,0.2)', borderRadius:8, fontFamily:'Poppins,sans-serif', fontSize:'0.82rem', outline:'none', width:180, color:'#1E1B4B' }} />
-          </div>
+          </div>)}
         </div>
 
         {loading ? (
