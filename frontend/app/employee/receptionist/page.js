@@ -232,9 +232,9 @@ const handleEditCustomer = async () => {
                   </p>
                   {/* NOTE: NO price/cost shown to receptionist */}
                 </div>
-                <button onClick={() => router.push(`/employee/orders/${order.orderID}`)}
+                <button onClick={() => router.push(`/employee/allotment/${order.orderID}`)}
                   style={{ padding:'7px 14px', background:'rgba(79,70,229,0.08)', border:'1px solid rgba(79,70,229,0.2)', borderRadius:8, color:'#4F46E5', fontSize:'0.78rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif' }}>
-                  View →
+                  allot
                 </button>
               </div>
             ))}
