@@ -112,8 +112,21 @@ const handleBulkPay = async () => {
         }),
       }
     )
-    const data = await res.json()
-    if (!data.success) { alert(data.message || 'Payment failed'); return }
+    let data
+    try {
+      data = await res.json()
+    } catch (e) {
+      alert('Payment recorded but response was invalid')
+      fetchData()
+      setPayCustomer(null)
+      return
+    }
+
+    if (!res.ok) {
+      alert(data?.message || 'Payment failed')
+      return
+    }
+
     setPayResult(data)
     fetchData()
   } catch (e) {
