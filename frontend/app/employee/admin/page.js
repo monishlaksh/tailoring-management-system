@@ -20,8 +20,14 @@ export default function EmployeeAdminPage() {
   const [payResult, setPayResult]         = useState(null)
   const [payBreakdown, setPayBreakdown]   = useState({
     fiveHundred:0, twoHundred:0, hundred:0,
-    fifty:0, twenty:0, ten:0, coins:0,
+    fifty:0, twenty:0, ten:0, coins:0,  
   })
+  const [customers, setCustomers]         = useState([])
+  const [custSearch, setCustSearch]       = useState('')
+  const [editingCustomer, setEditingCustomer] = useState(null)
+  const [editForm, setEditForm]           = useState({ name:'', phone:'', address:'', notes:'' })
+  const [editSaving, setEditSaving]       = useState(false)
+
 
   useEffect(() => {
     const token = localStorage.getItem('employeeToken')
@@ -38,6 +44,12 @@ export default function EmployeeAdminPage() {
   const fetchOrders = async () => {
   try {
     const res = await API.get('/api/orders')
+    const [ordRes, custRes] = await Promise.all([
+      API.get('/api/orders'),
+      API.get('/api/customers'),
+    ])
+    setOrders(ordRes.data.orders || [])
+    setCustomers(custRes.data.customers || [])
     setOrders(res.data.orders || [])
   } catch (e) {
     console.error('Orders fetch:', e.response?.status, e.response?.data)
@@ -139,6 +151,24 @@ const handleBulkPay = async () => {
               {employee.name} · Full Access Employee
             </p>
           </div>
+        </div>
+        <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
+          <button onClick={() => setActiveTab('orders')}
+            style={{ padding:'8px 18px', borderRadius:999, cursor:'pointer',
+              fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.85rem',
+              border: activeTab==='orders' ? '2px solid #4F46E5' : '1.5px solid rgba(79,70,229,0.2)',
+              background: activeTab==='orders' ? 'rgba(79,70,229,0.1)' : 'white',
+              color: activeTab==='orders' ? '#4F46E5' : '#6B7280' }}>
+            📋 Orders
+          </button>
+          <button onClick={() => setActiveTab('customers')}
+            style={{ padding:'8px 18px', borderRadius:999, cursor:'pointer',
+              fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.85rem',
+              border: activeTab==='customers' ? '2px solid #4F46E5' : '1.5px solid rgba(79,70,229,0.2)',
+              background: activeTab==='customers' ? 'rgba(79,70,229,0.1)' : 'white',
+              color: activeTab==='customers' ? '#4F46E5' : '#6B7280' }}>
+            👥 Customers
+          </button>
         </div>
         <div style={{ display:'flex', gap:10 }}>
           <button onClick={() => router.push('/employee/scan')} className="btn-ghost"
@@ -486,6 +516,87 @@ const handleBulkPay = async () => {
           </>
         )}
       </div>
+    </div>
+  </div>
+)}
+        {activeTab === 'customers' && (
+  <div>
+    <div style={{ display:'flex', justifyContent:'space-between',
+      alignItems:'center', marginBottom:14, gap:10 }}>
+      <input
+        value={custSearch}
+        onChange={e => setCustSearch(e.target.value)}
+        placeholder="Search customers..."
+        style={{ flex:1, padding:'10px 14px',
+          border:'1.5px solid rgba(79,70,229,0.2)',
+          borderRadius:10, fontFamily:'Poppins,sans-serif',
+          fontSize:'0.88rem', color:'#1E1B4B', outline:'none' }}/>
+      <button onClick={() => router.push('/employee/orders/new')}
+        style={{ padding:'9px 16px', whiteSpace:'nowrap',
+          background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+          color:'white', border:'none', borderRadius:10,
+          fontFamily:'Poppins,sans-serif', fontWeight:600,
+          fontSize:'0.82rem', cursor:'pointer' }}>
+        + New Order
+      </button>
+    </div>
+
+    <div style={{ display:'grid', gap:10 }}>
+      {customers
+        .filter(c =>
+          c.name?.toLowerCase().includes(custSearch.toLowerCase()) ||
+          c.customerID?.toLowerCase().includes(custSearch.toLowerCase()) ||
+          c.phone?.includes(custSearch)
+        )
+        .map(c => (
+          <div key={c._id} style={{ background:'white',
+            borderRadius:14, padding:'14px 18px',
+            boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between',
+              alignItems:'flex-start', flexWrap:'wrap', gap:8 }}>
+              <div>
+                <p style={{ fontWeight:700, color:'#1E1B4B', fontSize:'0.92rem' }}>
+                  {c.name}
+                </p>
+                <p style={{ fontSize:'0.75rem', color:'#4F46E5', fontWeight:600 }}>
+                  {c.customerID}
+                </p>
+                <p style={{ fontSize:'0.75rem', color:'#6B7280' }}>
+                  {c.phone}
+                </p>
+              </div>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                <button
+                  onClick={() => openCustomerPayment(c)}
+                  style={{ padding:'6px 12px',
+                    background:'linear-gradient(135deg,#059669,#10B981)',
+                    color:'white', border:'none', borderRadius:8,
+                    fontFamily:'Poppins,sans-serif', fontWeight:600,
+                    fontSize:'0.75rem', cursor:'pointer' }}>
+                  💳 Pay
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingCustomer(c)
+                    setEditForm({
+                      name:    c.name    || '',
+                      phone:   c.phone   || '',
+                      address: c.address || '',
+                      notes:   c.notes   || '',
+                    })
+                  }}
+                  style={{ padding:'6px 12px',
+                    background:'rgba(79,70,229,0.08)',
+                    border:'1px solid rgba(79,70,229,0.2)',
+                    borderRadius:8, color:'#4F46E5',
+                    fontFamily:'Poppins,sans-serif', fontWeight:600,
+                    fontSize:'0.75rem', cursor:'pointer' }}>
+                  ✏️ Edit
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
     </div>
   </div>
 )}

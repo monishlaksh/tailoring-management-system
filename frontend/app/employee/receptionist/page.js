@@ -24,6 +24,10 @@ export default function ReceptionistPage() {
     fiveHundred:0, twoHundred:0, hundred:0,
     fifty:0, twenty:0, ten:0, coins:0,
   })
+  const [editingCustomer, setEditingCustomer] = useState(null)
+  const [editForm, setEditForm] = useState({ name:'', phone:'', address:'', notes:'' })
+  const [editSaving, setEditSaving] = useState(false)
+
 
   useEffect(() => {
     const token = localStorage.getItem('employeeToken')
@@ -123,6 +127,18 @@ const handleBulkPay = async () => {
   } catch (e) {
     alert('Payment failed')
   } finally { setPayLoading(false) }
+}
+
+const handleEditCustomer = async () => {
+  if (!editForm.name || !editForm.phone) return
+  setEditSaving(true)
+  try {
+    await API.put(`/api/customers/${editingCustomer.customerID}`, editForm)
+    setEditingCustomer(null)
+    fetchData()
+  } catch (e) {
+    alert(e.response?.data?.message || 'Failed to update')
+  } finally { setEditSaving(false) }
 }
 
   const filteredOrders = orders.filter(o =>
@@ -245,12 +261,23 @@ const handleBulkPay = async () => {
                     {/* NOTE: NO payment/balance shown to receptionist */}
                   </div>
                 </div>
-                <button onClick={() => router.push(`/admin/orders/new`)}
-                  style={{ padding:'7px 14px', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.2)', borderRadius:8, color:'#059669', fontSize:'0.78rem', fontWeight:600, cursor:'pointer', fontFamily:'Poppins,sans-serif', display:'flex', alignItems:'center', gap:5 }}>
-                  <Plus size={13}/> New Order
-                </button>
+                <div style={{ display:'flex', gap:8, marginTop:10, flexWrap:'wrap' }}
+                onClick={e => e.stopPropagation()}>
+
+                {/* New Order */}
                 <button
-                  onClick={e => { e.stopPropagation(); openCustomerPayment(c) }}
+                  onClick={() => router.push(`/employee/orders/new`)}
+                  style={{ padding:'6px 12px',
+                    background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+                    color:'white', border:'none', borderRadius:8,
+                    fontFamily:'Poppins,sans-serif', fontWeight:600,
+                    fontSize:'0.75rem', cursor:'pointer' }}>
+                  + New Order
+                </button>
+
+                {/* Pay */}
+                <button
+                  onClick={() => openCustomerPayment(c)}
                   style={{ padding:'6px 12px',
                     background:'linear-gradient(135deg,#059669,#10B981)',
                     color:'white', border:'none', borderRadius:8,
@@ -258,6 +285,28 @@ const handleBulkPay = async () => {
                     fontSize:'0.75rem', cursor:'pointer' }}>
                   💳 Pay
                 </button>
+
+                {/* Edit customer */}
+                <button
+                  onClick={() => {
+                    setEditingCustomer(c)
+                    setEditForm({
+                      name:    c.name    || '',
+                      phone:   c.phone   || '',
+                      address: c.address || '',
+                      notes:   c.notes   || '',
+                    })
+                  }}
+                  style={{ padding:'6px 12px',
+                    background:'rgba(79,70,229,0.08)',
+                    border:'1px solid rgba(79,70,229,0.2)',
+                    borderRadius:8, color:'#4F46E5',
+                    fontFamily:'Poppins,sans-serif', fontWeight:600,
+                    fontSize:'0.75rem', cursor:'pointer' }}>
+                  ✏️ Edit
+                </button>
+
+              </div>
               </div>
             ))}
           </div>
@@ -524,6 +573,69 @@ const handleBulkPay = async () => {
             )}
           </>
         )}
+      </div>
+    </div>
+  </div>
+)}
+
+    {editingCustomer && (
+  <div style={{ position:'fixed', inset:0,
+    background:'rgba(30,27,75,0.4)', backdropFilter:'blur(8px)',
+    display:'flex', alignItems:'center', justifyContent:'center',
+    zIndex:2000, padding:16 }}>
+    <div style={{ background:'white', borderRadius:20,
+      width:'100%', maxWidth:440, padding:28 }}>
+      <div style={{ display:'flex', justifyContent:'space-between',
+        marginBottom:20 }}>
+        <p style={{ fontWeight:800, color:'#1E1B4B', fontSize:'1rem' }}>
+          ✏️ Edit Customer
+        </p>
+        <button onClick={() => setEditingCustomer(null)}
+          style={{ background:'none', border:'none',
+            cursor:'pointer', fontSize:'1.2rem', color:'#9CA3AF' }}>
+          ✕
+        </button>
+      </div>
+      <div style={{ display:'grid', gap:12 }}>
+        {[
+          { key:'name',    label:'NAME *',   placeholder:'Full name'  },
+          { key:'phone',   label:'PHONE *',  placeholder:'Phone'      },
+          { key:'address', label:'ADDRESS',  placeholder:'Address'    },
+          { key:'notes',   label:'NOTES',    placeholder:'Any notes'  },
+        ].map(f => (
+          <div key={f.key}>
+            <label style={{ fontSize:'0.72rem', fontWeight:700,
+              color:'#9CA3AF', textTransform:'uppercase',
+              display:'block', marginBottom:5 }}>
+              {f.label}
+            </label>
+            <input
+              value={editForm[f.key]}
+              onChange={e => setEditForm({...editForm, [f.key]:e.target.value})}
+              placeholder={f.placeholder}
+              style={{ width:'100%', padding:'11px 14px',
+                border:'1.5px solid rgba(79,70,229,0.2)',
+                borderRadius:10, fontFamily:'Poppins,sans-serif',
+                fontSize:'0.9rem', color:'#1E1B4B', outline:'none' }}/>
+          </div>
+        ))}
+      </div>
+      <div style={{ display:'flex', gap:10, marginTop:20 }}>
+        <button onClick={() => setEditingCustomer(null)}
+          style={{ flex:1, padding:'11px', background:'#F3F4F6',
+            border:'none', borderRadius:10,
+            fontFamily:'Poppins,sans-serif', fontWeight:600,
+            cursor:'pointer', color:'#6B7280' }}>
+          Cancel
+        </button>
+        <button onClick={handleEditCustomer} disabled={editSaving}
+          style={{ flex:2, padding:'11px',
+            background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+            color:'white', border:'none', borderRadius:10,
+            fontFamily:'Poppins,sans-serif', fontWeight:700,
+            fontSize:'0.9rem', cursor:'pointer' }}>
+          {editSaving ? '⏳ Saving...' : '✅ Save Changes'}
+        </button>
       </div>
     </div>
   </div>
