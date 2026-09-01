@@ -170,6 +170,16 @@ const handleEditCustomer = async () => {
           </div>
         </div>
         <div style={{ display:'flex', gap:8 }}>
+          <button onClick={() => router.push('/admin/scan')}
+            style={{ display:'flex', alignItems:'center', gap:5,
+              padding:'8px 14px',
+              background:'rgba(79,70,229,0.08)',
+              border:'1.5px solid rgba(79,70,229,0.2)',
+              borderRadius:8, color:'#4F46E5',
+              fontFamily:'Poppins,sans-serif', fontWeight:600,
+              fontSize:'0.8rem', cursor:'pointer' }}>
+            📱 Scan QR
+          </button>
           <button onClick={() => router.push('/employee/orders/new')}
             style={{ display:'flex', alignItems:'center', gap:5, padding:'8px 14px', background:'linear-gradient(135deg,#4F46E5,#6366F1)', color:'white', border:'none', borderRadius:8, fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.8rem', cursor:'pointer' }}>
             <Plus size={14}/> New Order
