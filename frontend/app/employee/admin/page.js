@@ -91,7 +91,7 @@ const openCustomerPayment = async (customer) => {
   try {
     await API.put(`/api/customers/${editingCustomer.customerID}`, editForm)
     setEditingCustomer(null)
-    fetchData()
+    fetchOrders()
   } catch (e) {
   console.error('[EDIT CUSTOMER]', e.response?.status, e.response?.data)
   alert(e.response?.data?.message || e.message || 'Failed to update')
