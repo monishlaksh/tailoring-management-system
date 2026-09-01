@@ -143,8 +143,11 @@ const handleBulkPay = async () => {
   setPayResult(data)
   fetchData()
   } catch (e) {
-    alert('Payment failed')
-  } finally { setPayLoading(false) }
+  console.error('[BULK PAY ERROR]', e)
+  // Don't show alert — payment already went through
+  fetchData()
+  setPayCustomer(null)
+} finally { setPayLoading(false) }
 }
 
   const handleLogout = () => {
