@@ -156,7 +156,7 @@ router.post('/', protectAdminOrFullAccess, async (req, res) => {
 })
 
 // PUT update — admin only
-router.put('/:customerID', protect, async (req, res) => {
+router.put('/:customerID', protectAdminOrFullAccess, async (req, res) => {
   try {
     const { name, phone, address, notes } = req.body
     const customer = await Customer.findOneAndUpdate(

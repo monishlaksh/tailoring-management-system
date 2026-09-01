@@ -147,7 +147,7 @@ const handleBulkPay = async () => {
   // Don't show alert — payment already went through
   fetchData()
   setPayCustomer(null)
-} finally { setPayLoading(false) }
+} finally { setPayLoading(false) } 
 }
 
   const handleLogout = () => {
