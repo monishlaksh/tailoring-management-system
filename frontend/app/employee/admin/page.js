@@ -93,8 +93,9 @@ const openCustomerPayment = async (customer) => {
     setEditingCustomer(null)
     fetchData()
   } catch (e) {
-    alert(e.response?.data?.message || 'Failed to update')
-  } finally { setEditSaving(false) }
+  console.error('[EDIT CUSTOMER]', e.response?.status, e.response?.data)
+  alert(e.response?.data?.message || e.message || 'Failed to update')
+} finally { setEditSaving(false) }
 }
 
 const handleBulkPay = async () => {
