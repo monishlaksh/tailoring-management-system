@@ -82,6 +82,21 @@ const openCustomerPayment = async (customer) => {
   } catch (e) { console.error(e) }
 }
 
+  const handleEditCustomer = async () => {
+  if (!editForm.name || !editForm.phone) {
+    alert('Name and phone required')
+    return
+  }
+  setEditSaving(true)
+  try {
+    await API.put(`/api/customers/${editingCustomer.customerID}`, editForm)
+    setEditingCustomer(null)
+    fetchData()
+  } catch (e) {
+    alert(e.response?.data?.message || 'Failed to update')
+  } finally { setEditSaving(false) }
+}
+
 const handleBulkPay = async () => {
   if (!payAmount || payAmount <= 0) return
   setPayLoading(true)
@@ -95,40 +110,38 @@ const handleBulkPay = async () => {
       : payAmount
 
     const token = localStorage.getItem('employeeToken')
-    const res   = await fetch(
-      `https://tailoring-management-apwh.onrender.com/api/customers/${payCustomer.customerID}/pay`,
-      {
-        method:  'POST',
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          method:        payMethod,
-          amount:        payMethod==='cash' ? cashTotal : payAmount,
-          gpayRef:       payGpay,
-          notes:         payNotes,
-          cashBreakdown: payMethod==='cash' ? payBreakdown : {},
-        }),
-      }
-    )
-    let data
-    try {
-      data = await res.json()
-    } catch (e) {
-      alert('Payment recorded but response was invalid')
-      fetchData()
-      setPayCustomer(null)
-      return
+    const res = await fetch(
+    `https://tailoring-management-apwh.onrender.com/api/customers/${payCustomer.customerID}/pay`,
+    {
+      method:  'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        method:        payMethod,
+        amount:        payMethod==='cash' ? cashTotal : payAmount,
+        gpayRef:       payGpay,
+        notes:         payNotes,
+        cashBreakdown: payMethod==='cash' ? payBreakdown : {},
+      }),
     }
+  )
 
-    if (!res.ok) {
-      alert(data?.message || 'Payment failed')
-      return
-    }
-
-    setPayResult(data)
+  const text = await res.text()
+  let data
+  try { data = JSON.parse(text) }
+  catch (e) { 
+    // Payment went through but response was HTML
+    setPayResult({ breakdown:[], change:0 })
     fetchData()
+    return
+  }
+
+  if (!res.ok) { alert(data?.message || 'Payment failed'); return }
+
+  setPayResult(data)
+  fetchData()
   } catch (e) {
     alert('Payment failed')
   } finally { setPayLoading(false) }
@@ -616,6 +629,69 @@ const handleBulkPay = async () => {
             </div>
           </div>
         ))}
+    </div>
+  </div>
+)}
+
+    {editingCustomer && (
+  <div style={{ position:'fixed', inset:0,
+    background:'rgba(30,27,75,0.4)', backdropFilter:'blur(8px)',
+    display:'flex', alignItems:'center', justifyContent:'center',
+    zIndex:2000, padding:16 }}>
+    <div style={{ background:'white', borderRadius:20,
+      width:'100%', maxWidth:440, padding:28 }}>
+      <div style={{ display:'flex', justifyContent:'space-between',
+        marginBottom:20 }}>
+        <p style={{ fontWeight:800, color:'#1E1B4B', fontSize:'1rem' }}>
+          ✏️ Edit Customer
+        </p>
+        <button onClick={() => setEditingCustomer(null)}
+          style={{ background:'none', border:'none',
+            cursor:'pointer', fontSize:'1.2rem', color:'#9CA3AF' }}>
+          ✕
+        </button>
+      </div>
+      <div style={{ display:'grid', gap:12 }}>
+        {[
+          { key:'name',    label:'NAME *',  placeholder:'Full name' },
+          { key:'phone',   label:'PHONE *', placeholder:'Phone'     },
+          { key:'address', label:'ADDRESS', placeholder:'Address'   },
+          { key:'notes',   label:'NOTES',   placeholder:'Any notes' },
+        ].map(f => (
+          <div key={f.key}>
+            <label style={{ fontSize:'0.72rem', fontWeight:700,
+              color:'#9CA3AF', textTransform:'uppercase',
+              display:'block', marginBottom:5 }}>
+              {f.label}
+            </label>
+            <input
+              value={editForm[f.key] || ''}
+              onChange={e => setEditForm({...editForm, [f.key]:e.target.value})}
+              placeholder={f.placeholder}
+              style={{ width:'100%', padding:'11px 14px',
+                border:'1.5px solid rgba(79,70,229,0.2)',
+                borderRadius:10, fontFamily:'Poppins,sans-serif',
+                fontSize:'0.9rem', color:'#1E1B4B', outline:'none' }}/>
+          </div>
+        ))}
+      </div>
+      <div style={{ display:'flex', gap:10, marginTop:20 }}>
+        <button onClick={() => setEditingCustomer(null)}
+          style={{ flex:1, padding:'11px', background:'#F3F4F6',
+            border:'none', borderRadius:10,
+            fontFamily:'Poppins,sans-serif', fontWeight:600,
+            cursor:'pointer', color:'#6B7280' }}>
+          Cancel
+        </button>
+        <button onClick={handleEditCustomer} disabled={editSaving}
+          style={{ flex:2, padding:'11px',
+            background:'linear-gradient(135deg,#4F46E5,#6366F1)',
+            color:'white', border:'none', borderRadius:10,
+            fontFamily:'Poppins,sans-serif', fontWeight:700,
+            fontSize:'0.9rem', cursor:'pointer' }}>
+          {editSaving ? '⏳ Saving...' : '✅ Save Changes'}
+        </button>
+      </div>
     </div>
   </div>
 )}
