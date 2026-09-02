@@ -179,9 +179,7 @@ router.get('/', protectAdminOrFullAccess, async (req, res) => {
       ]
     }
     const orders = await Order.find(query)
-  .select(
-    '_id orderID customerID clothType quantity status deliveryDate createdBy customerRef createdAt'
-  )
+  .select('_id orderID customerID customerRef clothType quantity unitCost amountSettled payment status deliveryDate createdBy createdAt')
   .populate('customerRef', 'name phone customerID')
   .sort({ createdAt: -1 })
   .lean()
