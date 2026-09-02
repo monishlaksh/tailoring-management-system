@@ -269,19 +269,24 @@ const openPrint = (data) => {
 const fetchSalaries = async () => {
   setLoading(true)
   try {
-    let url = `/api/salary?period=${period}`
-    if (showHistory) {
-      const now = new Date()
-      const start = new Date()
-      if (period === 'daily')   start.setDate(now.getDate() - 30)
-      if (period === 'weekly')  start.setDate(now.getDate() - 90)
-      if (period === 'monthly') start.setMonth(now.getMonth() - 12)
-      url += `&startDate=${start.toISOString()}&endDate=${now.toISOString()}`
+    const params = new URLSearchParams()
+    
+    if (dateFrom && dateTo) {
+      // Custom date range — send from and to directly
+      params.append('from', dateFrom)
+      params.append('to',   dateTo)
+      params.append('period', 'custom')
+    } else {
+      params.append('period', period)
     }
-    const res = await API.get(url)
-    setSalaries(res.data.salaries)
-  } catch (e) { console.error(e) }
-  finally { setLoading(false) }
+
+    const res = await API.get(`/api/salary?${params}`)
+    setSalaries(res.data.salaries || [])
+  } catch (e) {
+    console.error('[SALARY]', e)
+  } finally {
+    setLoading(false)
+  }
 }
 
 useEffect(() => {
@@ -289,7 +294,9 @@ useEffect(() => {
 }, [period, showHistory])
 
   
-
+useEffect(() => {
+  fetchSalaries()
+}, [period, dateFrom, dateTo])
   
 
   const formatPeriodLabel = (p) => {
