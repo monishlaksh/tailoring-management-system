@@ -60,7 +60,33 @@ router.get('/', protect, async (req, res) => {
     })
 
     // Salary cost from allotments (employee awards)
-    const allotments = await Allotment.find().lean()
+    const allotments = await Allotment.find({
+  $or: [
+    {
+      'cutting.status': 'completed',
+      'cutting.completedAt': {
+        $gte: startDate,
+        $lte: endDate
+      }
+    },
+    {
+      'stitching.status': 'completed',
+      'stitching.completedAt': {
+        $gte: startDate,
+        $lte: endDate
+      }
+    },
+    {
+      'finishing.status': 'completed',
+      'finishing.completedAt': {
+        $gte: startDate,
+        $lte: endDate
+      }
+    }
+  ]
+})
+  .select('cutting stitching finishing')
+  .lean()
     allotments.forEach(a => {
       ;['cutting','stitching','finishing'].forEach(stage => {
         if (a[stage]?.status==='completed' && a[stage]?.completedAt) {

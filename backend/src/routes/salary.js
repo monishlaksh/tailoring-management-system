@@ -67,58 +67,107 @@ router.get('/', protect, async (req, res) => {
       }
     }
 
-    const employees = await Employee.find({ isActive:true }).select('-password').lean()
+    const employees = await Employee.find({ isActive: true })
+  .select('employeeID name role bonus')
+  .lean()
 
-    const result = await Promise.all(employees.map(async (emp) => {
-      const query = {
-        $or: [
-          { 'cutting.employeeID':emp.employeeID,   'cutting.status':'completed'   },
-          { 'stitching.employeeID':emp.employeeID, 'stitching.status':'completed' },
-          { 'finishing.employeeID':emp.employeeID, 'finishing.status':'completed' },
-        ],
+const allotments = await Allotment.find({
+  $or: [
+    {
+      'cutting.status': 'completed',
+      'cutting.completedAt': {
+        $gte: startDate,
+        $lte: endDate
       }
-      const allotments = await Allotment.find(query).lean()
+    },
+    {
+      'stitching.status': 'completed',
+      'stitching.completedAt': {
+        $gte: startDate,
+        $lte: endDate
+      }
+    },
+    {
+      'finishing.status': 'completed',
+      'finishing.completedAt': {
+        $gte: startDate,
+        $lte: endDate
+      }
+    }
+  ]
+})
+  .select(
+    'orderID cutting stitching finishing'
+  )
+  .lean()
 
-      let totalEarned = 0
-      let totalOrders = 0
-      const periodBreakdown = {}
+const result = employees.map(emp => {
 
-      allotments.forEach(a => {
-        ['cutting','stitching','finishing'].forEach(stage => {
-          if (a[stage]?.employeeID === emp.employeeID && a[stage]?.status === 'completed') {
-            const completedAt = a[stage].completedAt
-            if (!completedAt) return
-            const date = new Date(completedAt)
+  let totalEarned = 0
+  let totalOrders = 0
+  const periodBreakdown = {}
 
-            if (date < startDate || date > endDate) return
+  for (const a of allotments) {
 
-            const award = a[stage].award || 0
-            totalEarned += award
-            totalOrders += 1
+    for (const stage of [
+      'cutting',
+      'stitching',
+      'finishing'
+    ]) {
 
-            const key = groupKey(date)
-            if (!periodBreakdown[key]) {
-              periodBreakdown[key] = { period:key, orders:0, amount:0 }
-            }
-            periodBreakdown[key].orders += 1
-            periodBreakdown[key].amount += award
-          }
-        })
-      })
+      const data = a[stage]
 
-      const breakdownArray = Object.values(periodBreakdown).sort((a,b) =>
+      if (
+        !data ||
+        data.employeeID !== emp.employeeID ||
+        data.status !== 'completed' ||
+        !data.completedAt
+      ) {
+        continue
+      }
+
+      const date = new Date(data.completedAt)
+
+      if (date < startDate || date > endDate) {
+        continue
+      }
+
+      const award = data.award || 0
+
+      totalEarned += award
+      totalOrders += 1
+
+      const key = groupKey(date)
+
+      if (!periodBreakdown[key]) {
+        periodBreakdown[key] = {
+          period: key,
+          orders: 0,
+          amount: 0
+        }
+      }
+
+      periodBreakdown[key].orders += 1
+      periodBreakdown[key].amount += award
+    }
+  }
+
+  return {
+    employeeID: emp.employeeID,
+    name: emp.name,
+    role: emp.role,
+    totalOrders,
+    totalEarned,
+    breakdown: Object.values(periodBreakdown)
+      .sort((a, b) =>
         b.period.localeCompare(a.period)
       )
+  }
+})
 
-      return {
-        employeeID: emp.employeeID,
-        name:       emp.name,
-        role:       emp.role,
-        totalOrders,
-        totalEarned,
-        breakdown:  breakdownArray,
-      }
-    }))
+result.sort(
+  (a, b) => b.totalEarned - a.totalEarned
+)
 
     result.sort((a,b) => b.totalEarned - a.totalEarned)
 

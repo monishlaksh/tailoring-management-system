@@ -36,9 +36,11 @@ router.get('/stats/payment-summary', protect, async (req, res) => {
         {
           $group: {
             _id: '$customerID',
+
             totalCost: {
               $sum: { $ifNull: ['$unitCost', 0] }
             },
+
             totalSettled: {
               $sum: { $ifNull: ['$amountSettled', 0] }
             }
@@ -48,11 +50,11 @@ router.get('/stats/payment-summary', protect, async (req, res) => {
     ])
 
     const orderMap = new Map(
-      orderSummary.map(o => [
-        o._id,
+      orderSummary.map(item => [
+        item._id,
         {
-          totalCost: o.totalCost || 0,
-          totalSettled: o.totalSettled || 0
+          totalCost: item.totalCost || 0,
+          totalSettled: item.totalSettled || 0
         }
       ])
     )
@@ -64,6 +66,7 @@ router.get('/stats/payment-summary', protect, async (req, res) => {
     const customersWithDue = []
 
     for (const customer of customers) {
+
       const data = orderMap.get(customer.customerID) || {
         totalCost: 0,
         totalSettled: 0
@@ -71,14 +74,17 @@ router.get('/stats/payment-summary', protect, async (req, res) => {
 
       const totalCost = data.totalCost
       const totalSettled = data.totalSettled
-      const balance = totalCost - totalSettled
+
+      const balance = Math.max(
+        totalCost - totalSettled,
+        0
+      )
 
       totalCostAll += totalCost
       totalSettledAll += totalSettled
+      totalPending += balance
 
       if (balance > 0) {
-        totalPending += balance
-
         customersWithDue.push({
           customerID: customer.customerID,
           name: customer.name,
@@ -102,6 +108,7 @@ router.get('/stats/payment-summary', protect, async (req, res) => {
 
   } catch (e) {
     console.error('[PAYMENT SUMMARY]', e)
+
     res.status(500).json({
       success: false,
       message: e.message
@@ -125,6 +132,70 @@ router.get('/', protectAdminOrEmployee, async (req, res) => {
     res.json({ success:true, count:customers.length, customers })
   } catch (e) {
     res.status(500).json({ success:false, message:e.message })
+  }
+})
+
+// GET all customers with payment summary — optimized
+router.get('/with-payments', protectAdminOrEmployee, async (req, res) => {
+  try {
+    const customers = await Customer.find({ isActive: true })
+      .select('customerID name phone address notes amountSettled isActive createdAt')
+      .sort({ createdAt: -1 })
+      .lean()
+
+    const paymentSummary = await Order.aggregate([
+      {
+        $group: {
+          _id: '$customerID',
+          totalCost: {
+            $sum: { $ifNull: ['$unitCost', 0] }
+          },
+          amountSettled: {
+            $sum: { $ifNull: ['$amountSettled', 0] }
+          }
+        }
+      }
+    ])
+
+    const paymentMap = new Map(
+      paymentSummary.map(item => [
+        item._id,
+        {
+          totalCost: item.totalCost || 0,
+          amountSettled: item.amountSettled || 0,
+          balance: Math.max(
+            (item.totalCost || 0) - (item.amountSettled || 0),
+            0
+          )
+        }
+      ])
+    )
+
+    const result = customers.map(customer => {
+      const payment = paymentMap.get(customer.customerID) || {
+        totalCost: 0,
+        amountSettled: 0,
+        balance: 0
+      }
+
+      return {
+        ...customer,
+        payment
+      }
+    })
+
+    res.json({
+      success: true,
+      count: result.length,
+      customers: result
+    })
+
+  } catch (e) {
+    console.error('[CUSTOMERS WITH PAYMENTS]', e)
+    res.status(500).json({
+      success: false,
+      message: e.message
+    })
   }
 })
 

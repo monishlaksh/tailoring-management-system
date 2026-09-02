@@ -37,7 +37,7 @@ router.get('/stats/dashboard', protect, async (req, res) => {
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
 
-    const [result] = await Order.aggregate([
+    const [stats] = await Order.aggregate([
       {
         $group: {
           _id: null,
@@ -46,25 +46,41 @@ router.get('/stats/dashboard', protect, async (req, res) => {
 
           booking: {
             $sum: {
-              $cond: [{ $eq: ['$status', 'Booking'] }, 1, 0]
+              $cond: [
+                { $eq: ['$status', 'Booking'] },
+                1,
+                0
+              ]
             }
           },
 
           cutting: {
             $sum: {
-              $cond: [{ $eq: ['$status', 'Cutting'] }, 1, 0]
+              $cond: [
+                { $eq: ['$status', 'Cutting'] },
+                1,
+                0
+              ]
             }
           },
 
           stitching: {
             $sum: {
-              $cond: [{ $eq: ['$status', 'Stitching'] }, 1, 0]
+              $cond: [
+                { $eq: ['$status', 'Stitching'] },
+                1,
+                0
+              ]
             }
           },
 
           finishing: {
             $sum: {
-              $cond: [{ $eq: ['$status', 'Finishing'] }, 1, 0]
+              $cond: [
+                { $eq: ['$status', 'Finishing'] },
+                1,
+                0
+              ]
             }
           },
 
@@ -113,7 +129,7 @@ router.get('/stats/dashboard', protect, async (req, res) => {
 
     res.json({
       success: true,
-      stats: result || {
+      stats: stats || {
         total: 0,
         booking: 0,
         cutting: 0,
@@ -127,6 +143,7 @@ router.get('/stats/dashboard', protect, async (req, res) => {
 
   } catch (e) {
     console.error('[DASHBOARD STATS]', e)
+
     res.status(500).json({
       success: false,
       message: e.message
@@ -168,6 +185,7 @@ router.get('/', protectAdminOrFullAccess, async (req, res) => {
   .populate('customerRef', 'name phone customerID')
   .sort({ createdAt: -1 })
   .lean()
+  
 
     const serialized = orders.map(o => ({
       ...o,

@@ -37,4 +37,24 @@ const allotmentSchema = new mongoose.Schema({
   delivery:   { type:deliverySchema, default:() => ({}) },
 }, { timestamps:true })
 
+allotmentSchema.index({ orderID: 1 })
+
+allotmentSchema.index({
+  'cutting.employeeID': 1,
+  'cutting.status': 1,
+  'cutting.completedAt': 1
+})
+
+allotmentSchema.index({
+  'stitching.employeeID': 1,
+  'stitching.status': 1,
+  'stitching.completedAt': 1
+})
+
+allotmentSchema.index({
+  'finishing.employeeID': 1,
+  'finishing.status': 1,
+  'finishing.completedAt': 1
+})
+
 module.exports = mongoose.model('Allotment', allotmentSchema)

@@ -44,31 +44,36 @@ const [payBreakdown, setPayBreakdown] = useState({
   }, [])
 
   const fetchCustomers = async () => {
-    try {
-      const res = await API.get('/api/customers')
-      setCustomers(res.data.customers)
+  try {
+    const res = await API.get('/api/customers/with-payments')
 
-      // Fetch payment details for each customer
-      const payments = {}
-      const inputs   = {}
-      await Promise.all(res.data.customers.map(async (c) => {
-        try {
-          const pr = await API.get(`/api/customers/${c.customerID}/payment`)
-          payments[c.customerID] = pr.data.payment
-          inputs[c.customerID]   = pr.data.payment.amountSettled || ''
-        } catch (_) {
-          payments[c.customerID] = { totalCost:0, amountSettled:0, balance:0 }
-          inputs[c.customerID]   = ''
-        }
-      }))
-      setCustomerPayments(payments)
-      setSettledInputs(inputs)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
+    const customerList = res.data.customers || []
+
+    setCustomers(customerList)
+
+    const payments = {}
+    const inputs = {}
+
+    customerList.forEach(c => {
+      payments[c.customerID] = c.payment || {
+        totalCost: 0,
+        amountSettled: 0,
+        balance: 0
+      }
+
+      inputs[c.customerID] =
+        c.payment?.amountSettled || ''
+    })
+
+    setCustomerPayments(payments)
+    setSettledInputs(inputs)
+
+  } catch (e) {
+    console.error('[CUSTOMERS]', e)
+  } finally {
+    setLoading(false)
   }
+}
 
   const openAdd = () => {
     setEditData(null)
