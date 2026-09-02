@@ -41,62 +41,88 @@ export default function EmployeeAllotmentPage() {
   const [deliveryNote, setDeliveryNote]   = useState('')
   const [paymentModal, setPaymentModal] = useState(false)
 
-  const fetchData = async () => {
-  setLoading(true)
+  const fetchData = async (silent = false) => {
+  // Only show full-page loader on initial load
+  if (!silent) {
+    setLoading(true)
+  }
+
   setError('')
 
-  // Small delay to let backend finish creating allotment
-  await new Promise(r => setTimeout(r, 500))
-
   let lastError = ''
+
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      console.log(`[EMPLOYEE ALLOTMENT] Attempt ${attempt} for ${orderID}`)
+      console.log(
+        `[EMPLOYEE ALLOTMENT] Attempt ${attempt} for ${orderID}`
+      )
 
       const allotRes = await API.get(`/api/allotment/${orderID}`)
 
-      console.log('[EMPLOYEE ALLOTMENT] Success:', allotRes.data)
+      console.log(
+        '[EMPLOYEE ALLOTMENT] Success:',
+        allotRes.data
+      )
 
       setAllotment(allotRes.data.allotment)
       setOrder(allotRes.data.order)
 
-      // Fetch employees separately — non-blocking
+      // Fetch employees separately
       try {
         const empRes = await API.get('/api/employees')
-        setEmployees(empRes.data.employees?.filter(e => e.isActive) || [])
+
+        setEmployees(
+          empRes.data.employees?.filter(e => e.isActive) || []
+        )
       } catch (empErr) {
-        console.warn('[EMPLOYEES] Failed to fetch:', empErr.message)
-        setEmployees([]) // non-critical — continue without employee list
+        console.warn(
+          '[EMPLOYEES] Failed to fetch:',
+          empErr.message
+        )
       }
 
-      setLoading(false)
-      return // ← success, exit loop
+      // Initial load only
+      if (!silent) {
+        setLoading(false)
+      }
+
+      return
 
     } catch (e) {
-      lastError = e.response?.data?.message || e.message || 'Network error'
+      lastError =
+        e.response?.data?.message ||
+        e.message ||
+        'Network error'
+
       const status = e.response?.status
 
-      console.error(`[EMPLOYEE ALLOTMENT] Attempt ${attempt} failed:`, status, lastError)
+      console.error(
+        `[EMPLOYEE ALLOTMENT] Attempt ${attempt} failed:`,
+        status,
+        lastError
+      )
 
-      // Only hard-redirect on true auth failure
       if (status === 401) {
         localStorage.removeItem('employeeToken')
         localStorage.removeItem('employeeUser')
+
         setLoading(false)
+
         router.push('/employee/login')
         return
       }
 
-      // Wait before next attempt (not on last attempt)
       if (attempt < 3) {
         await new Promise(r => setTimeout(r, 1000))
       }
     }
   }
 
-  // All 3 attempts failed
   setError(lastError || 'Failed to load allotment')
-  setLoading(false) // ← ALWAYS called
+
+  if (!silent) {
+    setLoading(false)
+  }
 }
 
 useEffect(() => {
@@ -140,7 +166,7 @@ useEffect(() => {
         stage, employeeID:selectedEmp[stage], notes:stageNotes[stage],
       })
       showMsg(`✅ ${STAGE_INFO[stage].label} assigned!`)
-      fetchData()
+      fetchData(true)
     } catch (e) {
       showMsg(e.response?.data?.message||'Failed',true)
     } finally { setAssigning(null) }
@@ -151,7 +177,7 @@ useEffect(() => {
     try {
       const res = await API.post(`/api/allotment/${orderID}/approve`, { stage })
       showMsg(`✅ Approved! ₹${res.data.totalAward||0} awarded`)
-      fetchData()
+      fetchData(true)
     } catch (e) {
       showMsg(e.response?.data?.message||'Failed',true)
     } finally { setApproving(null) }
@@ -165,7 +191,7 @@ useEffect(() => {
       })
       showMsg('✅ Order marked as delivered!')
       setDeliveryModal(false)
-      fetchData()
+      fetchData(true)
     } catch (e) {
       showMsg(e.response?.data?.message||'Failed',true)
     } finally { setDelivering(false) }
@@ -411,7 +437,7 @@ if (error || !allotment || !order) return (
               onClose={() => setPaymentModal(false)}
               onSuccess={() => {
                 setPaymentModal(false)
-                fetchData()
+                fetchData(true)
               }}
             />
           )}
