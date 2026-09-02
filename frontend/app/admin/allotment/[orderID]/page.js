@@ -51,8 +51,8 @@ export default function AdminAllotmentPage() {
       return
     }
 
-    if (!silent) setLoading(true)
-     else setRefreshing(true)
+    if (!silent) setRefreshing(true)
+     else setLoading(true)
       setPageError('')
 
     try {
