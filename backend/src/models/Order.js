@@ -79,4 +79,10 @@ const orderSchema = new mongoose.Schema({
   },
 }, { timestamps:true })
 
+orderSchema.index({ status: 1 })
+orderSchema.index({ deliveryDate: 1 })
+orderSchema.index({ customerID: 1 })
+orderSchema.index({ createdAt: -1 })
+orderSchema.index({ status: 1, deliveryDate: 1 })
+
 module.exports = mongoose.model('Order', orderSchema)

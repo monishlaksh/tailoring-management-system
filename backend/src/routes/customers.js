@@ -27,29 +27,85 @@ const getNextCustomerID = async () => {
 // Payment summary — BEFORE /:customerID
 router.get('/stats/payment-summary', protect, async (req, res) => {
   try {
-    const customers = await Customer.find({ isActive:true }).lean()
-    let totalPending = 0, totalCostAll = 0, totalSettledAll = 0
+    const [customers, orderSummary] = await Promise.all([
+      Customer.find({ isActive: true })
+        .select('customerID name')
+        .lean(),
+
+      Order.aggregate([
+        {
+          $group: {
+            _id: '$customerID',
+            totalCost: {
+              $sum: { $ifNull: ['$unitCost', 0] }
+            },
+            totalSettled: {
+              $sum: { $ifNull: ['$amountSettled', 0] }
+            }
+          }
+        }
+      ])
+    ])
+
+    const orderMap = new Map(
+      orderSummary.map(o => [
+        o._id,
+        {
+          totalCost: o.totalCost || 0,
+          totalSettled: o.totalSettled || 0
+        }
+      ])
+    )
+
+    let totalPending = 0
+    let totalCostAll = 0
+    let totalSettledAll = 0
+
     const customersWithDue = []
-    for (const c of customers) {
-      const orders       = await Order.find({ customerID:c.customerID }).lean()
-      const totalCost    = orders.reduce((s,o) => s+(o.unitCost||0), 0)
-      const totalSettled = orders.reduce((s,o) => s+(o.amountSettled||0), 0)
-      const balance      = totalCost - totalSettled
-      totalCostAll    += totalCost
+
+    for (const customer of customers) {
+      const data = orderMap.get(customer.customerID) || {
+        totalCost: 0,
+        totalSettled: 0
+      }
+
+      const totalCost = data.totalCost
+      const totalSettled = data.totalSettled
+      const balance = totalCost - totalSettled
+
+      totalCostAll += totalCost
       totalSettledAll += totalSettled
-      totalPending    += Math.max(balance, 0)
+
       if (balance > 0) {
+        totalPending += balance
+
         customersWithDue.push({
-          customerID: c.customerID, name:c.name,
-          totalCost, settled:totalSettled, balance:Math.max(balance,0),
+          customerID: customer.customerID,
+          name: customer.name,
+          totalCost,
+          settled: totalSettled,
+          balance
         })
       }
     }
-    res.json({ success:true, summary:{ totalCostAll, totalSettledAll,
-      totalBalance:totalPending, customersWithDue,
-      customersWithDueCount:customersWithDue.length } })
+
+    res.json({
+      success: true,
+      summary: {
+        totalCostAll,
+        totalSettledAll,
+        totalBalance: totalPending,
+        customersWithDue,
+        customersWithDueCount: customersWithDue.length
+      }
+    })
+
   } catch (e) {
-    res.status(500).json({ success:false, message:e.message })
+    console.error('[PAYMENT SUMMARY]', e)
+    res.status(500).json({
+      success: false,
+      message: e.message
+    })
   }
 })
 

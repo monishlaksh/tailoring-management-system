@@ -56,11 +56,11 @@ useEffect(() => {
   const fetchData = async () => {
   try {
     const [statsRes, ordersRes, empRes, payRes] = await Promise.all([
-      API.get('/api/orders/stats/dashboard'),
-      API.get('/api/orders'),
-      API.get('/api/employees'),
-      API.get('/api/customers/stats/payment-summary'),
-    ])
+  API.get('/api/orders/stats/dashboard'),
+  API.get('/api/orders'),
+  API.get('/api/employees'),
+  API.get('/api/customers/stats/payment-summary'),
+])
 
     setStats({
       ...(statsRes.data.stats || {}),

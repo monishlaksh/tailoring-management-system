@@ -31,22 +31,106 @@ const getNextOrderID = async () => {
 // Stats — admin only
 router.get('/stats/dashboard', protect, async (req, res) => {
   try {
-    const today    = new Date(); today.setHours(0,0,0,0)
-    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1)
-    const [total,booking,cutting,stitching,finishing,ready,todayDelivery,delayed] =
-      await Promise.all([
-        Order.countDocuments(),
-        Order.countDocuments({ status:'Booking' }),
-        Order.countDocuments({ status:'Cutting' }),
-        Order.countDocuments({ status:'Stitching' }),
-        Order.countDocuments({ status:'Finishing' }),
-        Order.countDocuments({ status:'Ready For Delivery' }),
-        Order.countDocuments({ deliveryDate:{ $gte:today, $lt:tomorrow } }),
-        Order.countDocuments({ deliveryDate:{ $lt:today }, status:{ $ne:'Ready For Delivery' } }),
-      ])
-    res.json({ success:true, stats:{ total,booking,cutting,stitching,finishing,ready,todayDelivery,delayed } })
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+
+    const [result] = await Order.aggregate([
+      {
+        $group: {
+          _id: null,
+
+          total: { $sum: 1 },
+
+          booking: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'Booking'] }, 1, 0]
+            }
+          },
+
+          cutting: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'Cutting'] }, 1, 0]
+            }
+          },
+
+          stitching: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'Stitching'] }, 1, 0]
+            }
+          },
+
+          finishing: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'Finishing'] }, 1, 0]
+            }
+          },
+
+          ready: {
+            $sum: {
+              $cond: [
+                { $eq: ['$status', 'Ready For Delivery'] },
+                1,
+                0
+              ]
+            }
+          },
+
+          todayDelivery: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $gte: ['$deliveryDate', today] },
+                    { $lt: ['$deliveryDate', tomorrow] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          },
+
+          delayed: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $lt: ['$deliveryDate', today] },
+                    { $ne: ['$status', 'Ready For Delivery'] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      }
+    ])
+
+    res.json({
+      success: true,
+      stats: result || {
+        total: 0,
+        booking: 0,
+        cutting: 0,
+        stitching: 0,
+        finishing: 0,
+        ready: 0,
+        todayDelivery: 0,
+        delayed: 0
+      }
+    })
+
   } catch (e) {
-    res.status(500).json({ success:false, message:e.message })
+    console.error('[DASHBOARD STATS]', e)
+    res.status(500).json({
+      success: false,
+      message: e.message
+    })
   }
 })
 
@@ -78,9 +162,12 @@ router.get('/', protectAdminOrFullAccess, async (req, res) => {
       ]
     }
     const orders = await Order.find(query)
-      .populate('customerRef','name phone customerID')
-      .sort({ createdAt:-1 })
-      .lean()
+  .select(
+    '_id orderID customerID clothType quantity status deliveryDate createdBy customerRef createdAt'
+  )
+  .populate('customerRef', 'name phone customerID')
+  .sort({ createdAt: -1 })
+  .lean()
 
     const serialized = orders.map(o => ({
       ...o,
