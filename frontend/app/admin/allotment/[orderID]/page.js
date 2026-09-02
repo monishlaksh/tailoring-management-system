@@ -44,45 +44,61 @@ export default function AdminAllotmentPage() {
   const [paymentModal, setPaymentModal]   = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
-  const loadData = async (silent = false, loadEmployees = true) => {
-  try {
-    if (!silent) setLoading(true)
-    setError('')
-
-    const allotRes = await API.get(`/api/allotment/${orderID}`)
-
-    setAllotment(allotRes.data.allotment)
-    setOrder(allotRes.data.order)
-
-    // Load employees only on initial page load
-    if (loadEmployees) {
-      try {
-        const empRes = await API.get('/api/employees')
-
-        setEmployees(
-          empRes.data.employees?.filter(e => e.isActive) || []
-        )
-      } catch (empErr) {
-        console.warn(
-          '[EMPLOYEES] Failed to load:',
-          empErr.message
-        )
-      }
+  const loadData = useCallback(async (silent = false) => {
+    if (!orderID || orderID === 'undefined') {
+      setPageError('Invalid order ID')
+      setLoading(false)
+      return
     }
 
-  } catch (e) {
-    console.error('[ALLOTMENT]', e)
+    if (!silent) setRefreshing(true)
+      setPageError('')
 
-    setError(
-      e.response?.data?.message ||
-      e.message ||
-      'Failed to load allotment'
-    )
+    try {
+      const allotRes = await API.get(`/api/allotment/${orderID}`)
 
-  } finally {
-    if (!silent) setLoading(false)
-  }
+      if (!allotRes.data.success) {
+        setPageError(allotRes.data.message || 'Failed to load allotment')
+        setLoading(false)
+        return
+      }
+
+      setAllotment(allotRes.data.allotment)
+      setOrder(allotRes.data.order)
+
+      // Employees — separate try so it doesn't block
+      try {
+        const empRes  = await API.get('/api/employees')
+        const allEmps = empRes.data.employees?.filter(e => e.isActive) || []
+        setEmployees(allEmps)
+
+        const bonuses = { cutting:0, stitching:0, finishing:0 }
+        for (const stage of ['cutting','stitching','finishing']) {
+          const empID = allotRes.data.allotment?.[stage]?.employeeID
+          if (empID) {
+            const found = allEmps.find(e => e.employeeID === empID)
+            bonuses[stage] = found?.bonus || 0
+          }
+        }
+        setEmpBonuses(bonuses)
+      } catch {
+        // non-critical
+      }
+
+    } catch (e) {
+      const status = e.response?.status
+      if (status === 401) {
+        localStorage.removeItem('adminToken')
+        router.push('/admin/login')
+        return
+      }
+      setPageError(e.response?.data?.message || `Failed to load (${status || 'network error'})`)
+    }finally {
+  setLoading(false)
+  setRefreshing(false)
 }
+    
+  }, [orderID])
 
   useEffect(() => {
     // Auth check
@@ -93,7 +109,7 @@ export default function AdminAllotmentPage() {
     if (hasFetched.current) return
     hasFetched.current = true
 
-    loadData(false, true)
+    loadData()
   }, []) // ← empty deps — only run once on mount
 
   const showMsg = (msg, isErr = false) => {
@@ -109,7 +125,7 @@ export default function AdminAllotmentPage() {
         stage, employeeID: selectedEmp[stage], notes: stageNotes[stage],
       })
       showMsg(`✅ ${STAGE_INFO[stage].label} assigned!`)
-      hasFetched.current = false; loadData(true, false)
+      hasFetched.current = false; loadData(true)
     } catch (e) {
       showMsg(e.response?.data?.message || 'Failed to assign', true)
     } finally { setAssigning(null) }
@@ -121,7 +137,7 @@ export default function AdminAllotmentPage() {
       const res = await API.post(`/api/allotment/${orderID}/approve`, { stage })
       showMsg(`✅ Approved! ₹${res.data.totalAward || 0} awarded`)
       hasFetched.current = false
-      loadData(true,false)
+      loadData(true)
     } catch (e) {
       showMsg(e.response?.data?.message || 'Failed to approve', true)
     } finally { setApproving(null) }
@@ -491,7 +507,7 @@ export default function AdminAllotmentPage() {
       showMsg('✅ Order marked as delivered!')
       setDeliveryModal(false)
       hasFetched.current = false
-      loadData(true,false)
+      loadData(true)
     } catch (e) {
       showMsg(e.response?.data?.message || 'Failed', true)
     } finally { setDelivering(false) }
@@ -1216,7 +1232,7 @@ export default function AdminAllotmentPage() {
         onSuccess={() => {
           setPaymentModal(false)
           hasFetched.current = false
-          loadData(true,false)
+          loadData(true)
         }}
       />
     )}
