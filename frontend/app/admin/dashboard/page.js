@@ -54,35 +54,53 @@ useEffect(() => {
 
  
   const fetchData = async () => {
-    try {
-      const [statsRes, ordersRes, empRes] = await Promise.all([
-        API.get('/api/orders/stats/dashboard'),
-        API.get('/api/orders'),
-        API.get('/api/employees'),
-      ])
-      setStats(statsRes.data.stats || {})
-      setOrders(ordersRes.data.orders || [])
-      setEmployees(empRes.data.employees || [])
+  try {
+    const [statsRes, ordersRes, empRes, payRes] = await Promise.all([
+      API.get('/api/orders/stats/dashboard'),
+      API.get('/api/orders'),
+      API.get('/api/employees'),
+      API.get('/api/customers/stats/payment-summary'),
+    ])
 
-      try {
-        const payRes = await API.get('/api/customers/stats/payment-summary')
-        const s = payRes.data.summary || {}
-        setStats(prev => ({
-          ...prev,
-          totalPending:     s.totalBalance          || 0,
-          customersWithDue: s.customersWithDueCount || 0,
-        }))
-        setPendingCustomers(s.customersWithDue || [])
-      } catch (_) {
-        setStats(prev => ({ ...prev, totalPending:0, customersWithDue:0 }))
-      }
-    } catch (e) {
-      setStats({ total:0,booking:0,cutting:0,stitching:0,finishing:0,ready:0,todayDelivery:0,delayed:0,totalPending:0,customersWithDue:0 })
-      setOrders([])
-    } finally {
-      setLoading(false)
-    }
+    setStats({
+      ...(statsRes.data.stats || {}),
+      ...(payRes.data.summary
+        ? {
+            totalPending: payRes.data.summary.totalBalance || 0,
+            customersWithDue: payRes.data.summary.customersWithDueCount || 0,
+          }
+        : {}),
+    })
+
+    setOrders(ordersRes.data.orders || [])
+    setEmployees(empRes.data.employees || [])
+
+    setPendingCustomers(
+      payRes.data.summary?.customersWithDue || []
+    )
+
+  } catch (e) {
+    console.error('Dashboard loading error:', e)
+
+    setStats({
+      total: 0,
+      booking: 0,
+      cutting: 0,
+      stitching: 0,
+      finishing: 0,
+      ready: 0,
+      todayDelivery: 0,
+      delayed: 0,
+      totalPending: 0,
+      customersWithDue: 0
+    })
+
+    setOrders([])
+    setEmployees([])
+  } finally {
+    setLoading(false)
   }
+}
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken')
