@@ -277,64 +277,13 @@ const [payBreakdown, setPayBreakdown] = useState({
                         💰 Payment for {c.name}
                       </p>
 
-                      {/* Order breakdown */}
-                      {payment.totalCost > 0 && (
-                        <div style={{ background:'rgba(79,70,229,0.04)', borderRadius:10, padding:'12px 16px', marginBottom:14 }}>
-                          <p style={{ fontSize:'0.75rem', fontWeight:600, color:'#4F46E5', marginBottom:8 }}>Orders breakdown:</p>
-                          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
-                            {[
-                              { label:'Total from Orders', value:`₹${payment.totalCost.toLocaleString('en-IN')}`, color:'#4F46E5' },
-                              { label:'Amount Settled',    value:`₹${payment.amountSettled.toLocaleString('en-IN')}`, color:'#059669' },
-                              { label:'Balance Due',       value:`₹${Math.max(payment.balance,0).toLocaleString('en-IN')}`, color: payment.balance>0?'#DC2626':'#059669' },
-                            ].map((s,i) => (
-                              <div key={i} style={{ textAlign:'center', background:'rgba(255,255,255,0.7)', borderRadius:8, padding:'10px' }}>
-                                <p style={{ fontSize:'0.68rem', color:'#9CA3AF', fontWeight:600, marginBottom:4 }}>{s.label}</p>
-                                <p style={{ fontSize:'1rem', fontWeight:800, color:s.color }}>{s.value}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
+                      
                       {payment.totalCost === 0 && (
                         <p style={{ fontSize:'0.82rem', color:'#9CA3AF', marginBottom:14 }}>
                           ℹ️ No order costs set yet. Go to each order and set the ORDER COST to auto-calculate total.
                         </p>
                       )}
 
-                      {/* Set amount settled */}
-                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12 }}>
-                        <div>
-                          <label className="input-label">AMOUNT SETTLED (₹)</label>
-                          <NumInput
-                            prefix="₹"
-                            value={parseFloat(settled) || 0}
-                            onChange={val => setSettledInputs(prev => ({ ...prev, [c.customerID]: val }))}
-                            placeholder="0"
-                            style={{ border:'1.5px solid rgba(16,185,129,0.25)' }}
-                          />
-                        </div>
-                        <div>
-                          <label className="input-label">BALANCE (AUTO)</label>
-                          <div style={{ padding:'11px 16px', background: liveBalance>0?'rgba(239,68,68,0.06)':'rgba(16,185,129,0.06)', border:`1.5px solid ${liveBalance>0?'rgba(239,68,68,0.2)':'rgba(16,185,129,0.2)'}`, borderRadius:10, display:'flex', alignItems:'center', gap:6 }}>
-                            <span style={{ color:'#9CA3AF' }}>₹</span>
-                            <span style={{ fontSize:'1rem', fontWeight:700, color:liveBalance>0?'#DC2626':'#059669' }}>
-                              {payment.totalCost > 0 ? Math.max(liveBalance,0).toLocaleString('en-IN') : '—'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {paymentMsg[c.customerID] && (
-                        <p style={{ fontSize:'0.82rem', fontWeight:500, marginBottom:10, color:paymentMsg[c.customerID].startsWith('✅')?'#059669':'#DC2626' }}>
-                          {paymentMsg[c.customerID]}
-                        </p>
-                      )}
-
-                      <button onClick={() => handlePaymentSave(c.customerID)} disabled={paymentSaving===c.customerID}
-                        style={{ display:'flex', alignItems:'center', gap:6, padding:'10px 22px', background:'linear-gradient(135deg,#10B981,#059669)', color:'white', border:'none', borderRadius:10, fontFamily:'Poppins,sans-serif', fontWeight:600, fontSize:'0.85rem', cursor:paymentSaving===c.customerID?'not-allowed':'pointer', opacity:paymentSaving===c.customerID?0.7:1, boxShadow:'0 4px 12px rgba(16,185,129,0.25)' }}>
-                        {paymentSaving===c.customerID ? <><div className="spinner" />Saving...</> : <><Check size={15} />Save Payment</>}
-                      </button>
                       <button
                           onClick={e => { e.stopPropagation(); openCustomerPayment(c) }}
                           style={{ padding:'7px 14px',
