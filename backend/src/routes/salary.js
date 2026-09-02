@@ -7,27 +7,33 @@ const router    = express.Router()
 
 router.get('/', protect, async (req, res) => {
   try {
-   const { period, from, to } = req.query
-    let dateFilter = {}
+    const { period = 'daily' } = req.query
 
-    if (from && to) {
-      // Custom date range
-      dateFilter = {
-        $gte: new Date(from),
-        $lte: new Date(new Date(to).setHours(23,59,59,999)),
-      }
+    const now = new Date()
+    let startDate, endDate
+
+    if (req.query.startDate && req.query.endDate) {
+      startDate = new Date(req.query.startDate)
+      endDate   = new Date(req.query.endDate)
+    } else if (period === 'daily') {
+      startDate = new Date(now)
+      startDate.setHours(0,0,0,0)
+      endDate = new Date(now)
+      endDate.setHours(23,59,59,999)
+    } else if (period === 'weekly') {
+      // Start of current week (Monday)
+      startDate = new Date(now)
+      const day = startDate.getDay()
+      const diff = startDate.getDate() - day + (day === 0 ? -6 : 1)
+      startDate.setDate(diff)
+      startDate.setHours(0,0,0,0)
+      endDate = new Date(now)
+      endDate.setHours(23,59,59,999)
     } else {
-      let startDate = new Date()
-      if (period === 'daily') {
-        startDate.setHours(0,0,0,0)
-      } else if (period === 'weekly') {
-        const day = startDate.getDay()
-        startDate.setDate(startDate.getDate() - (day === 0 ? 6 : day - 1))
-        startDate.setHours(0,0,0,0)
-      } else if (period === 'monthly') {
-        startDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
-      }
-      dateFilter = { $gte: startDate }
+      // Start of current month
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+      endDate = new Date(now)
+      endDate.setHours(23,59,59,999)
     }
 
     const groupKey = (date) => {
