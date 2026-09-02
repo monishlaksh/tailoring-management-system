@@ -7,33 +7,51 @@ const router    = express.Router()
 
 router.get('/', protect, async (req, res) => {
   try {
-    const { period = 'daily' } = req.query
+    const { period = 'daily', from, to } = req.query
 
     const now = new Date()
     let startDate, endDate
 
-    if (req.query.startDate && req.query.endDate) {
-      startDate = new Date(req.query.startDate)
-      endDate   = new Date(req.query.endDate)
+    if (from && to) {
+      startDate = new Date(from)
+      endDate = new Date(to)
+
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid date range',
+        })
+      }
+
+      startDate.setHours(0, 0, 0, 0)
+      endDate.setHours(23, 59, 59, 999)
+
     } else if (period === 'daily') {
+
       startDate = new Date(now)
-      startDate.setHours(0,0,0,0)
+      startDate.setHours(0, 0, 0, 0)
+
       endDate = new Date(now)
-      endDate.setHours(23,59,59,999)
+      endDate.setHours(23, 59, 59, 999)
+
     } else if (period === 'weekly') {
-      // Start of current week (Monday)
+
       startDate = new Date(now)
       const day = startDate.getDay()
       const diff = startDate.getDate() - day + (day === 0 ? -6 : 1)
+
       startDate.setDate(diff)
-      startDate.setHours(0,0,0,0)
+      startDate.setHours(0, 0, 0, 0)
+
       endDate = new Date(now)
-      endDate.setHours(23,59,59,999)
+      endDate.setHours(23, 59, 59, 999)
+
     } else {
-      // Start of current month
+
       startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+
       endDate = new Date(now)
-      endDate.setHours(23,59,59,999)
+      endDate.setHours(23, 59, 59, 999)
     }
 
     const groupKey = (date) => {

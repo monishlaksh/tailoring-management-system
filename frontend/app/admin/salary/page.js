@@ -290,13 +290,13 @@ const fetchSalaries = async () => {
 }
 
 useEffect(() => {
-  if (localStorage.getItem('adminToken')) fetchSalaries()
-}, [period, showHistory])
+  if (!localStorage.getItem('adminToken')) {
+    router.push('/admin/login')
+    return
+  }
 
-  
-useEffect(() => {
   fetchSalaries()
-}, [period, dateFrom, dateTo])
+}, [period, dateFrom, dateTo,showHistory])
   
 
   const formatPeriodLabel = (p) => {
