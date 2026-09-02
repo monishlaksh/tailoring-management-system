@@ -347,29 +347,52 @@ useEffect(() => {
         </div>
       </div>
       {/* Date filter — add near the top of salary page */}
+      {/* Date filter */}
       <div style={{ display:'flex', gap:10, flexWrap:'wrap',
-        marginBottom:16, alignItems:'center' }}>
+        alignItems:'flex-end', marginBottom:16 }}>
         <div>
-          <label className="input-label">FROM DATE</label>
+          <label style={{ fontSize:'0.72rem', fontWeight:700,
+            color:'#9CA3AF', textTransform:'uppercase',
+            display:'block', marginBottom:5 }}>
+            FROM
+          </label>
           <input type="date" value={dateFrom}
-            onChange={e => setDateFrom(e.target.value)}
-            className="input-field" style={{ padding:'8px 12px' }}/>
+            onChange={e => { setDateFrom(e.target.value) }}
+            style={{ padding:'9px 12px',
+              border:'1.5px solid rgba(79,70,229,0.2)',
+              borderRadius:10, fontFamily:'Poppins,sans-serif',
+              fontSize:'0.88rem', color:'#1E1B4B', outline:'none' }}/>
         </div>
         <div>
-          <label className="input-label">TO DATE</label>
+          <label style={{ fontSize:'0.72rem', fontWeight:700,
+            color:'#9CA3AF', textTransform:'uppercase',
+            display:'block', marginBottom:5 }}>
+            TO
+          </label>
           <input type="date" value={dateTo}
-            onChange={e => setDateTo(e.target.value)}
-            className="input-field" style={{ padding:'8px 12px' }}/>
+            onChange={e => { setDateTo(e.target.value) }}
+            style={{ padding:'9px 12px',
+              border:'1.5px solid rgba(79,70,229,0.2)',
+              borderRadius:10, fontFamily:'Poppins,sans-serif',
+              fontSize:'0.88rem', color:'#1E1B4B', outline:'none' }}/>
         </div>
         {(dateFrom || dateTo) && (
-          <button onClick={() => { setDateFrom(''); setDateTo('') }}
-            style={{ padding:'8px 14px', background:'rgba(239,68,68,0.08)',
-              border:'1px solid rgba(239,68,68,0.2)', borderRadius:8,
-              color:'#DC2626', cursor:'pointer', fontSize:'0.8rem',
+          <button
+            onClick={() => { setDateFrom(''); setDateTo('') }}
+            style={{ padding:'9px 14px',
+              background:'rgba(239,68,68,0.08)',
+              border:'1px solid rgba(239,68,68,0.2)',
+              borderRadius:10, color:'#DC2626',
               fontFamily:'Poppins,sans-serif', fontWeight:600,
-              alignSelf:'flex-end' }}>
+              fontSize:'0.82rem', cursor:'pointer' }}>
             ✕ Clear
           </button>
+        )}
+        {dateFrom && dateTo && (
+          <p style={{ fontSize:'0.78rem', color:'#4F46E5',
+            fontWeight:600, alignSelf:'center' }}>
+            Showing: {new Date(dateFrom).toLocaleDateString('en-IN')} — {new Date(dateTo).toLocaleDateString('en-IN')}
+          </p>
         )}
       </div>
       {/* Range hint */}
